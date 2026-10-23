@@ -1,6 +1,64 @@
-node_modules
+# =============================================================================
+# Git Ignore Configuration — GDG on Campus Taif University (Web Track Platform)
+# =============================================================================
+
+# 1. Database & Supabase (قواعد البيانات وSupabase وملفات الاستعلام)
+supabase/
+supabaseClient.js
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+pglite/
+
+# 2. Members & Survey Personal Information (معلومات وبيانات الأعضاء والاستبيانات)
+membersData.js
+survey_full_33.csv
+*.csv
+*.tsv
+*.xlsx
+*.xls
+scripts/members_data.json
+scripts/survey_importer.js
+scripts/standardize_usernames.js
+
+# 3. Domain Scripts & Legacy Workspace Files (سكربتات المجال والملفات المؤقتة)
+scripts/
+index.legacy.html
+script.js
+styles.css
+DECISIONS.md
+PROGRESS.md
+*.code-workspace
+
+# 4. Environment & Secrets (المتغيرات والبيئات السرية)
 .env
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.key
+*.pem
+!.env.example
+
+# 5. Build Artifacts & Dependencies (حزم التبعيات ومخرجات البناء)
+node_modules/
+dist/
+.vercel/
+.npm/
+
+# 6. System & IDE Caches (ملفات النظام ومحررات الأكواد)
 .DS_Store
-.vercel
-dist
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
