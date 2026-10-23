@@ -22,7 +22,7 @@ import { ChallengesView } from './components/challenges/ChallengesView';
 import { LeaderDashboard } from './components/leader/LeaderDashboard';
 
 export const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<UserProfile>(() =>
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() =>
     store.getCurrentUser()
   );
 
@@ -30,6 +30,7 @@ export const App: React.FC = () => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('auth') === 'login' || urlParams.get('logout') === 'true') {
+        store.logout();
         return false;
       }
     }
@@ -77,9 +78,10 @@ export const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = store.subscribe(() => {
       const user = store.getCurrentUser();
+      const loggedInState = store.isLoggedIn();
       setCurrentUser(user);
-      setIsLoggedIn(store.isLoggedIn());
-      if (user.role === 'track_leader' || user.role === 'supervisor') {
+      setIsLoggedIn(loggedInState);
+      if (user && (user.role === 'track_leader' || user.role === 'supervisor')) {
         setCurrentTab((prev) => (prev === 'home' ? 'overview' : prev));
       }
     });
@@ -88,6 +90,7 @@ export const App: React.FC = () => {
 
   // تطبيق الإعدادات الفورية على DOM
   useEffect(() => {
+    if (!currentUser) return;
     const settings = currentUser.settings;
     if (!settings) return;
 
@@ -107,10 +110,11 @@ export const App: React.FC = () => {
   };
 
   const handleLoginSuccess = (userId: string) => {
-    setIsLoggedIn(true);
+    store.login(userId);
     const user = store.getCurrentUser();
     setCurrentUser(user);
-    if (user.role === 'track_leader' || user.role === 'supervisor') {
+    setIsLoggedIn(true);
+    if (user && (user.role === 'track_leader' || user.role === 'supervisor')) {
       setCurrentTab('overview');
     } else {
       setCurrentTab('home');
@@ -121,18 +125,18 @@ export const App: React.FC = () => {
     setCurrentUser(store.getCurrentUser());
   };
 
-  const unreadCount = store.getUnreadCount(currentUser.id);
-  const notifications = store.getNotifications(currentUser.id);
-
-  // 1. الافتتاحية الترحيبية عند طلبها عبر الرابط ?intro=true
+  // 1. الافتتاحية الترحيبية عند طلبها أو عند الزيارة الأولى
   if (showIntro) {
     return <EntrySequence onComplete={handleIntroComplete} />;
   }
 
-  // 2. شاشة تسجيل الدخول المعتمدة عند عدم تسجيل الدخول (مطابقة لصفحة 6)
-  if (!isLoggedIn) {
+  // 2. شاشة تسجيل الدخول المعتمدة عند عدم تسجيل الدخول
+  if (!isLoggedIn || !currentUser) {
     return <LoginCard onLoginSuccess={handleLoginSuccess} />;
   }
+
+  const unreadCount = store.getUnreadCount(currentUser.id);
+  const notifications = store.getNotifications(currentUser.id);
 
   // 3. شاشة النبذة الإلزامية عند أول دخول للمستخدم (onboarded_at === null)
   const isPendingOnboarding = !currentUser.onboarded_at;

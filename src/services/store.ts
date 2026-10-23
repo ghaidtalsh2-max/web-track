@@ -828,11 +828,8 @@ class StoreManager {
 
     localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(membersToStore));
 
-    if (!localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID)) {
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, 'member-noura');
-    }
     if (!localStorage.getItem(STORAGE_KEYS.IS_LOGGED_IN)) {
-      localStorage.setItem(STORAGE_KEYS.IS_LOGGED_IN, 'true');
+      localStorage.setItem(STORAGE_KEYS.IS_LOGGED_IN, 'false');
     }
     if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS)) {
       localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(INITIAL_NOTIFICATIONS));
@@ -864,7 +861,7 @@ class StoreManager {
 
   // --- Auth & Members ---
   public isLoggedIn(): boolean {
-    if (typeof window === 'undefined') return true;
+    if (typeof window === 'undefined') return false;
     return localStorage.getItem(STORAGE_KEYS.IS_LOGGED_IN) === 'true';
   }
 
@@ -876,6 +873,7 @@ class StoreManager {
 
   public logout() {
     localStorage.setItem(STORAGE_KEYS.IS_LOGGED_IN, 'false');
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
     this.notify();
   }
 
@@ -884,10 +882,12 @@ class StoreManager {
     return raw ? JSON.parse(raw) : CLUB_PROFILES;
   }
 
-  public getCurrentUser(): UserProfile {
+  public getCurrentUser(): UserProfile | null {
+    if (!this.isLoggedIn()) return null;
     const members = this.getMembers();
-    const currId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID) || 'member-noura';
-    return members.find((m) => m.id === currId) || members[0];
+    const currId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+    if (!currId) return null;
+    return members.find((m) => m.id === currId) || null;
   }
 
   public setCurrentUser(userId: string) {
@@ -1034,7 +1034,7 @@ class StoreManager {
   }
 
   public addInquiry(title: string, details: string): Inquiry {
-    const user = this.getCurrentUser();
+    const user = this.getCurrentUser() || this.getMembers()[0];
     const newInquiry: Inquiry = {
       id: `inq-${Date.now()}`,
       userId: user.id,
@@ -1070,7 +1070,7 @@ class StoreManager {
     optionId?: string,
     customText?: string
   ): { success: boolean; pointsAwarded: boolean } {
-    const user = this.getCurrentUser();
+    const user = this.getCurrentUser() || this.getMembers()[0];
     const poll = this.getPoll();
     const rawVotes = localStorage.getItem(STORAGE_KEYS.VOTES);
     const votes: PollVoteRecord[] = rawVotes ? JSON.parse(rawVotes) : [];
