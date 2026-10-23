@@ -828,9 +828,13 @@ class StoreManager {
 
     localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(membersToStore));
 
-    if (!localStorage.getItem(STORAGE_KEYS.IS_LOGGED_IN)) {
+    const isLogged = localStorage.getItem(STORAGE_KEYS.IS_LOGGED_IN) === 'true';
+    const currId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+    if (!isLogged || !currId) {
       localStorage.setItem(STORAGE_KEYS.IS_LOGGED_IN, 'false');
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
     }
+
     if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS)) {
       localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(INITIAL_NOTIFICATIONS));
     }
@@ -862,7 +866,19 @@ class StoreManager {
   // --- Auth & Members ---
   public isLoggedIn(): boolean {
     if (typeof window === 'undefined') return false;
-    return localStorage.getItem(STORAGE_KEYS.IS_LOGGED_IN) === 'true';
+    const isLogged = localStorage.getItem(STORAGE_KEYS.IS_LOGGED_IN) === 'true';
+    const currId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+    if (!isLogged || !currId) {
+      return false;
+    }
+    const members = this.getMembers();
+    const exists = members.some((m) => m.id === currId);
+    if (!exists) {
+      localStorage.setItem(STORAGE_KEYS.IS_LOGGED_IN, 'false');
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+      return false;
+    }
+    return true;
   }
 
   public login(userId: string) {
@@ -884,9 +900,9 @@ class StoreManager {
 
   public getCurrentUser(): UserProfile | null {
     if (!this.isLoggedIn()) return null;
-    const members = this.getMembers();
     const currId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
     if (!currId) return null;
+    const members = this.getMembers();
     return members.find((m) => m.id === currId) || null;
   }
 
