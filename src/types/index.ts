@@ -15,8 +15,51 @@ export interface UserSettings {
   language: 'ar' | 'en';
   reducedMotion: boolean;
   eyeComfort: boolean; // beige soothing background
-  celebrations: boolean; // confetti & sound effects
+  celebrations: boolean; // confetti
+  soundEnabled: boolean; // web audio chimes & pops
   highContrast: boolean;
+}
+
+export interface MemberSkillItem {
+  id?: string | number;
+  name: string;
+  progressPercent: number; // 0 - 100
+  status: 'approved' | 'in_progress' | 'upcoming';
+  source: 'self' | 'approved_by_leader';
+  category?: 'frontend' | 'tools' | 'languages' | 'design' | 'other';
+  awardedAt?: string;
+}
+
+export interface BadgeItem {
+  id: string;
+  name: string;
+  description: string;
+  iconName: string;
+  category: string;
+  awardedAt?: string;
+  reason?: string;
+  pointsRequired?: number;
+}
+
+export interface UserStats {
+  workshopsCompleted: number;
+  challengesCompleted: number;
+  projectsCompleted: number;
+  initiativesCount: number;
+}
+
+export interface ActiveMemberRanking {
+  member: UserProfile;
+  weekPoints: number;
+  monthPoints: number;
+  weekRank: number;
+  monthRank: number;
+  activityBreakdown: {
+    workshops: number;
+    challenges: number;
+    projects: number;
+    community: number;
+  };
 }
 
 export interface UserProfile {
@@ -34,9 +77,15 @@ export interface UserProfile {
   badgeColor: string;
   major: string;
   academicYear: string;
+  phone?: string;
+  avatarUrl?: string;
   bio?: string;
   onboarded_at?: string | null; // null triggers mandatory bio screen
+  last_phrase_id?: string | null; // prevents duplicate consecutive greetings
   skills: string[]; // e.g. ['HTML', 'CSS']
+  detailedSkills?: MemberSkillItem[];
+  badges?: BadgeItem[];
+  stats?: UserStats;
   completedStages: number[]; // e.g. [1]
   currentStage: number; // e.g. 2
   settings: UserSettings;
@@ -93,13 +142,42 @@ export interface ActionItem {
   completed?: boolean;
 }
 
+export interface DayActivity {
+  id: string;
+  type: 'workshop' | 'task' | 'poll';
+  title: string;
+  time?: string;
+  color: string; // '#34A853' workshop, '#F9AB00' task, '#4285F4' poll
+}
+
 export interface WeeklyDay {
+  date: string; // YYYY-MM-DD
   dayName: string; // ح, ن, ث, ر, خ, ج, س
   dayFullName: string; // الأحد, الاثنين, etc.
   dateNumber: number; // 4, 5, 6, 7, 8, 9, 10
-  hasActivity: boolean;
-  activityCount?: number;
   isToday?: boolean;
+  activities: DayActivity[];
+}
+
+export interface Workshop {
+  id: string;
+  title: string;
+  description: string;
+  scheduledAt: string; // ISO string
+  imageUrl?: string;
+  registrationUrl?: string;
+  topics: string[];
+  tasks: string[];
+  createdBy?: string;
+  createdAt?: string;
+}
+
+export interface WelcomePhrase {
+  id: string;
+  text_m: string;
+  text_f: string;
+  category: 'general' | 'morning' | 'evening' | 'streak' | 'achievement';
+  active: boolean;
 }
 
 export interface CourseSource {
@@ -228,5 +306,59 @@ export interface MemberSubmission {
   feedback?: string;
   score?: number;
 }
+
+// =============================================================================
+// Challenge Groups & Multi-Option Tasks Specification (Architecture Section 3)
+// =============================================================================
+export type ChallengeCategory = 'workshop' | 'side_learn' | 'side_fun' | 'general';
+export type ChallengeMode = 'mandatory' | 'choice';
+
+export interface ChallengeOption {
+  id: string;
+  groupId: string;
+  name: string;
+  description: string;
+  requirements: string; // ما المطلوب بالتحديد
+  points: number;
+}
+
+export interface ChallengeGroup {
+  id: string;
+  title: string;
+  workshopId?: string;
+  workshopTitle?: string;
+  category: ChallengeCategory;
+  dueDate: string;
+  mode: ChallengeMode;
+  options: ChallengeOption[];
+  createdAt?: string;
+}
+
+export interface ChallengeChoice {
+  id: string;
+  memberId: string;
+  groupId: string;
+  optionId: string;
+  submitted: boolean;
+  repoUrl?: string;
+  liveUrl?: string;
+  updatedAt: string;
+}
+
+export interface LabChallenge {
+  id: string;
+  title: string;
+  description: string;
+  instruction: string;
+  points: number;
+  level: 'beginner' | 'intermediate' | 'advanced';
+  levelLabel: string;
+  defaultHtml: string;
+  defaultCss: string;
+  defaultJs: string;
+  solutionHint?: string;
+  badgeColor?: string;
+}
+
 
 

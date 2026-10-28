@@ -107,20 +107,37 @@ export const CommunityView: React.FC<CommunityViewProps> = ({ currentUser }) => 
           }}
         >
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-gray-400">
-                استبيان · ينتهي بعد ٣ أيام
-              </span>
-              <span className="badge-pill bg-blue-50 text-blue-700 text-xs font-bold">
-                استبيان نشط
-              </span>
-            </div>
+            {!activePoll ? (
+              <div className="py-12 px-4 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 mx-auto mb-4">
+                  <MessageSquare size={26} />
+                </div>
+                <h2 className="text-xl font-black text-gray-900 mb-2">
+                  لا يوجد استبيان نشط حالياً
+                </h2>
+                <p className="text-xs text-gray-500 font-medium leading-relaxed max-w-sm mx-auto">
+                  سيقوم قادة المسار بنشر استبيانات دورية لأخذ آرائكم وتفضيلاتكم في الورش والتحديات القادمة. ترقبوها هنا قريباً! ✨
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-gray-400">
+                    استبيان · ينتهي بعد ٣ أيام
+                  </span>
+                  <span className="badge-pill bg-blue-50 text-blue-700 text-xs font-bold">
+                    استبيان نشط
+                  </span>
+                </div>
 
-            <h2 className="text-xl sm:text-2xl font-black text-gray-900 mb-6">
-              {activePoll?.title || 'أي ورشة تبغون الأسبوع الجاي؟'}
-            </h2>
+                <h2 className="text-xl sm:text-2xl font-black text-gray-900 mb-6">
+                  {activePoll.title}
+                </h2>
+              </>
+            )}
 
             {/* خيارات الاستبيان الأربعة + خيار غير ذلك بكتابة حرة */}
+            {activePoll && (
             <form onSubmit={handleVote} className="flex flex-col gap-3.5 mb-6">
               {activePoll?.options.map((opt) => {
                 const percent = Math.round((opt.votesCount / totalVotes) * 100);
@@ -205,6 +222,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({ currentUser }) => 
                 </button>
               </div>
             </form>
+            )}
           </div>
 
           {pollSuccessMsg && (

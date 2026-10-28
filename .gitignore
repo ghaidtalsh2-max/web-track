@@ -2,6 +2,10 @@
 # Git Ignore Configuration — GDG on Campus Taif University (Web Track Platform)
 # =============================================================================
 
+# 0. Temporary account passwords — NEVER commit (كلمات المرور المؤقتة)
+provisioned_accounts.csv
+provisioned_accounts*.csv
+
 # 1. Database & Supabase (قواعد البيانات وSupabase وملفات الاستعلام)
 supabase/
 supabaseClient.js

@@ -5,6 +5,7 @@ import { UserProfile, NavTab } from './types';
 import { EntrySequence } from './components/intro/EntrySequence';
 import { LoginCard } from './components/auth/LoginCard';
 import { MandatoryBioModal } from './components/auth/MandatoryBioModal';
+import { ChangePasswordScreen } from './components/auth/ChangePasswordScreen';
 import { PostLoginNotifications } from './components/notifications/PostLoginNotifications';
 import { Navbar } from './components/layout/Navbar';
 import { MemberHome } from './components/home/MemberHome';
@@ -20,22 +21,28 @@ import { ShowcaseView } from './components/showcase/ShowcaseView';
 import { ProfileView } from './components/profile/ProfileView';
 import { ChallengesView } from './components/challenges/ChallengesView';
 import { LeaderDashboard } from './components/leader/LeaderDashboard';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { WelcomeCelebrationModal } from './components/notifications/WelcomeCelebrationModal';
+import { selectWelcomePhrase } from './services/welcomePhrases';
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() =>
     store.getCurrentUser()
   );
 
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('auth') === 'login' || urlParams.get('logout') === 'true') {
-        store.logout();
-        return false;
-      }
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => store.isLoggedIn());
+  const [authReady, setAuthReady] = useState<boolean>(() => store.isAuthReady());
+  const [mustChangePassword, setMustChangePassword] = useState<boolean>(() =>
+    store.mustChangePassword()
+  );
+
+  // ?auth=login أو ?logout=true → تسجيل خروج حقيقي من Supabase
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auth') === 'login' || urlParams.get('logout') === 'true') {
+      store.logout();
     }
-    return store.isLoggedIn();
-  });
+  }, []);
 
   const [showIntro, setShowIntro] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -65,6 +72,8 @@ export const App: React.FC = () => {
   });
 
   const [showInquiriesModal, setShowInquiriesModal] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [welcomePhraseText, setWelcomePhraseText] = useState('');
 
   const [showNotificationsModal, setShowNotificationsModal] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -74,17 +83,20 @@ export const App: React.FC = () => {
     return false;
   });
 
-  // اشتراك في تحديثات Store المركزي
+  // اشتراك في تحديثات Store المركزي (الهوية تأتي من Supabase Auth فقط)
   useEffect(() => {
-    const unsubscribe = store.subscribe(() => {
+    const sync = () => {
       const user = store.getCurrentUser();
-      const loggedInState = store.isLoggedIn();
       setCurrentUser(user);
-      setIsLoggedIn(loggedInState);
+      setIsLoggedIn(store.isLoggedIn());
+      setAuthReady(store.isAuthReady());
+      setMustChangePassword(store.mustChangePassword());
       if (user && (user.role === 'track_leader' || user.role === 'supervisor')) {
         setCurrentTab((prev) => (prev === 'home' ? 'overview' : prev));
       }
-    });
+    };
+    const unsubscribe = store.subscribe(sync);
+    sync();
     return unsubscribe;
   }, []);
 
@@ -109,11 +121,19 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleLoginSuccess = (userId: string) => {
-    store.login(userId);
+  const handleLoginSuccess = (_userId: string) => {
     const user = store.getCurrentUser();
     setCurrentUser(user);
     setIsLoggedIn(true);
+
+    if (user && user.onboarded_at && !store.mustChangePassword()) {
+      // مستخدم عائد: احتفال الدخول (نغمات Web Audio والشرائط والقصاصات وعبارة سعودية متجددة)
+      const phrase = selectWelcomePhrase(user);
+      setWelcomePhraseText(phrase.text);
+      setShowWelcomeModal(true);
+      store.updateUserLastPhrase(user.id, phrase.phraseId);
+    }
+
     if (user && (user.role === 'track_leader' || user.role === 'supervisor')) {
       setCurrentTab('overview');
     } else {
@@ -130,9 +150,27 @@ export const App: React.FC = () => {
     return <EntrySequence onComplete={handleIntroComplete} />;
   }
 
-  // 2. شاشة تسجيل الدخول المعتمدة عند عدم تسجيل الدخول
+  // 2. انتظار استعادة الجلسة من Supabase قبل أي قرار (يمنع وميض شاشة الدخول)
+  if (!authReady) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center text-gray-500 font-bold"
+        dir="rtl"
+        role="status"
+      >
+        جارٍ التحقق من الجلسة...
+      </div>
+    );
+  }
+
+  // 3. شاشة تسجيل الدخول المعتمدة عند عدم وجود جلسة Supabase
   if (!isLoggedIn || !currentUser) {
     return <LoginCard onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  // 4. تغيير كلمة المرور الإجباري عند أول دخول — قبل أي شيء آخر
+  if (mustChangePassword) {
+    return <ChangePasswordScreen fullName={currentUser.fullName} />;
   }
 
   const unreadCount = store.getUnreadCount(currentUser.id);
@@ -151,6 +189,14 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col text-right relative" dir="rtl">
+      {/* نافذة الترحيب والاحتفال بالدخول للمستخدم العائد */}
+      {showWelcomeModal && currentUser && (
+        <WelcomeCelebrationModal
+          currentUser={currentUser}
+          phraseText={welcomePhraseText}
+          onComplete={() => setShowWelcomeModal(false)}
+        />
+      )}
       {/* نافذة التنبيهات المعتمدة (تظهر عند النقر على زر تنبيهات ٣) */}
       {showNotificationsModal && (
         <PostLoginNotifications
@@ -189,14 +235,15 @@ export const App: React.FC = () => {
 
       {/* المحتوى الرئيسي للتبويب النشط مع حركة التلاشي 0.2 ث والتتابع */}
       <main className="flex-1">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentTab}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } }}
-            transition={{ duration: 0.25 }}
-          >
+        <ErrorBoundary fallbackTitle="عذراً، حدث خطأ أثناء تحميل هذا القسم">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentTab}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } }}
+              transition={{ duration: 0.25 }}
+            >
             {/* التبويب 1: الرئيسية (أو نظرة عامة للقادة والمشرفين) */}
             {currentTab === 'home' && (
               currentUser.role === 'track_leader' || currentUser.role === 'supervisor' ? (
@@ -260,6 +307,7 @@ export const App: React.FC = () => {
             )}
           </motion.div>
         </AnimatePresence>
+        </ErrorBoundary>
       </main>
 
       {/* التذييل الرسمي المعتمد */}

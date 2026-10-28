@@ -44,7 +44,7 @@ export const EducationalJourney: React.FC<EducationalJourneyProps> = ({ currentU
   
   // الكورس المفتوح حالياً (null يعني كل الصفحة أيقونات كما طلب المستخدم)
   const [openedCourse, setOpenedCourse] = useState<Course | null>(null);
-  const [showJsModal, setShowJsModal] = useState(false);
+  const [selectedSubCourse, setSelectedSubCourse] = useState<Course | null>(null);
 
   // حالة رابط المشروع وزر الاعتماد داخل نافذة الكورس المفتوح
   const [projectInput, setProjectInput] = useState<string>('');
@@ -52,8 +52,8 @@ export const EducationalJourney: React.FC<EducationalJourneyProps> = ({ currentU
   const [feedbackMsg, setFeedbackMsg] = useState('');
 
   const handleOpenCourse = (course: Course) => {
-    if (course.id === 'course-js') {
-      setShowJsModal(true);
+    if (course.subLevels && course.subLevels.length > 0) {
+      setSelectedSubCourse(course);
       return;
     }
     setOpenedCourse(course);
@@ -126,8 +126,6 @@ export const EducationalJourney: React.FC<EducationalJourneyProps> = ({ currentU
   const languagesCourses = courses.filter((c) => c.category === 'languages');
   const frameworksCourses = courses.filter((c) => c.category === 'frameworks');
   const hostingToolsCourses = courses.filter((c) => c.category === 'hosting_tools');
-
-  const jsCourse = courses.find((c) => c.id === 'course-js');
 
   // مكون بطاقة الأيقونة الموحدة
   const renderIconCard = (c: Course) => {
@@ -632,9 +630,9 @@ export const EducationalJourney: React.FC<EducationalJourneyProps> = ({ currentU
         )}
       </AnimatePresence>
 
-      {/* 6. نافذة مستويات JavaScript الثلاثة المنبثقة عند الضغط على أيقونة JS */}
+      {/* 6. نافذة مستويات الكورس المنبثقة عند الضغط على أيقونة كورس متعدد المستويات */}
       <AnimatePresence>
-        {showJsModal && jsCourse && (
+        {selectedSubCourse && (
           <div
             className="modal-backdrop-dark"
             style={{
@@ -650,7 +648,7 @@ export const EducationalJourney: React.FC<EducationalJourneyProps> = ({ currentU
               padding: '16px',
             }}
             onClick={(e) => {
-              if (e.target === e.currentTarget) setShowJsModal(false);
+              if (e.target === e.currentTarget) setSelectedSubCourse(null);
             }}
           >
             <motion.div
@@ -658,7 +656,7 @@ export const EducationalJourney: React.FC<EducationalJourneyProps> = ({ currentU
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 20 }}
               transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="modal-3d-card w-full max-w-lg p-6 sm:p-8 text-right"
+              className="modal-3d-card w-full max-w-lg p-6 sm:p-8 text-right max-h-[90vh] flex flex-col"
               style={{
                 backgroundColor: '#FFFFFF',
                 border: '2.5px solid #0F1729',
@@ -666,7 +664,7 @@ export const EducationalJourney: React.FC<EducationalJourneyProps> = ({ currentU
                 boxShadow: '0 30px 70px -10px rgba(0, 0, 0, 0.5), 0 8px 0 0 #0F1729',
               }}
             >
-              <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5">
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5 flex-shrink-0">
                 <div className="flex items-center gap-3">
                   <div
                     style={{
@@ -676,37 +674,37 @@ export const EducationalJourney: React.FC<EducationalJourneyProps> = ({ currentU
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '1.25rem',
+                      fontSize: selectedSubCourse.symbol.length > 2 ? '1rem' : '1.25rem',
                       fontWeight: 900,
-                      color: '#0F1729',
+                      color: selectedSubCourse.color === '#F9AB00' ? '#0F1729' : '#FFFFFF',
                       border: '2px solid #0F1729',
                       boxShadow: '0 4px 0 0 #0F1729',
-                      backgroundColor: '#F9AB00',
+                      backgroundColor: selectedSubCourse.color,
                     }}
                   >
-                    JS
+                    {selectedSubCourse.symbol}
                   </div>
                   <div>
                     <h3 className="text-xl font-black text-gray-900">
-                      مستويات JavaScript المعتمدة
+                      مستويات {selectedSubCourse.title} المعتمدة
                     </h3>
                     <p className="text-xs text-gray-500 font-medium">
-                      المستويات الثلاثة التدريجية عبر منصة سطر
+                      {selectedSubCourse.subLevels?.length || 0} مستويات تدريجية عبر منصة سطر
                     </p>
                   </div>
                 </div>
 
                 <button
-                  onClick={() => setShowJsModal(false)}
+                  onClick={() => setSelectedSubCourse(null)}
                   className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-all cursor-pointer border border-gray-200"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              {/* بطاقات المستويات الثلاثة وكل واحد ورابطه */}
-              <div className="flex flex-col gap-3.5 mb-6">
-                {jsCourse.subLevels?.map((level) => (
+              {/* بطاقات المستويات وكل واحد ورابطه */}
+              <div className="flex flex-col gap-3.5 mb-6 overflow-y-auto pr-1">
+                {selectedSubCourse.subLevels?.map((level) => (
                   <div
                     key={level.id}
                     className="card-3d-tactile p-4.5 bg-white flex items-center justify-between gap-3 text-right"
@@ -738,20 +736,21 @@ export const EducationalJourney: React.FC<EducationalJourneyProps> = ({ currentU
                 ))}
               </div>
 
-              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+              <div className="flex items-center justify-between pt-3 border-t border-gray-100 flex-shrink-0">
                 <button
                   onClick={() => {
-                    setShowJsModal(false);
-                    setOpenedCourse(jsCourse);
-                    setProjectInput(jsCourse.projectRepoUrl || '');
+                    const c = selectedSubCourse;
+                    setSelectedSubCourse(null);
+                    setOpenedCourse(c);
+                    setProjectInput(c.projectRepoUrl || '');
                   }}
                   className="btn-3d btn-3d-yellow text-xs font-black cursor-pointer"
                 >
-                  تسليم مشروع JavaScript ⭐
+                  تسليم مشروع {selectedSubCourse.title} ⭐
                 </button>
 
                 <button
-                  onClick={() => setShowJsModal(false)}
+                  onClick={() => setSelectedSubCourse(null)}
                   className="btn-3d btn-3d-gray px-5 py-2 text-xs font-black cursor-pointer"
                 >
                   إغلاق

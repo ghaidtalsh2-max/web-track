@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play,
   RotateCcw,
@@ -18,9 +18,14 @@ import {
   Code2,
   FileCode,
   Lock,
+  X,
+  Plus,
+  Award,
+  BookOpen,
+  Settings,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { UserProfile } from '../../types';
+import { UserProfile, LabChallenge } from '../../types';
 import { store } from '../../services/store';
 
 interface WebLabProps {
@@ -102,9 +107,28 @@ btn.onclick = () => {
 };`;
 
 export const WebLab: React.FC<WebLabProps> = ({ currentUser }) => {
-  const [htmlCode, setHtmlCode] = useState(DEFAULT_HTML);
-  const [cssCode, setCssCode] = useState(DEFAULT_CSS);
-  const [jsCode, setJsCode] = useState(DEFAULT_JS);
+  const isLeader = currentUser.role === 'track_leader' || currentUser.role === 'supervisor';
+
+  const [activeChallenge, setActiveChallenge] = useState<LabChallenge>(() => store.getActiveLabChallenge());
+  const [labChallenges, setLabChallenges] = useState<LabChallenge[]>(() => store.getLabChallenges());
+  const [showChallengeModal, setShowChallengeModal] = useState(false);
+  const [modalTab, setModalTab] = useState<'browse' | 'create'>('browse');
+
+  // حالة نموذج إنشاء تحدٍ جديد للقادة
+  const [customTitle, setCustomTitle] = useState('');
+  const [customLevel, setCustomLevel] = useState<'beginner' | 'intermediate' | 'advanced'>('intermediate');
+  const [customPoints, setCustomPoints] = useState(25);
+  const [customInstruction, setCustomInstruction] = useState('');
+  const [customDesc, setCustomDesc] = useState('');
+  const [customHtml, setCustomHtml] = useState('<!-- كود البداية للتحدي -->\n<div class="custom-box">\n  <h2>تحدي جديد</h2>\n</div>');
+  const [customCss, setCustomCss] = useState('/* نسّق العناصر هنا */\n.custom-box {\n  padding: 20px;\n  text-align: center;\n}');
+  const [customJs, setCustomJs] = useState('// البرمجة التفاعلية\nconsole.log("Lab challenge started");');
+  const [customSuccessMsg, setCustomSuccessMsg] = useState('');
+
+  // نصوص الأكواد محملة من التحدي النشط
+  const [htmlCode, setHtmlCode] = useState(() => store.getActiveLabChallenge().defaultHtml);
+  const [cssCode, setCssCode] = useState(() => store.getActiveLabChallenge().defaultCss);
+  const [jsCode, setJsCode] = useState(() => store.getActiveLabChallenge().defaultJs);
   const [activeEditorTab, setActiveEditorTab] = useState<'html' | 'css' | 'js'>('html');
   const [challengeCompleted, setChallengeCompleted] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
@@ -114,6 +138,65 @@ export const WebLab: React.FC<WebLabProps> = ({ currentUser }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // اشتراك في تحديثات Store المركزي لتحديث التحدي فور تغييره
+  useEffect(() => {
+    const unsub = store.subscribe(() => {
+      const active = store.getActiveLabChallenge();
+      setActiveChallenge(active);
+      setLabChallenges(store.getLabChallenges());
+    });
+    return unsub;
+  }, []);
+
+  const loadChallenge = (ch: LabChallenge) => {
+    setActiveChallenge(ch);
+    setHtmlCode(ch.defaultHtml);
+    setCssCode(ch.defaultCss);
+    setJsCode(ch.defaultJs);
+    setChallengeCompleted(false);
+    setIframeKey((prev) => prev + 1);
+  };
+
+  const handleSetActive = (ch: LabChallenge) => {
+    store.setActiveLabChallenge(ch.id);
+    loadChallenge(ch);
+    setShowChallengeModal(false);
+    if (currentUser.settings?.celebrations) {
+      confetti({
+        particleCount: 70,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#4285F4', '#EA4335', '#34A853', '#F9AB00'],
+      });
+    }
+  };
+
+  const handleCreateCustom = () => {
+    if (!customTitle.trim() || !customInstruction.trim()) return;
+    const newCh = store.addCustomLabChallenge({
+      title: customTitle.trim(),
+      description: customDesc.trim() || customInstruction.trim(),
+      instruction: customInstruction.trim(),
+      points: customPoints,
+      level: customLevel,
+      levelLabel: customLevel === 'beginner' ? 'المستوى 1 (مبتدئ)' : customLevel === 'intermediate' ? 'المستوى 2 (متوسط)' : 'المستوى 3 (متقدم)',
+      badgeColor: customLevel === 'beginner' ? '#4285F4' : customLevel === 'intermediate' ? '#34A853' : '#F9AB00',
+      defaultHtml: customHtml,
+      defaultCss: customCss,
+      defaultJs: customJs,
+    });
+    loadChallenge(newCh);
+    setCustomSuccessMsg('تم حفظ واعتماد التحدي بنجاح ✓');
+    setTimeout(() => {
+      setShowChallengeModal(false);
+      setCustomTitle('');
+      setCustomInstruction('');
+      setCustomDesc('');
+      setCustomSuccessMsg('');
+      setModalTab('browse');
+    }, 1200);
+  };
 
   // تحديث محتوى الـ iframe المعزول
   const runCode = () => {
@@ -145,10 +228,10 @@ export const WebLab: React.FC<WebLabProps> = ({ currentUser }) => {
 
     iframeRef.current.srcdoc = sourceDoc;
 
-    // التحقق من إكمال تحدي اليوم
+    // التحقق من إكمال التحدي
     if (cssCode.includes('color:') && !cssCode.includes('#EA4335') && !challengeCompleted) {
       setChallengeCompleted(true);
-      store.addPoints(currentUser.id, 10, 'إكمال تحدي اليوم في مختبر الويب');
+      store.addPoints(currentUser.id, activeChallenge.points, `إكمال تحدي المختبر: ${activeChallenge.title}`);
       if (currentUser.settings?.celebrations) {
         confetti({
           particleCount: 60,
@@ -161,9 +244,9 @@ export const WebLab: React.FC<WebLabProps> = ({ currentUser }) => {
   };
 
   const resetCode = () => {
-    setHtmlCode(DEFAULT_HTML);
-    setCssCode(DEFAULT_CSS);
-    setJsCode(DEFAULT_JS);
+    setHtmlCode(activeChallenge.defaultHtml);
+    setCssCode(activeChallenge.defaultCss);
+    setJsCode(activeChallenge.defaultJs);
     setIframeKey((prev) => prev + 1);
   };
 
@@ -209,13 +292,14 @@ export const WebLab: React.FC<WebLabProps> = ({ currentUser }) => {
   const lineCount = activeCode.split('\n').length;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.4 }}
-      className="container py-8 sm:py-12 text-right"
-    >
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.4 }}
+        className="container py-8 sm:py-12 text-right"
+      >
       {/* رأس صفحة المختبر مع أدوات التحكم الحيوية */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -257,6 +341,16 @@ export const WebLab: React.FC<WebLabProps> = ({ currentUser }) => {
               <span>تحت بعض</span>
             </button>
           </div>
+
+          {/* زر تغيير أو تصفح تحديات المختبر */}
+          <button
+            onClick={() => setShowChallengeModal(true)}
+            className="btn-3d btn-3d-yellow px-4 py-2 text-xs font-black cursor-pointer flex items-center gap-1.5 shadow-sm"
+            title={isLeader ? "تغيير التحدي النشط للمسار" : "تصفح تحديات المختبر"}
+          >
+            <Sparkles size={14} />
+            <span>{isLeader ? 'تغيير تحدي المختبر ⚙️' : 'تحديات المختبر 🎯'}</span>
+          </button>
 
           {/* زر إعادة تعيين */}
           <button
@@ -595,34 +689,359 @@ export const WebLab: React.FC<WebLabProps> = ({ currentUser }) => {
       >
         <div className="flex items-center gap-3">
           <div
-            className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center flex-shrink-0 font-black border-2 border-[#0F1729]"
-            style={{ boxShadow: '0 3px 0 0 #0F1729' }}
+            className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 font-black border-2 border-[#0F1729]"
+            style={{
+              backgroundColor: `${activeChallenge.badgeColor}18`,
+              color: activeChallenge.badgeColor,
+              boxShadow: '0 3px 0 0 #0F1729',
+            }}
           >
-            <Sparkles size={22} />
+            <Sparkles size={24} />
           </div>
           <div>
-            <span className="text-base font-black text-gray-900 block mb-0.5">
-              تحدي اليوم: غيّر لون العنوان واجعل الزر يطلق احتفالًا.
-            </span>
-            <span className="text-xs text-gray-600 font-medium">
-              غيّر كود اللون في تبويب CSS ثم اضغط «شغّل الكود» لاختبار المعاينة التفاعلية وكسب النقاط.
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <span className="text-base font-black text-gray-900">
+                {activeChallenge.title}
+              </span>
+              <span
+                className="text-[11px] font-black px-2.5 py-0.5 rounded-full border border-[#0F1729]"
+                style={{
+                  backgroundColor: `${activeChallenge.badgeColor}22`,
+                  color: '#0F1729',
+                }}
+              >
+                {activeChallenge.levelLabel}
+              </span>
+            </div>
+            <span className="text-xs text-gray-600 font-medium block">
+              {activeChallenge.instruction}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2.5 flex-shrink-0">
+          {isLeader && (
+            <button
+              onClick={() => setShowChallengeModal(true)}
+              className="btn-3d btn-3d-white px-3.5 py-2 text-xs font-black cursor-pointer flex items-center gap-1.5"
+              title="تغيير التحدي الحالي لمسار الويب"
+            >
+              <Settings size={13} />
+              <span>تغيير التحدي ⚙️</span>
+            </button>
+          )}
+
           {challengeCompleted ? (
             <span className="btn-3d btn-3d-green text-xs font-black">
               <CheckCircle2 size={16} />
-              <span>أحسنت! أُضيفت 10 نقاط لحسابك</span>
+              <span>أحسنت! أُضيفت {activeChallenge.points} نقطة لحسابك</span>
             </span>
           ) : (
             <span className="btn-3d btn-3d-yellow text-xs font-black">
-              + 10 نقاط مكافأة
+              + {activeChallenge.points} نقطة مكافأة
             </span>
           )}
         </div>
       </div>
     </motion.div>
+
+    {/* نافذة منبثقة تفاعلية لتغيير تحدي المختبر واختيار أو إنشاء تحديات جديدة */}
+    <AnimatePresence>
+      {showChallengeModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+          style={{
+            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="w-full max-w-2xl rounded-3xl p-6 sm:p-8 shadow-2xl text-right overflow-y-auto my-auto"
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '2px solid #0F1729',
+              maxHeight: '84vh',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* رأس النافذة */}
+            <div
+              className="flex items-center justify-between pb-3 border-b border-gray-100 mb-3 sticky top-0 z-10"
+              style={{ backgroundColor: '#FFFFFF' }}
+            >
+              <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#4285F4]" />
+                <span>{isLeader ? 'إدارة وتغيير تحدي مختبر الويب 🧪' : 'تحديات مختبر الويب 🎯'}</span>
+              </h3>
+              <button
+                onClick={() => setShowChallengeModal(false)}
+                className="p-1 rounded-full hover:bg-gray-100 text-gray-400 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500 font-medium mb-4">
+              {isLeader
+                ? 'يمكنك اعتماد أي تحدٍ للمسار ليعمل تلقائياً لدى جميع الأعضاء، أو إنشاء تحدٍ مخصص بكود جديد.'
+                : 'تصفح تحديات المختبر واختر أي تحدٍ لتحميل كوده وتجربته مباشرة في المحرر.'}
+            </p>
+
+            {/* تبويبات القائد: التحديات المعتمدة / إنشاء تحدٍ جديد */}
+            {isLeader && (
+              <div className="flex items-center border-b border-gray-200 mb-5 gap-2">
+                <button
+                  onClick={() => setModalTab('browse')}
+                  className={`pb-2.5 px-4 text-xs font-black border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    modalTab === 'browse'
+                      ? 'border-[#4285F4] text-[#4285F4]'
+                      : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  <BookOpen size={14} />
+                  <span>التحديات المتاحة ({labChallenges.length})</span>
+                </button>
+                <button
+                  onClick={() => setModalTab('create')}
+                  className={`pb-2.5 px-4 text-xs font-black border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    modalTab === 'create'
+                      ? 'border-[#34A853] text-[#34A853]'
+                      : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  <Plus size={14} />
+                  <span>+ إنشاء تحدٍ جديد مخصص</span>
+                </button>
+              </div>
+            )}
+
+            {/* محتوى التبويبات */}
+            <div>
+                {modalTab === 'browse' ? (
+                  <div className="space-y-4">
+                    {labChallenges.map((ch) => {
+                      const isActive = ch.id === activeChallenge.id;
+                      return (
+                        <div
+                          key={ch.id}
+                          className="p-4 sm:p-5 rounded-2xl transition-all"
+                          style={{
+                            backgroundColor: isActive ? '#F0FDF4' : '#F8FAFC',
+                            border: isActive ? '2px solid #10B981' : '1.5px solid #E2E8F0',
+                          }}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2.5">
+                            <div className="flex items-center gap-2.5">
+                              <span
+                                className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs border border-[#0F1729]"
+                                style={{
+                                  backgroundColor: `${ch.badgeColor}20`,
+                                  color: ch.badgeColor,
+                                }}
+                              >
+                                <Sparkles size={16} />
+                              </span>
+                              <div>
+                                <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                                  <span>{ch.title}</span>
+                                  {isActive && (
+                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-600 text-white">
+                                      ✓ النشط للمسار حالياً
+                                    </span>
+                                  )}
+                                </h3>
+                                <span className="text-xs text-gray-500 font-medium">
+                                  {ch.description}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="text-[11px] font-black px-2.5 py-0.5 rounded-full border border-[#0F1729]"
+                                style={{
+                                  backgroundColor: `${ch.badgeColor}15`,
+                                  color: '#0F1729',
+                                }}
+                              >
+                                {ch.levelLabel}
+                              </span>
+                              <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                                +{ch.points} نقطة
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* التعليمات والمطلوب */}
+                          <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-700 font-medium mb-3">
+                            <span className="font-black text-gray-900 ml-1">🎯 المطلوب:</span>
+                            {ch.instruction}
+                          </div>
+
+                          {/* أزرار الإجراءات */}
+                          <div className="flex flex-wrap items-center justify-end gap-2 pt-1 border-t border-gray-100">
+                            {isLeader && (
+                              isActive ? (
+                                <span className="px-3 py-1.5 bg-emerald-100 text-emerald-800 text-xs font-black rounded-xl border border-emerald-300 flex items-center gap-1.5">
+                                  <CheckCircle2 size={13} />
+                                  <span>معتمد كتحدي نشط للجميع ✓</span>
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => handleSetActive(ch)}
+                                  className="btn-3d btn-3d-green text-xs font-black cursor-pointer px-3.5 py-1.5 flex items-center gap-1.5"
+                                  title="اعتماد هذا التحدي ليكون هو التحدي النشط في مختبر جميع الأعضاء"
+                                >
+                                  <Sparkles size={13} />
+                                  <span>اعتماد كتحدي نشط للمسار 🚀</span>
+                                </button>
+                              )
+                            )}
+
+                            <button
+                              onClick={() => {
+                                loadChallenge(ch);
+                                setShowChallengeModal(false);
+                              }}
+                              className="btn-3d btn-3d-white text-xs font-black cursor-pointer px-3.5 py-1.5 flex items-center gap-1.5"
+                              title="تحميل كود هذا التحدي في المحرر للتجربة فوراً"
+                            >
+                              <FileCode size={13} />
+                              <span>تحميل الكود في المحرر 💻</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* نموذج إنشاء تحدٍ جديد للقادة */
+                  <div className="space-y-4">
+                    {customSuccessMsg && (
+                      <div className="p-3 bg-emerald-50 border-2 border-emerald-500 rounded-2xl text-emerald-800 font-black text-center text-xs animate-bounce">
+                        {customSuccessMsg}
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-xs font-black text-gray-700 mb-1.5">
+                        عنوان التحدي البرمجي <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={customTitle}
+                        onChange={(e) => setCustomTitle(e.target.value)}
+                        placeholder="مثال: بناء زر ثلاثي الأبعاد مع تأثير النبض Pulse"
+                        className="w-full px-3.5 py-2.5 rounded-xl border-2 border-[#0F1729] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-black text-gray-700 mb-1.5">
+                          المستوى المستهدف
+                        </label>
+                        <select
+                          value={customLevel}
+                          onChange={(e) => setCustomLevel(e.target.value as any)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border-2 border-[#0F1729] text-xs font-black focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                        >
+                          <option value="beginner">المستوى 1 (مبتدئ)</option>
+                          <option value="intermediate">المستوى 2 (متوسط)</option>
+                          <option value="advanced">المستوى 3 (متقدم)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-black text-gray-700 mb-1.5">
+                          النقاط المستحقة عند الإكمال
+                        </label>
+                        <input
+                          type="number"
+                          value={customPoints}
+                          onChange={(e) => setCustomPoints(Number(e.target.value) || 10)}
+                          min={5}
+                          max={100}
+                          className="w-full px-3.5 py-2.5 rounded-xl border-2 border-[#0F1729] text-xs font-black focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-gray-700 mb-1.5">
+                        المطلوب من العضو (التعليمات) <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        value={customInstruction}
+                        onChange={(e) => setCustomInstruction(e.target.value)}
+                        placeholder="مثال: أضف أنيميشن CSS باستخدام @keyframes pulse ليعمل التوهج عند تمرير الفأرة..."
+                        rows={2}
+                        className="w-full px-3.5 py-2 rounded-xl border-2 border-[#0F1729] text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
+                    </div>
+
+                    {/* محرر الأكواد المبدئية */}
+                    <div className="space-y-3 pt-2 border-t border-gray-200">
+                      <div>
+                        <label className="block text-xs font-black text-gray-700 mb-1">
+                          كود HTML الأولي:
+                        </label>
+                        <textarea
+                          value={customHtml}
+                          onChange={(e) => setCustomHtml(e.target.value)}
+                          rows={3}
+                          className="w-full font-mono text-[11px] p-2.5 rounded-xl border-2 border-[#0F1729] bg-gray-50 focus:outline-none text-left"
+                          dir="ltr"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-black text-gray-700 mb-1">
+                          كود CSS الأولي:
+                        </label>
+                        <textarea
+                          value={customCss}
+                          onChange={(e) => setCustomCss(e.target.value)}
+                          rows={3}
+                          className="w-full font-mono text-[11px] p-2.5 rounded-xl border-2 border-[#0F1729] bg-gray-50 focus:outline-none text-left"
+                          dir="ltr"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-black text-gray-700 mb-1">
+                          كود JavaScript الأولي:
+                        </label>
+                        <textarea
+                          value={customJs}
+                          onChange={(e) => setCustomJs(e.target.value)}
+                          rows={3}
+                          className="w-full font-mono text-[11px] p-2.5 rounded-xl border-2 border-[#0F1729] bg-gray-50 focus:outline-none text-left"
+                          dir="ltr"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-gray-200">
+                      <button
+                        onClick={handleCreateCustom}
+                        disabled={!customTitle.trim() || !customInstruction.trim()}
+                        className="btn-3d btn-3d-green w-full py-3 text-xs font-black cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Sparkles size={16} />
+                        <span>حفظ واعتماد التحدي في المختبر لجميع أعضاء المسار 🚀</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };

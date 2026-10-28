@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import './index.css';
 
 function mountApp() {
@@ -9,7 +10,9 @@ function mountApp() {
 
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
-      <App />
+      <ErrorBoundary fallbackTitle="عذراً، حدث خطأ في منصة مسار الويب">
+        <App />
+      </ErrorBoundary>
     </React.StrictMode>
   );
 }

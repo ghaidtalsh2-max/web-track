@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { PinwheelFlower } from '../brand/PinwheelFlower';
 import { ColorLines } from '../brand/ColorLines';
 import { store } from '../../services/store';
-import { verifyCredentials } from '../../services/accounts';
 import { User, Lock, Eye, EyeOff, AlertCircle, ArrowLeft, HelpCircle } from 'lucide-react';
 
 interface LoginCardProps {
@@ -18,30 +17,28 @@ export const LoginCard: React.FC<LoginCardProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
 
-  const performLogin = (targetUser: string, targetPass: string) => {
+  const performLogin = async (targetUser: string, targetPass: string) => {
     setErrorMessage('');
     setIsLoading(true);
 
-    // التحقق من صحة بيانات الدخول
-    setTimeout(() => {
-      const matchedUsername = verifyCredentials(targetUser, targetPass);
-
-      if (matchedUsername) {
-        const members = store.getMembers();
-        const user = members.find(
-          (m) => m.username.toLowerCase() === matchedUsername.toLowerCase()
-        );
-
+    // اسم المستخدم → بريد، ثم supabase.auth.signInWithPassword (داخل store.signIn)
+    try {
+      const result = await store.signIn(targetUser, targetPass);
+      if (result.ok) {
+        const user = store.getCurrentUser();
         if (user) {
-          store.login(user.id);
           onLoginSuccess(user.id);
           return;
         }
       }
-
-      setErrorMessage('اسم المستخدم أو كلمة المرور غير صحيحة. يرجى التحقق من البيانات والمحاولة مجدداً.');
-      setIsLoading(false);
-    }, 400);
+      setErrorMessage(
+        result.error ||
+          'اسم المستخدم أو كلمة المرور غير صحيحة. يرجى التحقق من البيانات والمحاولة مجدداً.'
+      );
+    } catch {
+      setErrorMessage('تعذّر الاتصال بالخادم. تحقق من الإنترنت وحاول مجدداً.');
+    }
+    setIsLoading(false);
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -124,7 +121,7 @@ export const LoginCard: React.FC<LoginCardProps> = ({ onLoginSuccess }) => {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="اسم المستخدم (مثل: ghaidaa.lead)"
+                placeholder="اسم المستخدم"
                 className="w-full text-right bg-gray-50/70 hover:bg-gray-50 focus:bg-white text-gray-900 transition-all font-medium"
                 style={{
                   borderRadius: '16px',

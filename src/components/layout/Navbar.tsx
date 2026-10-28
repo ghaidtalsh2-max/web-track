@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { UserProfile, NavTab } from '../../types';
 import { store } from '../../services/store';
 import { Settings, LogOut } from 'lucide-react';
+import { UserAvatar } from '../common/UserAvatar';
 
 interface NavbarProps {
   currentUser: UserProfile;
@@ -22,7 +23,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   unreadNotificationsCount,
 }) => {
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
-  const [leaderMode, setLeaderMode] = useState(currentUser.role === 'track_leader');
 
   const isLeader = currentUser.role === 'track_leader';
   const isSupervisor = currentUser.role === 'supervisor';
@@ -59,21 +59,10 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'evaluations', label: 'تقييم الأداء القيادي' },
   ];
 
-  const isLeaderTab = [
-    'overview',
-    'members',
-    'content',
-    'submissions',
-    'polls_mgmt',
-    'points_mgmt',
-    'evaluations',
-  ].includes(currentTab);
-
-  const isInLeaderMode = isLeaderTab || (isLeader && leaderMode);
-
+  // تحديد التبويبات بحسب دور المستخدم المعتمد في profiles.role فقط
   const activeTabs = isSupervisor
     ? supervisorTabs
-    : isInLeaderMode
+    : isLeader
     ? leaderTabs
     : memberTabs;
 
@@ -123,40 +112,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 );
               })}
             </nav>
-
-            {/* زر التبديل الفوري الصريح بين لوحة القادة وواجهة العضو */}
-            <button
-              type="button"
-              onClick={() => {
-                if (isInLeaderMode) {
-                  store.login('member-noura');
-                  setLeaderMode(false);
-                  onSelectTab('home');
-                } else {
-                  store.login('leader-ghaidaa');
-                  setLeaderMode(true);
-                  onSelectTab('overview');
-                }
-              }}
-              style={{
-                backgroundColor: isInLeaderMode ? '#EEF4FD' : '#FEF3C7',
-                color: isInLeaderMode ? '#1D4ED8' : '#92400E',
-                border: `1.5px solid ${isInLeaderMode ? '#93C5FD' : '#FCD34D'}`,
-                padding: '6px 16px',
-                fontSize: '0.8rem',
-                fontWeight: 900,
-                borderRadius: '9999px',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-              }}
-              title="انقر هنا للتنقل الفوري بين لوحة القادة وواجهة العضو"
-            >
-              <span>{isInLeaderMode ? '🎓 واجهة العضو (نورة)' : '🛡️ لوحة القادة (غيداء)'}</span>
-            </button>
           </div>
 
           {/* 2. أدوات الرأس على اليسار: ترس التخصيص + زر تنبيهات ٣ + الحساب وتسجيل الخروج */}
@@ -196,19 +151,23 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             {/* صورة وحساب المستخدم مع قائمة منسدلة للخروج فقط */}
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               <button
                 type="button"
                 onClick={() => setShowAccountDropdown(!showAccountDropdown)}
-                className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-sm transition-transform active:scale-95 cursor-pointer"
-                style={{
-                  backgroundColor: currentUser.badgeColor || '#4285F4',
-                  border: 'none',
-                  borderRadius: '50%',
-                }}
+                className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full overflow-hidden flex items-center justify-center transition-transform active:scale-95 cursor-pointer p-0 bg-transparent border-none"
+                style={{ borderRadius: '50%', aspectRatio: '1 / 1' }}
                 aria-label="الملف الشخصي"
               >
-                {currentUser.avatarLetter}
+                <UserAvatar
+                  letter={currentUser.avatarLetter}
+                  name={currentUser.fullName}
+                  avatarUrl={currentUser.avatarUrl}
+                  color={currentUser.badgeColor}
+                  size="sm"
+                  showBadge={false}
+                  role={currentUser.role}
+                />
               </button>
 
               {showAccountDropdown && (

@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserProfile, NavTab, Course } from '../../types';
 import { store } from '../../services/store';
+import { supabase } from '../../services/supabase';
+import { Pinwheel, KpiTile, PathWave, QuickCreate } from './leaderVisuals';
 import confetti from 'canvas-confetti';
 import {
   Users,
@@ -32,15 +34,80 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
   currentTab,
   onNavigateTab,
 }) => {
-  const [members, setMembers] = useState<UserProfile[]>(() => store.getAllMembers());
+  const [members, setMembers] = useState<UserProfile[]>(() => store.getMembers());
   const [courses, setCourses] = useState<Course[]>(() => store.getCourses());
   const [inquiries, setInquiries] = useState(() => store.getInquiries());
   const [polls, setPolls] = useState(() => store.getPolls());
+  const [, forceRender] = useState(0);
+
+  // الأعضاء والأرقام تأتي من Supabase بشكل غير متزامن → نعيد القراءة عند كل تحديث للـ store
+  useEffect(() => {
+    store.refreshData().catch((err) => console.warn('refreshData error:', err));
+    const sync = () => {
+      setMembers(store.getMembers());
+      setInquiries(store.getInquiries());
+      setPolls(store.getPolls());
+      forceRender((n) => n + 1);
+    };
+    sync();
+    return store.subscribe(sync);
+  }, []);
+
+  // حالة إضافة ومنح النقاط
+  const [awardTarget, setAwardTarget] = useState<'all' | string>('all');
+  const [awardCustomInput, setAwardCustomInput] = useState<string>('20');
+  const [awardReason, setAwardReason] = useState<string>('مشاركة وتفاعل متميز في مسار الويب');
+  const [isAwardingPoints, setIsAwardingPoints] = useState(false);
+  const [awardSuccessMsg, setAwardSuccessMsg] = useState('');
+  const [awardErrorMsg, setAwardErrorMsg] = useState('');
+
+  const handleAwardPoints = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAwardSuccessMsg('');
+    setAwardErrorMsg('');
+    const pts = parseInt(awardCustomInput, 10);
+    if (isNaN(pts) || pts <= 0) {
+      setAwardErrorMsg('يرجى تحديد عدد نقاط صحيح أكبر من 0.');
+      return;
+    }
+    const reason = awardReason.trim() || 'مكافأة مسار تصميم وتطوير الويب';
+    setIsAwardingPoints(true);
+    try {
+      if (awardTarget === 'all') {
+        const memberList = members.filter((m) => m.role === 'member');
+        if (memberList.length === 0) {
+          throw new Error('لا يوجد أعضاء في المسار لمنحهم النقاط.');
+        }
+        for (const m of memberList) {
+          await store.awardPoints(m.id, pts, reason);
+        }
+        setAwardSuccessMsg(`تم بنجاح منح ${pts} نقطة لكل عضو من أعضاء المسار الـ (${memberList.length}) عضواً! ✨`);
+      } else {
+        const targetMember = members.find((m) => m.id === awardTarget);
+        if (!targetMember) throw new Error('العضو المحدد غير موجود.');
+        await store.awardPoints(targetMember.id, pts, reason);
+        setAwardSuccessMsg(`تم بنجاح منح ${pts} نقطة للعضو (${targetMember.fullName})! ✨`);
+      }
+      confetti({ particleCount: 70, spread: 60, origin: { y: 0.65 } });
+      await store.refreshData();
+    } catch (err: any) {
+      setAwardErrorMsg(err?.message || 'تعذّر إتمام قيد النقاط.');
+    } finally {
+      setIsAwardingPoints(false);
+    }
+  };
+
+  const notifyAllMembers = (n: Omit<Parameters<typeof store.addNotification>[0], 'userId'>) => {
+    members
+      .filter((m) => m.role === 'member')
+      .forEach((m) => store.addNotification({ ...n, userId: m.id }));
+  };
 
   // حالة المراجعة السريعة
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<{
     id: string;
+    profileId: string;
     studentName: string;
     taskTitle: string;
     repoUrl: string;
@@ -79,11 +146,51 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
   const [newWorkshopTitle, setNewWorkshopTitle] = useState('');
   const [newWorkshopTime, setNewWorkshopTime] = useState('');
   const [newWorkshopPresenter, setNewWorkshopPresenter] = useState('');
+  const [newWorkshopDesc, setNewWorkshopDesc] = useState('');
+  const [workshopImageFile, setWorkshopImageFile] = useState<File | null>(null);
+  const [workshopImagePreview, setWorkshopImagePreview] = useState<string>('');
+  const [workshopImageError, setWorkshopImageError] = useState<string>('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [newWorkshopRegUrl, setNewWorkshopRegUrl] = useState('');
+  const [newWorkshopTopics, setNewWorkshopTopics] = useState('');
   const [workshopSuccessMsg, setWorkshopSuccessMsg] = useState('');
+  const [workshopErrorMsg, setWorkshopErrorMsg] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    setWorkshopImageError('');
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setWorkshopImageError('حجم الصورة يتجاوز الحد الأقصى (2 ميجابايت). الرجاء اختيار صورة أصغر.');
+      return;
+    }
+
+    const validTypes = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setWorkshopImageError('نوع الملف غير مدعوم. الأنواع المدعومة: PNG, JPEG, WEBP.');
+      return;
+    }
+
+    setWorkshopImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setWorkshopImagePreview(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setWorkshopImageFile(null);
+    setWorkshopImagePreview('');
+    setWorkshopImageError('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskLevel, setNewTaskLevel] = useState<'beginner' | 'intermediate' | 'advanced'>('intermediate');
+  const [newTaskLevel, setNewTaskLevel] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all');
   const [newTaskPoints, setNewTaskPoints] = useState(50);
   const [newTaskDeadline, setNewTaskDeadline] = useState('');
   const [taskSuccessMsg, setTaskSuccessMsg] = useState('');
@@ -103,6 +210,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
   const [memberLevelFilter, setMemberLevelFilter] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all');
 
   const filteredMembers = members.filter((m) => {
+    if (m.role !== 'member') return false;
     const matchesSearch =
       m.fullName.toLowerCase().includes(memberSearch.toLowerCase()) ||
       m.username.toLowerCase().includes(memberSearch.toLowerCase()) ||
@@ -111,9 +219,22 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
     return matchesSearch && matchesLevel;
   });
 
-  const handleApproveSubmission = () => {
+  const [reviewError, setReviewError] = useState('');
+
+  const handleApproveSubmission = async () => {
     if (!selectedSubmission) return;
-    store.addPoints('member-noura', reviewPoints, `اعتماد تسليم: ${selectedSubmission.taskTitle}`);
+    setReviewError('');
+    try {
+      await store.approveSubmission(
+        selectedSubmission.id,
+        selectedSubmission.profileId,
+        reviewPoints,
+        `اعتماد تسليم: ${selectedSubmission.taskTitle}`
+      );
+    } catch (err: any) {
+      setReviewError(err?.message || 'تعذّر اعتماد التسليم.');
+      return;
+    }
     if (currentUser.settings?.celebrations) {
       confetti({
         particleCount: 60,
@@ -126,9 +247,14 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
     setSelectedSubmission(null);
   };
 
-  const handleSendReply = () => {
+  const handleSendReply = async () => {
     if (!selectedInquiry || !replyText.trim()) return;
-    store.answerInquiry(selectedInquiry.id, replyText.trim(), currentUser.fullName);
+    try {
+      await store.answerInquiry(selectedInquiry.id, replyText.trim(), currentUser.fullName);
+    } catch (err: any) {
+      alert(err?.message || 'تعذّر حفظ الرد.');
+      return;
+    }
     setInquiries(store.getInquiries());
     setReplyModalOpen(false);
     setSelectedInquiry(null);
@@ -141,6 +267,8 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
   };
 
   const leaderFirst = currentUser.fullName.split(' ')[0] || 'غيداء';
+  const stats = store.getRealStats();
+  const unansweredInquiries = inquiries.filter((i) => i.status !== 'answered');
 
   return (
     <div className="container py-8 sm:py-12 text-right">
@@ -157,113 +285,53 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
               يا هلا بالقائدة {leaderFirst}
             </h1>
             <p className="text-sm sm:text-base text-gray-600 font-bold">
-              اليوم عندك ٣ أشياء تنتظرك
+              {(stats.pendingSubmissionsCount + unansweredInquiries.length) > 0
+                ? `اليوم عندك ${stats.pendingSubmissionsCount + unansweredInquiries.length} أشياء تنتظرك`
+                : 'اليوم كل شيء مكتمل وفي موعده ✨'}
             </p>
           </div>
 
-          {/* بطاقات المؤشرات الأربع بألوان الهوية الرسمية المطابقة لصفحة 12 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-            {/* 1. أعضاء نشطون (أزرق #4285F4) */}
-            <div
-              className="p-6 rounded-3xl text-right flex flex-col justify-between shadow-md"
-              style={{
-                backgroundColor: '#4285F4',
-                color: '#FFFFFF',
-                minHeight: '140px',
-              }}
-            >
-              <div className="text-xs sm:text-sm font-bold opacity-90">
-                أعضاء نشطون
-              </div>
-              <div className="text-4xl sm:text-5xl font-black tracking-tight text-left">
-                48
-              </div>
-            </div>
-
-            {/* 2. تسليمات تنتظر (أصفر #F9AB00) */}
-            <div
-              className="p-6 rounded-3xl text-right flex flex-col justify-between shadow-md"
-              style={{
-                backgroundColor: '#F9AB00',
-                color: '#1A1A1A',
-                minHeight: '140px',
-              }}
-            >
-              <div className="text-xs sm:text-sm font-black">
-                تسليمات تنتظر
-              </div>
-              <div className="text-4xl sm:text-5xl font-black tracking-tight text-left">
-                12
-              </div>
-            </div>
-
-            {/* 3. مهام متأخرة (أحمر #EA4335) */}
-            <div
-              className="p-6 rounded-3xl text-right flex flex-col justify-between shadow-md"
-              style={{
-                backgroundColor: '#EA4335',
-                color: '#FFFFFF',
-                minHeight: '140px',
-              }}
-            >
-              <div className="text-xs sm:text-sm font-bold opacity-90">
-                مهام متأخرة
-              </div>
-              <div className="text-4xl sm:text-5xl font-black tracking-tight text-left">
-                5
-              </div>
-            </div>
-
-            {/* 4. إكمال المهام (أخضر #34A853) */}
-            <div
-              className="p-6 rounded-3xl text-right flex flex-col justify-between shadow-md"
-              style={{
-                backgroundColor: '#34A853',
-                color: '#FFFFFF',
-                minHeight: '140px',
-              }}
-            >
-              <div className="text-xs sm:text-sm font-bold opacity-90">
-                إكمال المهام
-              </div>
-              <div className="text-4xl sm:text-5xl font-black tracking-tight text-left">
-                72%
-              </div>
-            </div>
+          {/* بطاقات المؤشرات الأربع: المكون الرسمي KpiTile مع دوران وردة الهوية وخط Arimo */}
+          <div className="kpi-row mb-2">
+            <KpiTile
+              label="أعضاء نشطون"
+              value={stats.activeMembersCount}
+              color="#4285F4"
+              style={{ '--i': 0 } as React.CSSProperties}
+              onClick={() => onNavigateTab('members')}
+            />
+            <KpiTile
+              label="تسليمات تنتظر"
+              value={stats.pendingSubmissionsCount}
+              color="#F9AB00"
+              style={{ '--i': 1 } as React.CSSProperties}
+              onClick={() => onNavigateTab('submissions')}
+            />
+            <KpiTile
+              label="مهام متأخرة"
+              value={0}
+              color="#EA4335"
+              style={{ '--i': 2 } as React.CSSProperties}
+            />
+            <KpiTile
+              label="إكمال المهام"
+              value={`${stats.completionRate}%`}
+              color="#34A853"
+              style={{ '--i': 3 } as React.CSSProperties}
+            />
           </div>
 
-          {/* أزرار الإنشاء السريعة المطابقة لصفحة 12 */}
-          <div className="flex items-center gap-3 flex-wrap mb-10">
-            <span className="text-xs font-black text-gray-800">
-              أنشئي:
-            </span>
-            <button
-              onClick={() => setWorkshopModalOpen(true)}
-              className="px-4 py-2 rounded-full text-xs font-bold text-white bg-[#4285F4] hover:bg-blue-600 transition-all cursor-pointer shadow-xs active:scale-95"
-            >
-              + ورشة
-            </button>
-            <button
-              onClick={() => setTaskModalOpen(true)}
-              className="px-4 py-2 rounded-full text-xs font-bold text-white bg-[#F9AB00] text-gray-950 font-black hover:bg-amber-400 transition-all cursor-pointer shadow-xs active:scale-95"
-            >
-              + مهمة
-            </button>
-            <button
-              onClick={() => setPollModalOpen(true)}
-              className="px-4 py-2 rounded-full text-xs font-bold text-white bg-[#34A853] hover:bg-green-600 transition-all cursor-pointer shadow-xs active:scale-95"
-            >
-              + استبيان
-            </button>
-            <button
-              onClick={() => setAnnouncementModalOpen(true)}
-              className="px-4 py-2 rounded-full text-xs font-bold text-white bg-[#EA4335] hover:bg-red-600 transition-all cursor-pointer shadow-xs active:scale-95"
-            >
-              + إعلان
-            </button>
-          </div>
+          {/* أزرار الإنشاء السريعة بنص داكن ورسوم بيضاوية */}
+          <QuickCreate
+            onNew={(type) => {
+              if (type === 'workshop') setWorkshopModalOpen(true);
+              else if (type === 'task') setTaskModalOpen(true);
+              else if (type === 'poll') setPollModalOpen(true);
+              else if (type === 'announcement') setAnnouncementModalOpen(true);
+            }}
+          />
 
-          {/* الصندوقان الرئيسيان المتجاوران: تنتظر مراجعتك وموجة المسار المطابقة لصفحة 12 */}
+          {/* الصندوقان الرئيسيان المتجاوران: تنتظر مراجعتك وموجة المسار */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             {/* الصندوق 1 (اليمين): تنتظر مراجعتك */}
             <div
@@ -278,105 +346,88 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
               </h2>
 
               <div className="flex flex-col gap-4">
-                {/* العنصر 1: نورة · صفحة تعريفية (تسليم قبل ساعتين) */}
-                <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-black text-gray-900">
-                        نورة · صفحة تعريفية
-                      </span>
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                        تسليم
-                      </span>
-                    </div>
-                    <span className="text-[11px] text-gray-400 font-medium">
-                      قبل ساعتين
-                    </span>
+                {stats.pendingSubmissionsList.length === 0 && unansweredInquiries.length === 0 ? (
+                  <div className="p-8 text-center rounded-2xl bg-gray-50 border border-dashed border-gray-300">
+                    <p className="text-sm font-bold text-gray-500">
+                      لا توجد تسليمات أو استفسارات تنتظر المراجعة حالياً ✨
+                    </p>
                   </div>
+                ) : (
+                  <>
+                    {stats.pendingSubmissionsList.map((sub: any) => (
+                      <div
+                        key={sub.id}
+                        className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-between gap-3"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-black text-gray-900">
+                              {sub.studentName} · {sub.taskTitle}
+                            </span>
+                            <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                              تسليم
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-gray-400 font-medium">
+                            {sub.submittedAt || 'اليوم'}
+                          </span>
+                        </div>
 
-                  <button
-                    onClick={() => {
-                      setSelectedSubmission({
-                        id: 'sub-1',
-                        studentName: 'نورة العتيبي',
-                        taskTitle: 'صفحة تعريفية شخصية (HTML & CSS)',
-                        repoUrl: 'https://github.com/gdgoc-taif/html-portfolio-demo',
-                      });
-                      setReviewModalOpen(true);
-                    }}
-                    className="px-5 py-2 rounded-full text-xs font-black bg-[#F9AB00] hover:bg-amber-400 text-gray-950 transition-all shadow-xs cursor-pointer active:scale-95"
-                  >
-                    راجع
-                  </button>
-                </div>
+                        <button
+                          onClick={() => {
+                            setSelectedSubmission({
+                              id: sub.id,
+                              profileId: sub.profileId,
+                              studentName: sub.studentName,
+                              taskTitle: sub.taskTitle,
+                              repoUrl: sub.repoUrl || '',
+                            });
+                            setReviewModalOpen(true);
+                          }}
+                          className="btn-action-review"
+                        >
+                          راجع
+                        </button>
+                      </div>
+                    ))}
 
-                {/* العنصر 2: [اسم] · متى موعد الورشة؟ (استفسار قبل يوم) */}
-                <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-black text-gray-900">
-                        دانا · متى موعد الورشة القادمة؟
-                      </span>
-                      <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
-                        استفسار
-                      </span>
-                    </div>
-                    <span className="text-[11px] text-gray-400 font-medium">
-                      قبل يوم
-                    </span>
-                  </div>
+                    {unansweredInquiries.map((inq: any) => (
+                      <div
+                        key={inq.id}
+                        className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-between gap-3"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-black text-gray-900">
+                              {inq.userName} · {inq.title}
+                            </span>
+                            <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                              استفسار
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-gray-400 font-medium">
+                            {inq.createdAt || 'اليوم'}
+                          </span>
+                        </div>
 
-                  <button
-                    onClick={() => {
-                      setSelectedInquiry(inquiries[0]);
-                      setReplyModalOpen(true);
-                    }}
-                    className="px-5 py-2 rounded-full text-xs font-bold bg-[#EA4335] hover:bg-red-600 text-white transition-all shadow-xs cursor-pointer active:scale-95"
-                  >
-                    ردّ
-                  </button>
-                </div>
+                        <button
+                          onClick={() => {
+                            setSelectedInquiry(inq);
+                            setReplyModalOpen(true);
+                          }}
+                          className="btn-action-reply"
+                        >
+                          ردّ
+                        </button>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             </div>
 
-            {/* الصندوق 2 (اليسار): موجة المسار المطابقة لصفحة 12 */}
-            <div
-              className="p-6 sm:p-8 rounded-3xl card-navy flex flex-col justify-between overflow-hidden relative"
-              style={{
-                backgroundColor: '#FFFFFF',
-                border: '2px solid #0F1729',
-                minHeight: '260px',
-              }}
-            >
-              <div>
-                <h2 className="text-xl font-black text-gray-900 mb-1">
-                  موجة المسار
-                </h2>
-                <p className="text-xs text-gray-500 font-medium">
-                  المسار كله ماشي بخير هذا الأسبوع
-                </p>
-              </div>
-
-              {/* موجة الـ SVG الملونة بألوان الهوية بأسفل الصندوق */}
-              <div className="mt-8 -mx-8 -mb-8 overflow-hidden">
-                <svg
-                  viewBox="0 0 500 120"
-                  preserveAspectRatio="none"
-                  className="w-full h-28"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M0,60 C120,30 200,90 320,50 C400,20 460,70 500,45 L500,120 L0,120 Z"
-                    fill="#34A853"
-                    opacity="0.85"
-                  />
-                  <path
-                    d="M0,80 C140,55 240,105 350,65 C430,35 480,85 500,60 L500,120 L0,120 Z"
-                    fill="#4285F4"
-                  />
-                </svg>
-              </div>
-            </div>
+            {/* الصندوق 2 (اليسار): موجة المسار الرسمية الديناميكية */}
+            <PathWave percent={stats.completionRate !== undefined && stats.completionRate !== null ? stats.completionRate : null} />
           </div>
         </motion.div>
       )}
@@ -394,7 +445,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                 إدارة الأعضاء والحسابات
               </h1>
               <p className="text-xs sm:text-sm text-gray-500 font-medium">
-                إجمالي {members.length} عضواً معتمداً في مسار تصميم وتطوير الويب
+                إجمالي {members.filter((m) => m.role === 'member').length} عضواً في مسار تصميم وتطوير الويب (من قاعدة البيانات)
               </p>
             </div>
 
@@ -450,6 +501,13 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 font-medium text-gray-800">
+                  {filteredMembers.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-10 px-5 text-center text-sm font-bold text-gray-500">
+                        لا توجد بيانات أعضاء لعرضها حالياً.
+                      </td>
+                    </tr>
+                  )}
                   {filteredMembers.map((m) => (
                     <tr key={m.id} className="hover:bg-gray-50/80 transition-colors">
                       <td className="py-3.5 px-5 flex items-center gap-3">
@@ -509,48 +567,60 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
           </div>
 
           <div className="flex flex-col gap-4">
-            <div className="p-6 rounded-3xl bg-white border-2 border-gray-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="badge-pill bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold">
-                    قيد المراجعة ⌛
-                  </span>
-                  <span className="text-xs text-gray-400">اليوم، قبل ساعتين</span>
+            {stats.submissionsList.length === 0 && (
+              <div className="p-8 text-center rounded-2xl bg-gray-50 border border-dashed border-gray-300">
+                <p className="text-sm font-bold text-gray-500">لا توجد تسليمات حتى الآن.</p>
+              </div>
+            )}
+            {stats.submissionsList.map((sub: any) => (
+              <div
+                key={sub.id}
+                className="p-6 rounded-3xl bg-white border-2 border-gray-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+              >
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="badge-pill bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold">
+                      {sub.status === 'in_review' ? 'قيد المراجعة ⌛' : sub.status === 'approved' ? 'معتمد ✓' : sub.status}
+                    </span>
+                    <span className="text-xs text-gray-400">{sub.submittedAt}</span>
+                  </div>
+                  <h3 className="text-lg font-black text-gray-900 mb-1">
+                    {sub.studentName} · {sub.taskTitle}
+                  </h3>
+                  {sub.repoUrl && (
+                    <a
+                      href={sub.repoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-bold text-blue-600 hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>معاينة المستودع البرمجي</span>
+                      <ExternalLink size={12} />
+                    </a>
+                  )}
                 </div>
-                <h3 className="text-lg font-black text-gray-900 mb-1">
-                  نورة العتيبي · تحدي «زر يتفاعل»
-                </h3>
-                <p className="text-xs text-gray-600 mb-2">
-                  تم تسليم مستودع GitHub ومعاينة التفاعل الحركي وتطبيق تأثيرات Hover.
-                </p>
-                <a
-                  href="https://github.com/gdgoc-taif/html-portfolio-demo"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-bold text-blue-600 hover:underline inline-flex items-center gap-1"
-                >
-                  <span>معاينة المستودع البرمجي</span>
-                  <ExternalLink size={12} />
-                </a>
-              </div>
 
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => {
-                    setSelectedSubmission({
-                      id: 'sub-1',
-                      studentName: 'نورة العتيبي',
-                      taskTitle: 'تحدي زر يتفاعل',
-                      repoUrl: 'https://github.com/gdgoc-taif/html-portfolio-demo',
-                    });
-                    setReviewModalOpen(true);
-                  }}
-                  className="px-6 py-2.5 rounded-full text-xs font-bold text-white bg-[#34A853] hover:bg-green-700 transition-all cursor-pointer shadow-xs"
-                >
-                  اعتماد ومنح النقاط
-                </button>
+                {sub.status === 'in_review' && (
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        setSelectedSubmission({
+                          id: sub.id,
+                          profileId: sub.profileId,
+                          studentName: sub.studentName,
+                          taskTitle: sub.taskTitle,
+                          repoUrl: sub.repoUrl || '',
+                        });
+                        setReviewModalOpen(true);
+                      }}
+                      className="px-6 py-2.5 rounded-full text-xs font-bold text-white bg-[#34A853] hover:bg-green-700 transition-all cursor-pointer shadow-xs"
+                    >
+                      اعتماد ومنح النقاط
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
+            ))}
           </div>
         </motion.div>
       )}
@@ -619,24 +689,34 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
             {/* استبيان الأسبوع الجاري ونسب التصويت */}
             <div className="p-6 rounded-3xl bg-white border-2 border-gray-900 text-right">
               <h2 className="text-lg font-black text-gray-900 mb-4">
-                نتائج استبيان ورشة الأسبوع القادم
+                {polls.length > 0 ? polls[0].question : 'نتائج الاستبيان النشط'}
               </h2>
-              <div className="flex flex-col gap-3">
-                {polls[0]?.options.map((opt) => (
-                  <div key={opt.id} className="p-3 rounded-xl bg-gray-50 border border-gray-200">
-                    <div className="flex justify-between text-xs font-bold text-gray-800 mb-1">
-                      <span>{opt.text}</span>
-                      <span>{opt.votesCount} صوت</span>
+              {polls.length === 0 ? (
+                <div className="py-12 px-4 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+                  <MessageSquare size={32} className="mx-auto text-gray-400 mb-2" />
+                  <p className="text-sm font-bold text-gray-700 mb-1">لا يوجد استبيان نشط حالياً</p>
+                  <p className="text-xs text-gray-500 max-w-xs mx-auto">
+                    يمكنك إنشاء استبيان جديد عبر زر (+ استبيان) أعلاه لجمع آراء وتصويتات أعضاء المسار.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {polls[0]?.options.map((opt) => (
+                    <div key={opt.id} className="p-3 rounded-xl bg-gray-50 border border-gray-200">
+                      <div className="flex justify-between text-xs font-bold text-gray-800 mb-1">
+                        <span>{opt.text}</span>
+                        <span>{opt.votesCount} صوت</span>
+                      </div>
+                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#4285F4] rounded-full"
+                          style={{ width: `${Math.min(opt.votesCount * 12, 100)}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-[#4285F4] rounded-full"
-                        style={{ width: `${Math.min(opt.votesCount * 12, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* صندوق استفسارات الأعضاء والردود */}
@@ -681,17 +761,153 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
+          className="text-right"
         >
           <div className="mb-8">
             <h1 className="text-3xl font-black text-gray-900 mb-1">
-              سجل النقاط وقواعد التحفيز (Points Ledger)
+              إدارة ومنح النقاط (Points Management)
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 font-medium">
-              تدقيق ومتابعة جميع النقاط الممنوحة ومنع التكرار
+              منح النقاط المباشرة للأعضاء وتدقيق قيود سجل التحفيز
             </p>
           </div>
 
+          {/* بطاقة إضافة ومنح النقاط */}
+          <div className="bg-white rounded-3xl border-2 border-gray-900 p-6 sm:p-8 mb-8 shadow-xs">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 font-bold">
+                <Star size={20} className="fill-amber-400 text-amber-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-gray-900">
+                  منح نقاط للأعضاء
+                </h2>
+                <p className="text-xs text-gray-500 font-medium">
+                  حدد عضواً معيناً بالاسم أو اختر "الكل" لمنح جميع الأعضاء دفعة واحدة
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAwardPoints} className="space-y-6">
+              {awardSuccessMsg && (
+                <div className="p-4 rounded-2xl bg-green-50 border border-green-200 text-green-800 text-xs sm:text-sm font-bold flex items-center gap-2">
+                  <Check size={18} className="text-green-600 flex-shrink-0" />
+                  <span>{awardSuccessMsg}</span>
+                </div>
+              )}
+              {awardErrorMsg && (
+                <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs sm:text-sm font-bold flex items-center gap-2">
+                  <X size={18} className="text-red-600 flex-shrink-0" />
+                  <span>{awardErrorMsg}</span>
+                </div>
+              )}
+
+              {/* 1. اختيار المستهدف بالنقاط */}
+              <div>
+                <label className="block text-xs font-black text-gray-800 mb-2">
+                  المستهدف بالنقاط:
+                </label>
+                <select
+                  value={awardTarget}
+                  onChange={(e) => setAwardTarget(e.target.value)}
+                  className="w-full px-4 py-3 text-xs sm:text-sm rounded-2xl bg-gray-50 border border-gray-300 text-gray-900 font-bold focus:outline-none focus:border-blue-500"
+                >
+                  <option value="all">
+                    🌟 الكل (جميع أعضاء المسار — {members.filter((m) => m.role === 'member').length} عضواً)
+                  </option>
+                  <optgroup label="الأعضاء بالاسم:">
+                    {members
+                      .filter((m) => m.role === 'member')
+                      .sort((a, b) => a.fullName.localeCompare(b.fullName, 'ar'))
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.fullName} (@{m.username}) — رصيده الحالي: {m.points} نقطة
+                        </option>
+                      ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              {/* 2. اختيار مقدار النقاط */}
+              <div>
+                <label className="block text-xs font-black text-gray-800 mb-2">
+                  مقدار النقاط:
+                </label>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  {[10, 20, 50, 100].map((num) => {
+                    const isSelected = awardCustomInput === String(num);
+                    return (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setAwardCustomInput(String(num))}
+                        className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all cursor-pointer border ${
+                          isSelected
+                            ? 'bg-[#4285F4] text-white border-[#4285F4] shadow-sm scale-105'
+                            : 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200'
+                        }`}
+                      >
+                        +{num} نقطة
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={awardCustomInput}
+                      onChange={(e) => setAwardCustomInput(e.target.value)}
+                      placeholder="أو اكتب أي عدد نقاط مخصص..."
+                      className="w-full px-4 py-3 text-xs sm:text-sm rounded-2xl bg-gray-50 border border-gray-300 text-gray-900 font-bold focus:outline-none focus:border-blue-500"
+                    />
+                    <span className="absolute left-4 top-3 text-xs font-bold text-gray-400">
+                      نقطة
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. سبب المنح */}
+              <div>
+                <label className="block text-xs font-black text-gray-800 mb-2">
+                  سبب منح النقاط (يظهر في سجل العضو والتنبيهات):
+                </label>
+                <input
+                  type="text"
+                  value={awardReason}
+                  onChange={(e) => setAwardReason(e.target.value)}
+                  placeholder="مثال: حضور ورشة العمل، مشاركة متميزة، إنجاز تحدي إضافي..."
+                  className="w-full px-4 py-3 text-xs sm:text-sm rounded-2xl bg-gray-50 border border-gray-300 text-gray-900 font-medium focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* 4. زر التنفيذ */}
+              <button
+                type="submit"
+                disabled={isAwardingPoints}
+                className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-[#34A853] hover:bg-green-700 text-white font-black text-xs sm:text-sm transition-all shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <Award size={18} />
+                <span>
+                  {isAwardingPoints
+                    ? 'جارٍ قيد النقاط في قاعدة البيانات...'
+                    : awardTarget === 'all'
+                    ? `إيداع ${awardCustomInput || 0} نقطة لجميع الأعضاء دفعة واحدة ✨`
+                    : `إيداع ${awardCustomInput || 0} نقطة للعضو المحدد ✨`}
+                </span>
+              </button>
+            </form>
+          </div>
+
+          {/* جدول سجل النقاط الفعلي */}
           <div className="bg-white rounded-3xl border-2 border-gray-900 p-6">
+            <h3 className="text-base font-black text-gray-900 mb-4">
+              سجل الحركات الأخير في قاعدة البيانات (Points Ledger)
+            </h3>
             <table className="w-full text-right text-xs">
               <thead className="border-b border-gray-200 text-gray-700 font-black">
                 <tr>
@@ -703,20 +919,24 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 font-medium">
-                <tr>
-                  <td className="py-3 font-bold text-gray-900">نورة العتيبي</td>
-                  <td className="py-3 text-green-700 font-bold">+ 30 نقطة</td>
-                  <td className="py-3 text-gray-600">تسليم مشروع: صفحتك الأولى</td>
-                  <td className="py-3 text-gray-600">غيداء تركي الشريف</td>
-                  <td className="py-3"><span className="text-green-700 font-bold">معتمد ✓</span></td>
-                </tr>
-                <tr>
-                  <td className="py-3 font-bold text-gray-900">أحمد الغامدي</td>
-                  <td className="py-3 text-green-700 font-bold">+ 50 نقطة</td>
-                  <td className="py-3 text-gray-600">تسليم تحدي: بطاقة CSS التفاعلية</td>
-                  <td className="py-3 text-gray-600">ريتال القثامي</td>
-                  <td className="py-3"><span className="text-green-700 font-bold">معتمد ✓</span></td>
-                </tr>
+                {store.getPointsLedger().length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-sm font-bold text-gray-500">
+                      لا توجد قيود نقاط حتى الآن.
+                    </td>
+                  </tr>
+                )}
+                {store.getPointsLedger().map((l: any) => (
+                  <tr key={l.id}>
+                    <td className="py-3 font-bold text-gray-900">{l.memberName}</td>
+                    <td className="py-3 text-green-700 font-bold">
+                      {l.points_amount >= 0 ? '+' : ''} {l.points_amount} نقطة
+                    </td>
+                    <td className="py-3 text-gray-600">{l.reason}</td>
+                    <td className="py-3 text-gray-600">{l.approverName}</td>
+                    <td className="py-3"><span className="text-green-700 font-bold">معتمد ✓</span></td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -1161,6 +1381,10 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                 />
               </div>
 
+              {reviewError && (
+                <p role="alert" className="text-xs font-bold text-red-600 mb-3">{reviewError}</p>
+              )}
+
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setReviewModalOpen(false)}
@@ -1231,7 +1455,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
         )}
       </AnimatePresence>
 
-      {/* نافذة إنشاء ورشة جديدة (+ ورشة) */}
+      {/* نافذة إنشاء ورشة جديدة (+ ورشة) المكتملة بالحقول المطلوبة */}
       <AnimatePresence>
         {workshopModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-xs">
@@ -1239,9 +1463,9 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-gray-900 text-right"
+              className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-gray-900 text-right max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4 sticky top-0 bg-white z-10">
                 <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#4285F4]" />
                   <span>إضافة ورشة عمل جديدة</span>
@@ -1251,7 +1475,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                     setWorkshopModalOpen(false);
                     setWorkshopSuccessMsg('');
                   }}
-                  className="p-1 rounded-full hover:bg-gray-100 text-gray-400"
+                  className="p-1 rounded-full hover:bg-gray-100 text-gray-400 cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -1260,7 +1484,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
               <div className="space-y-4 mb-6">
                 <div>
                   <label className="text-xs font-bold text-gray-700 block mb-1">
-                    عنوان الورشة
+                    عنوان الورشة *
                   </label>
                   <input
                     type="text"
@@ -1268,35 +1492,137 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                     onChange={(e) => setNewWorkshopTitle(e.target.value)}
                     placeholder="مثال: تطبيق Flexbox و Grid عملياً"
                     className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-900 focus:outline-none"
+                    required
                   />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      الموعد والتوقيت *
+                    </label>
+                    <input
+                      type="text"
+                      value={newWorkshopTime}
+                      onChange={(e) => setNewWorkshopTime(e.target.value)}
+                      placeholder="مثال: الأحد القادم · ٨:٠٠ مساءً"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-900 focus:outline-none"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      مقدم / منسق الورشة
+                    </label>
+                    <input
+                      type="text"
+                      value={newWorkshopPresenter}
+                      onChange={(e) => setNewWorkshopPresenter(e.target.value)}
+                      placeholder="مثال: غيداء تركي الشريف"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-900 focus:outline-none"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="text-xs font-bold text-gray-700 block mb-1">
-                    الموعد والتوقيت
+                    الوصف التفصيلي للورشة
                   </label>
-                  <input
-                    type="text"
-                    value={newWorkshopTime}
-                    onChange={(e) => setNewWorkshopTime(e.target.value)}
-                    placeholder="مثال: الأحد القادم · ٨:٠٠ مساءً"
+                  <textarea
+                    rows={3}
+                    value={newWorkshopDesc}
+                    onChange={(e) => setNewWorkshopDesc(e.target.value)}
+                    placeholder="اكتبي نبذة تعريفية عن موضوع الورشة وما سيتعلمه الأعضاء..."
                     className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-900 focus:outline-none"
                   />
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      صورة الورشة (ملف حتى 2MB)
+                    </label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={handleImageFileChange}
+                      className="hidden"
+                      id="workshop-image-input"
+                    />
+                    <label
+                      htmlFor="workshop-image-input"
+                      className="flex items-center justify-center gap-2 w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-50 border-2 border-dashed border-gray-300 text-gray-700 hover:bg-gray-100 cursor-pointer transition-colors"
+                    >
+                      <Upload size={14} className="text-[#4285F4]" />
+                      <span>{workshopImageFile ? 'تغيير ملف الصورة' : 'اختيار صورة الورشة'}</span>
+                    </label>
+
+                    {workshopImageError && (
+                      <p className="text-[11px] font-bold text-red-600 mt-1">{workshopImageError}</p>
+                    )}
+
+                    {/* معاينة الصورة المرفوعة قبل الحفظ */}
+                    {workshopImagePreview && (
+                      <div className="mt-2 p-2 rounded-xl border border-gray-200 bg-white flex items-center justify-between gap-2">
+                        <img
+                          src={workshopImagePreview}
+                          alt="معاينة صورة الورشة"
+                          className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                        />
+                        <div className="flex-1 text-right min-w-0">
+                          <p className="text-xs font-bold text-gray-800 truncate">{workshopImageFile?.name}</p>
+                          <p className="text-[10px] text-gray-400">
+                            {workshopImageFile ? `${Math.round(workshopImageFile.size / 1024)} KB` : ''}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          className="p-1 rounded-full text-red-500 hover:bg-red-50 cursor-pointer"
+                          title="إزالة الصورة"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      رابط التسجيل والحضور (Google Meet / Zoom)
+                    </label>
+                    <input
+                      type="url"
+                      value={newWorkshopRegUrl}
+                      onChange={(e) => setNewWorkshopRegUrl(e.target.value)}
+                      placeholder="https://meet.google.com/..."
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-900 focus:outline-none text-left"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="text-xs font-bold text-gray-700 block mb-1">
-                    مقدم / منسق الورشة
+                    محاور الورشة (اكتبي كل محور في سطر)
                   </label>
-                  <input
-                    type="text"
-                    value={newWorkshopPresenter}
-                    onChange={(e) => setNewWorkshopPresenter(e.target.value)}
-                    placeholder="مثال: غيداء تركي الشريف"
+                  <textarea
+                    rows={3}
+                    value={newWorkshopTopics}
+                    onChange={(e) => setNewWorkshopTopics(e.target.value)}
+                    placeholder="المحور الأول: المفاهيم الأساسية&#10;المحور الثاني: التطبيق العملي&#10;المحور الثالث: الممارسات المتقدمة"
                     className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-900 focus:outline-none"
                   />
                 </div>
               </div>
+
+              {workshopErrorMsg && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold mb-4 text-center">
+                  ⚠️ {workshopErrorMsg}
+                </div>
+              )}
 
               {workshopSuccessMsg && (
                 <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs font-bold mb-4 text-center">
@@ -1304,42 +1630,115 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                 </div>
               )}
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 sticky bottom-0 bg-white pt-2 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => {
                     setWorkshopModalOpen(false);
                     setWorkshopSuccessMsg('');
+                    setWorkshopErrorMsg('');
+                    handleRemoveImage();
                   }}
-                  className="px-4 py-2 rounded-full text-xs font-bold bg-gray-100 text-gray-700"
+                  className="px-4 py-2 rounded-full text-xs font-bold bg-gray-100 text-gray-700 cursor-pointer"
                 >
                   إلغاء
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
+                  disabled={isUploadingImage}
+                  onClick={async () => {
                     if (!newWorkshopTitle.trim()) return;
-                    store.addNotification({
-                      userId: 'member-noura',
-                      type: 'workshop',
-                      title: 'ورشة جديدة معلنة!',
-                      description: `${newWorkshopTitle.trim()} · ${newWorkshopTime.trim() || 'قريباً'}`,
-                      badgeText: '◆',
-                      targetTab: 'community',
-                    });
-                    setWorkshopSuccessMsg('تم جدولة الورشة بنجاح وإرسال التنبيه للأعضاء ✓');
-                    setTimeout(() => {
-                      setWorkshopModalOpen(false);
-                      setNewWorkshopTitle('');
-                      setNewWorkshopTime('');
-                      setNewWorkshopPresenter('');
-                      setWorkshopSuccessMsg('');
-                    }, 1200);
+
+                    setWorkshopErrorMsg('');
+                    setWorkshopSuccessMsg('');
+
+                    let finalImageUrl: string | undefined = undefined;
+
+                    // رفع الصورة إلى Supabase Storage في bucket workshop-images
+                    if (workshopImageFile) {
+                      setIsUploadingImage(true);
+                      try {
+                        const fileExt = workshopImageFile.name.split('.').pop() || 'png';
+                        const fileName = `ws-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${fileExt}`;
+                        const { data: uploadData, error: uploadErr } = await supabase.storage
+                          .from('workshop-images')
+                          .upload(fileName, workshopImageFile, {
+                            cacheControl: '3600',
+                            upsert: true,
+                          });
+
+                        if (!uploadErr && uploadData) {
+                          const { data: publicUrlData } = supabase.storage
+                            .from('workshop-images')
+                            .getPublicUrl(uploadData.path);
+                          finalImageUrl = publicUrlData.publicUrl;
+                        } else {
+                          console.warn('Storage upload note:', uploadErr?.message);
+                          finalImageUrl = workshopImagePreview || undefined;
+                        }
+                      } catch (err) {
+                        console.warn('Image upload error:', err);
+                        finalImageUrl = workshopImagePreview || undefined;
+                      } finally {
+                        setIsUploadingImage(false);
+                      }
+                    }
+
+                    const topicsList = newWorkshopTopics
+                      .split('\n')
+                      .map((t) => t.trim())
+                      .filter(Boolean);
+
+                    try {
+                      await store.addWorkshop({
+                        title: newWorkshopTitle.trim(),
+                        description:
+                          newWorkshopDesc.trim() ||
+                          'ورشة عمل تطبيقية تخصصية لمسار تطوير الويب بتنظيم نادي قوقل للطلبة المطورين.',
+                        scheduledAt: newWorkshopTime.trim() || 'الأحد القادم · ٨:٠٠ مساءً',
+                        imageUrl: finalImageUrl,
+                        registrationUrl: newWorkshopRegUrl.trim() || undefined,
+                        topics:
+                          topicsList.length > 0
+                            ? topicsList
+                            : [
+                                'المفاهيم التأسيسية وأفضل الممارسات البرمجية',
+                                'التطبيق العملي وتصميم الواجهات المتجاوبة',
+                                'حل المشاكل الشائعة وتحسين الأداء',
+                              ],
+                        tasks: [],
+                        createdBy: currentUser.fullName,
+                      });
+
+                      notifyAllMembers({
+                        type: 'workshop',
+                        title: 'ورشة جديدة معلنة!',
+                        description: `${newWorkshopTitle.trim()} · ${newWorkshopTime.trim() || 'قريباً'}`,
+                        badgeText: '◆',
+                        targetTab: 'home',
+                      });
+
+                      setWorkshopSuccessMsg('تم حفظ الورشة في Supabase وجدولتها بنجاح ✓');
+                      setTimeout(() => {
+                        setWorkshopModalOpen(false);
+                        setNewWorkshopTitle('');
+                        setNewWorkshopTime('');
+                        setNewWorkshopPresenter('');
+                        setNewWorkshopDesc('');
+                        handleRemoveImage();
+                        setNewWorkshopRegUrl('');
+                        setNewWorkshopTopics('');
+                        setWorkshopSuccessMsg('');
+                        setWorkshopErrorMsg('');
+                      }, 1200);
+                    } catch (err: any) {
+                      setWorkshopErrorMsg(err.message || 'فشل حفظ الورشة في قاعدة البيانات (Supabase)');
+                    }
                   }}
-                  disabled={!newWorkshopTitle.trim()}
-                  className="px-6 py-2 rounded-full text-xs font-bold text-white bg-[#4285F4] hover:bg-blue-700 disabled:opacity-50 shadow-xs"
+                  className="px-5 py-2 rounded-full text-xs font-bold text-white cursor-pointer shadow-xs disabled:opacity-50"
+                  style={{ backgroundColor: '#4285F4' }}
                 >
-                  اعتماد وجدولة الورشة ✓
+                  {isUploadingImage ? 'جارِ رفع الصورة...' : 'حفظ الورشة'}
                 </button>
               </div>
             </motion.div>
@@ -1397,6 +1796,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                       onChange={(e) => setNewTaskLevel(e.target.value as any)}
                       className="w-full px-3 py-2 text-xs rounded-xl bg-gray-50 border border-gray-300 font-bold text-gray-900"
                     >
+                      <option value="all">الكل (جميع المستويات)</option>
                       <option value="beginner">المستوى 1 (مبتدئ)</option>
                       <option value="intermediate">المستوى 2 (متوسط)</option>
                       <option value="advanced">المستوى 3 (متقدم)</option>
@@ -1451,15 +1851,30 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                   type="button"
                   onClick={() => {
                     if (!newTaskTitle.trim()) return;
-                    store.addNotification({
-                      userId: 'member-noura',
-                      type: 'task',
-                      title: 'مهمة جديدة للمسار!',
-                      description: `${newTaskTitle.trim()} · +${newTaskPoints} نقطة`,
-                      badgeText: '!',
-                      targetTab: 'challenges',
+                    const targetMembers = newTaskLevel === 'all'
+                      ? members.map(m => m.id)
+                      : members.filter(m => m.webLevel === newTaskLevel).map(m => m.id);
+
+                    const levelLabel = newTaskLevel === 'all'
+                      ? 'لكافة المستويات'
+                      : newTaskLevel === 'beginner'
+                      ? 'المستوى 1 (مبتدئ)'
+                      : newTaskLevel === 'intermediate'
+                      ? 'المستوى 2 (متوسط)'
+                      : 'المستوى 3 (متقدم)';
+
+                    targetMembers.forEach((uid) => {
+                      store.addNotification({
+                        userId: uid,
+                        type: 'task',
+                        title: 'مهمة جديدة للمسار!',
+                        description: `${newTaskTitle.trim()} · ${levelLabel} · +${newTaskPoints} نقطة`,
+                        badgeText: '!',
+                        targetTab: 'challenges',
+                      });
                     });
-                    setTaskSuccessMsg('تم نشر المهمة وإضافتها لقائمة مهام المسار ✓');
+
+                    setTaskSuccessMsg(`تم نشر المهمة بنجاح (${levelLabel}) ✓`);
                     setTimeout(() => {
                       setTaskModalOpen(false);
                       setNewTaskTitle('');
@@ -1561,8 +1976,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                   type="button"
                   onClick={() => {
                     if (!newPollQuestion.trim()) return;
-                    store.addNotification({
-                      userId: 'member-noura',
+                    notifyAllMembers({
                       type: 'poll',
                       title: 'استبيان نشط جديد!',
                       description: newPollQuestion.trim(),
@@ -1662,8 +2076,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                   type="button"
                   onClick={() => {
                     if (!newAnnounceTitle.trim()) return;
-                    store.addNotification({
-                      userId: 'member-noura',
+                    notifyAllMembers({
                       type: 'points',
                       title: `إعلان: ${newAnnounceTitle.trim()}`,
                       description: newAnnounceBody.trim() || 'إعلان رسمي جديد من قادة المسار.',
