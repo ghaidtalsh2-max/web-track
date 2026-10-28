@@ -214,7 +214,9 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
     const matchesSearch =
       m.fullName.toLowerCase().includes(memberSearch.toLowerCase()) ||
       m.username.toLowerCase().includes(memberSearch.toLowerCase()) ||
-      m.major?.toLowerCase().includes(memberSearch.toLowerCase());
+      m.major?.toLowerCase().includes(memberSearch.toLowerCase()) ||
+      (m.academicYear && m.academicYear.toLowerCase().includes(memberSearch.toLowerCase())) ||
+      (m.skills && m.skills.some((s) => s.toLowerCase().includes(memberSearch.toLowerCase())));
     const matchesLevel = memberLevelFilter === 'all' || m.webLevel === memberLevelFilter;
     return matchesSearch && matchesLevel;
   });
@@ -493,17 +495,18 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                   <tr>
                     <th className="py-4 px-5">العضو</th>
                     <th className="py-4 px-5">اسم المستخدم</th>
-                    <th className="py-4 px-5">المستوى</th>
+                    <th className="py-4 px-5">المستوى البرمجي (الاستبيان)</th>
+                    <th className="py-4 px-5">المستوى الدراسي</th>
                     <th className="py-4 px-5">التخصص</th>
                     <th className="py-4 px-5">النقاط</th>
-                    <th className="py-4 px-5">المهارات</th>
+                    <th className="py-4 px-5">المهارات التقنية</th>
                     <th className="py-4 px-5">الحالة</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 font-medium text-gray-800">
                   {filteredMembers.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-10 px-5 text-center text-sm font-bold text-gray-500">
+                      <td colSpan={8} className="py-10 px-5 text-center text-sm font-bold text-gray-500">
                         لا توجد بيانات أعضاء لعرضها حالياً.
                       </td>
                     </tr>
@@ -512,31 +515,60 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                     <tr key={m.id} className="hover:bg-gray-50/80 transition-colors">
                       <td className="py-3.5 px-5 flex items-center gap-3">
                         <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-xs"
+                          className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-xs flex-shrink-0"
                           style={{ backgroundColor: m.badgeColor || '#4285F4' }}
                         >
                           {m.avatarLetter}
                         </div>
-                        <span className="font-bold text-gray-900">{m.fullName}</span>
+                        <span className="font-bold text-gray-900 whitespace-nowrap">{m.fullName}</span>
                       </td>
-                      <td className="py-3.5 px-5 font-mono text-gray-600">{m.username}</td>
-                      <td className="py-3.5 px-5">
-                        <span className="badge-pill bg-blue-50 text-blue-700 text-[11px] font-bold">
-                          المستوى {m.levelNumber}
+                      <td className="py-3.5 px-5 font-mono text-gray-600 whitespace-nowrap">{m.username}</td>
+                      <td className="py-3.5 px-5 whitespace-nowrap">
+                        {m.webLevel === 'advanced' ? (
+                          <span className="badge-pill bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-bold">
+                            متقدم (المستوى ٣) ⭐
+                          </span>
+                        ) : m.webLevel === 'intermediate' ? (
+                          <span className="badge-pill bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold">
+                            متوسط (المستوى ٢) ⚡
+                          </span>
+                        ) : (
+                          <span className="badge-pill bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold">
+                            مبتدئ (المستوى ١) 🌱
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-5 whitespace-nowrap">
+                        <span className="px-2.5 py-1 rounded-lg bg-gray-100 text-gray-800 text-[11px] font-bold border border-gray-200">
+                          {m.academicYear || 'غير محدد'}
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 text-gray-600">{m.major || 'علوم حاسب'}</td>
-                      <td className="py-3.5 px-5 font-bold text-green-700">{m.points} نقطة</td>
+                      <td className="py-3.5 px-5 text-gray-700 font-medium whitespace-nowrap">{m.major || 'علوم حاسب'}</td>
+                      <td className="py-3.5 px-5 font-bold text-green-700 whitespace-nowrap">{m.points} نقطة</td>
                       <td className="py-3.5 px-5">
-                        <div className="flex gap-1 flex-wrap">
-                          {m.skills?.slice(0, 3).map((s) => (
-                            <span key={s} className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-[10px]">
-                              {s}
-                            </span>
-                          ))}
+                        <div className="flex gap-1 flex-wrap max-w-xs">
+                          {m.skills && m.skills.length > 0 ? (
+                            <>
+                              {m.skills.slice(0, 3).map((s) => (
+                                <span
+                                  key={s}
+                                  className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold whitespace-nowrap"
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                              {m.skills.length > 3 && (
+                                <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600 text-[10px] font-bold">
+                                  +{m.skills.length - 3}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-gray-400 text-[11px]">—</span>
+                          )}
                         </div>
                       </td>
-                      <td className="py-3.5 px-5">
+                      <td className="py-3.5 px-5 whitespace-nowrap">
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-800">
                           نشط ✓
                         </span>

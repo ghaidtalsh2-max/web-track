@@ -161,30 +161,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
     await store.removeSelfSkill(displayedMember.id, skillName);
   };
 
-  // مهارات العضو المفصلة مع مهارات افتراضية كـ Fallback في حال لم يضف بعد
+  // مهارات العضو المفصلة من قاعدة البيانات والاستبيان
   const skillsList: MemberSkillItem[] =
     displayedMember.detailedSkills && displayedMember.detailedSkills.length > 0
       ? displayedMember.detailedSkills
-      : [
-          {
-            name: 'HTML5 Semantic',
-            progressPercent: 100,
-            status: 'approved',
-            source: 'approved_by_leader',
-          },
-          {
-            name: 'CSS Modern Flex & Grid',
-            progressPercent: 85,
-            status: 'approved',
-            source: 'approved_by_leader',
-          },
-          {
-            name: 'JavaScript DOM & Events',
-            progressPercent: 60,
-            status: 'in_progress',
-            source: 'approved_by_leader',
-          },
-        ];
+      : (displayedMember.skills || []).map((s) => ({
+          name: s,
+          progressPercent: 100,
+          status: 'approved',
+          source: 'approved_by_leader',
+        }));
 
   return (
     <motion.div
@@ -361,12 +347,25 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
                     <span className="badge-pill bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200">
                       {displayedMember.roleTitle}
                     </span>
+                    {displayedMember.webLevel === 'advanced' ? (
+                      <span className="badge-pill bg-purple-50 text-purple-700 text-xs font-bold border border-purple-200">
+                        مستوى الاستبيان: متقدم ⭐
+                      </span>
+                    ) : displayedMember.webLevel === 'intermediate' ? (
+                      <span className="badge-pill bg-amber-50 text-amber-700 text-xs font-bold border border-amber-200">
+                        مستوى الاستبيان: متوسط ⚡
+                      </span>
+                    ) : (
+                      <span className="badge-pill bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">
+                        مستوى الاستبيان: مبتدئ 🌱
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-3 sm:gap-4 flex-wrap mt-2.5 text-xs text-gray-600 font-medium">
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1.5">
                       <GraduationCap size={15} className="text-[#4285F4]" />
-                      <span>{displayedMember.major || 'علوم حاسب'} · {displayedMember.academicYear || 'السنة الأولى'}</span>
+                      <span>{displayedMember.major || 'علوم حاسب'} · المستوى الدراسي: <strong className="text-gray-900 font-bold">{displayedMember.academicYear || 'غير محدد'}</strong></span>
                     </span>
 
                     <span className="flex items-center gap-1">
