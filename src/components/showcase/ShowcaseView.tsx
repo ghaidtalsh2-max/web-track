@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ExternalLink, FolderGit2, Sparkles, Filter, Check, Clock } from 'lucide-react';
+import { ExternalLink, Plus, Check, X, Sparkles, Github, Layers } from 'lucide-react';
 import { UserProfile } from '../../types';
+import { PinwheelFlower } from '../brand/PinwheelFlower';
+import { store } from '../../services/store';
+import confetti from 'canvas-confetti';
 
 interface ShowcaseViewProps {
   currentUser: UserProfile;
 }
 
-interface ShowcaseProject {
+interface ShowcaseCardItem {
   id: string;
   title: string;
   memberName: string;
@@ -16,38 +19,81 @@ interface ShowcaseProject {
   color: string;
   githubUrl: string;
   liveUrl?: string;
-  description: string;
-  taskType: 'workshop' | 'side_fun' | 'side_learn' | 'general';
-  taskCategoryLabel: string;
+  category: string;
 }
 
-const INITIAL_PROJECTS: ShowcaseProject[] = [];
+const GDG_COLORS = ['#34A853', '#4285F4', '#F9AB00', '#EA4335'];
 
 export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
-  const [activeMainTab, setActiveMainTab] = useState<'general' | 'by_task'>('general');
-  const [selectedTaskFilter, setSelectedTaskFilter] = useState<string>('all');
-  const [projects, setProjects] = useState<ShowcaseProject[]>(INITIAL_PROJECTS);
+  const [projects, setProjects] = useState<ShowcaseCardItem[]>(() => store.getShowcaseProjects());
+  const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'in_review'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  const isLeader = currentUser.role === 'track_leader' || currentUser.role === 'supervisor';
+  // نافذة إضافة مشروع جديد
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [projTitle, setProjTitle] = useState('');
+  const [projGithub, setProjGithub] = useState('');
+  const [projLive, setProjLive] = useState('');
+  const [projCategory, setProjCategory] = useState('مشروع مسار الويب');
+  const [projStage, setProjStage] = useState('المرحلة 01');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
-  // تصفية المشاريع: المشاريع المعتمدة تظهر للجميع، ومشاريع قيد المراجعة تظهر لصاحبها أو للقائد فقط
-  const visibleProjects = projects.filter((p) => {
-    if (isLeader) return true;
-    if (p.status === 'approved') return true;
-    return p.memberName === currentUser.fullName;
-  });
+  const workshops = store.getWorkshops();
+  const tasks = store.getTasks();
 
-  // تطبيق فلتر التبويب الرئيسي وفلتر الشرائح
-  const displayedProjects = visibleProjects.filter((p) => {
-    if (activeMainTab === 'general') {
-      return true; // المعرض العام يعرض جميع الأعمال
+  const categoryOptions = [
+    { id: 'all', label: 'جميع الأعمال والورش' },
+    { id: 'مشروع مسار الويب', label: 'مشروع مسار الويب' },
+    ...workshops.map((w) => ({ id: w.title, label: `ورشة: ${w.title}` })),
+    ...tasks.map((t) => ({ id: t.title, label: `مهمة: ${t.title}` })),
+  ];
+
+  const handleAddProject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projTitle.trim() || !projGithub.trim()) return;
+
+    setIsSubmitting(true);
+    const color = GDG_COLORS[projects.length % GDG_COLORS.length];
+
+    const newProject: ShowcaseCardItem = {
+      id: `proj-${Date.now()}`,
+      title: projTitle.trim(),
+      memberName: currentUser.fullName,
+      stageName: projStage,
+      status: currentUser.role === 'track_leader' || currentUser.role === 'supervisor' ? 'approved' : 'in_review',
+      color,
+      githubUrl: projGithub.trim(),
+      liveUrl: projLive.trim() || undefined,
+      category: projCategory,
+    };
+
+    store.addShowcaseProject(newProject);
+    setProjects(store.getShowcaseProjects());
+
+    if (currentUser.settings?.celebrations) {
+      confetti({
+        particleCount: 60,
+        spread: 60,
+        origin: { y: 0.6 },
+      });
     }
-    // تبويب حسب المهمة
-    if (selectedTaskFilter === 'all') return true;
-    if (selectedTaskFilter === 'workshop') return p.taskType === 'workshop';
-    if (selectedTaskFilter === 'side_fun') return p.taskType === 'side_fun';
-    if (selectedTaskFilter === 'side_learn') return p.taskType === 'side_learn';
-    return true;
+
+    setSuccessMsg('تم إضافة مشروعك بنجاح لمعرض المسار! ✨');
+    setTimeout(() => {
+      setIsSubmitting(false);
+      setIsAddModalOpen(false);
+      setSuccessMsg('');
+      setProjTitle('');
+      setProjGithub('');
+      setProjLive('');
+    }, 1200);
+  };
+
+  const filteredProjects = projects.filter((p) => {
+    const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+    const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
+    return matchesStatus && matchesCategory;
   });
 
   return (
@@ -59,334 +105,305 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
       className="container py-8 sm:py-12 text-right"
       dir="rtl"
     >
-      {/* رأس الصفحة */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 pb-4 border-b border-gray-200">
-        <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#4285F4] animate-pulse" />
-            <span className="text-xs font-bold text-gray-500">مسار الويب · إنتاج ومشاريع الأعضاء المعتمدة</span>
+      {/* ترويسة معرض المشاريع المطابقة تماماً لصفحة 8 بالمرجع المعتمد */}
+      <div className="flex flex-col items-center justify-center text-center mb-10 max-w-2xl mx-auto">
+        <div className="w-full flex items-center justify-between mb-3 px-2">
+          {/* زر إضافة مشروع بارز */}
+          <button
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="btn-pill px-5 py-2 text-xs font-black text-white bg-[#0F1729] hover:bg-gray-800 transition-all cursor-pointer shadow-md inline-flex items-center gap-1.5 border-none"
+          >
+            <Plus size={15} />
+            <span>+ أضف مشروعك للمعرض</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-500">مسار الويب</span>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-[#4285F4]" />
+              <span className="w-2 h-2 rounded-full bg-[#EA4335]" />
+              <span className="w-2 h-2 rounded-full bg-[#F9AB00]" />
+              <span className="w-2 h-2 rounded-full bg-[#34A853]" />
+            </div>
           </div>
-          <h1 className="text-3xl sm:text-5xl font-black text-[#0F172A] tracking-tight">
-            معرض الأعمال والمشاريع
-          </h1>
         </div>
 
-        <div className="text-xs font-bold text-gray-500 bg-gray-100 px-4 py-2 rounded-full border border-gray-200">
-          إجمالي المشاريع المعروضة: {displayedProjects.length} مشروع
-        </div>
-      </div>
+        <h1 className="text-4xl sm:text-6xl font-black text-gray-950 tracking-tight mb-5">
+          معرض المشاريع
+        </h1>
 
-      {/* التبويبان الرئيسيان: «المعرض العام» و «حسب المهمة» */}
-      <div className="flex items-center gap-3 mb-6">
-        <button
-          type="button"
-          onClick={() => {
-            setActiveMainTab('general');
-            setSelectedTaskFilter('all');
-          }}
-          className={`px-6 py-3 rounded-2xl text-sm font-black transition-all cursor-pointer border-2 ${
-            activeMainTab === 'general'
-              ? 'bg-[#4285F4] text-[#0F172A] border-[#0F172A] shadow-md -translate-y-0.5'
-              : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
-          }`}
-        >
-          المعرض العام (كل الأعمال المعتمدة)
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveMainTab('by_task')}
-          className={`px-6 py-3 rounded-2xl text-sm font-black transition-all cursor-pointer border-2 ${
-            activeMainTab === 'by_task'
-              ? 'bg-[#F9AB00] text-[#0F172A] border-[#0F172A] shadow-md -translate-y-0.5'
-              : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
-          }`}
-        >
-          حسب المهمة والورشة
-        </button>
-      </div>
-
-      {/* شريط الشرائح (Chips) للتصفية عند اختيار تبويب «حسب المهمة» */}
-      {activeMainTab === 'by_task' && (
-        <div className="flex flex-wrap items-center gap-2 mb-8 p-3 rounded-2xl bg-white border-2 border-[#0F172A] shadow-xs rise">
-          <span className="text-xs font-black text-gray-800 ml-2">تصفية حسب:</span>
-          {[
-            { id: 'all', label: 'جميع المهام' },
-            { id: 'workshop', label: 'ورشة Flexbox و CSS Grid' },
-            { id: 'side_fun', label: 'تحديات جانبية - متعة' },
-            { id: 'side_learn', label: 'تحديات جانبية - تعلّم' },
-          ].map((chip) => (
-            <button
-              key={chip.id}
-              type="button"
-              onClick={() => setSelectedTaskFilter(chip.id)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
-                selectedTaskFilter === chip.id
-                  ? 'bg-[#0F172A] text-white border-[#0F172A] shadow-xs'
-                  : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
-              }`}
-            >
-              {chip.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* شبكة بطاقات المشاريع الحقيقية بنظام المعرض الفني */}
-      {displayedProjects.length === 0 ? (
-        <div className="flex flex-col gap-6">
-          <div className="p-8 text-center bg-white rounded-3xl border-2 border-dashed border-gray-300 shadow-xs">
-            <Sparkles size={32} className="mx-auto text-blue-500 mb-2" />
-            <h3 className="text-base font-black text-gray-900 mb-1">
-              المعرض جاهز لاستقبال أعمال ومشاريع الأعضاء
-            </h3>
-            <p className="text-xs text-gray-500 font-medium">
-              حالياً لا توجد مشاريع منشورة. عند تسليم المهام واعتمادها من قادة المسار، ستظهر المشاريع الحقيقية هنا تلقائياً.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((slot) => (
-              <div
-                key={slot}
-                className="rounded-3xl border-2 border-dashed border-gray-300 bg-white/70 p-6 flex flex-col items-center justify-center min-h-[300px] text-center"
+        {/* فلاتر الحالة المعتمدة في صفحة 8: الكل · مقبولة · قيد المراجعة */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full">
+          <div className="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-gray-100 border border-gray-200">
+            {[
+              { id: 'all', label: 'الكل' },
+              { id: 'approved', label: 'مقبولة' },
+              { id: 'in_review', label: 'قيد المراجعة' },
+            ].map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setStatusFilter(f.id as any)}
+                className={`px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer border-none ${
+                  statusFilter === f.id
+                    ? 'bg-[#0F1729] text-white shadow-xs'
+                    : 'bg-transparent text-gray-600 hover:text-gray-950'
+                }`}
               >
-                {/* شريط متصفح مصغر فارغ */}
-                <div className="w-full flex items-center justify-between pb-3 mb-4 border-b border-gray-100" dir="ltr">
-                  <div className="flex gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-gray-200" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-gray-200" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-gray-200" />
-                  </div>
-                  <span className="text-[10px] text-gray-300 font-mono">project-slot-0{slot}</span>
-                </div>
-
-                <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-400 mb-4">
-                  <FolderGit2 size={28} className="text-gray-300" />
-                </div>
-                <div className="w-24 h-2.5 bg-gray-200 rounded-full mb-2" />
-                <div className="w-36 h-2 bg-gray-100 rounded-full mb-6" />
-                <span className="text-[11px] font-bold text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
-                  أيقونة شاغرة لمشروع قادم #{slot}
-                </span>
-              </div>
+                {f.label}
+              </button>
             ))}
           </div>
-        </div>
-      ) : (
-        <div className="showcase-grid">
-          {displayedProjects.map((p, idx) => {
-            // استخراج الحرف الأول من اسم العضو للأفاتار
-            const initials = p.memberName.split(' ').map(n => n[0]).join('').slice(0, 2);
-            // تحديد رابط مصغر لشريط المتصفح
-            const miniDomain = p.liveUrl 
-              ? p.liveUrl.replace('https://', '').replace('.github.io', '')
-              : 'project.gdgoc.dev';
 
-            return (
+          {/* قائمة التصنيف حسب الورشة أو المهمة */}
+          {categoryOptions.length > 2 && (
+            <div className="relative">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-4 py-2 text-xs sm:text-sm font-black rounded-2xl bg-white border border-gray-300 text-gray-800 focus:outline-none shadow-xs cursor-pointer"
+              >
+                {categoryOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* شبكة بطاقات المعرض المكونة من 3 أعمدة مطابقة تماماً لشكل صفحة 8 */}
+      <div className="max-w-5xl mx-auto">
+        {filteredProjects.length === 0 ? (
+          <div className="p-12 sm:p-16 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-300 max-w-xl mx-auto">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 border-2 border-amber-300 flex items-center justify-center text-3xl mx-auto mb-4 shadow-xs">
+              🖼️
+            </div>
+            <h3 className="text-xl font-black text-gray-900 mb-2">
+              معرض المشاريع بانتظار إبداعاتكم البرمجية ✨
+            </h3>
+            <p className="text-xs sm:text-sm text-gray-500 font-medium leading-relaxed max-w-md mx-auto mb-6">
+              لا توجد مشاريع مضافة حالياً. شاركونا مشاريعكم وأعمالكم المتميزة في المسار ليتم عرضها في المعرض الرسمي للأعضاء!
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              className="btn-pill px-6 py-2.5 text-xs font-black text-white bg-[#0F1729] hover:bg-gray-800 transition-all cursor-pointer shadow-md inline-flex items-center gap-2"
+            >
+              <Plus size={16} />
+              <span>+ أضف مشروعك الآن</span>
+            </button>
+          </div>
+        ) : (
+          <div className="showcase-cards-grid">
+            {filteredProjects.map((p) => (
               <div
                 key={p.id}
-                className="showcase-card"
+                className="card-3d-tactile rounded-3xl overflow-hidden bg-white border-2 border-[#0F1729] flex flex-col transition-all hover:-translate-y-1"
                 style={{
-                  '--i': idx,
-                } as React.CSSProperties}
+                  borderRadius: '24px',
+                  boxShadow: '0 4px 0 0 #0F1729',
+                }}
               >
-                {/* شريط متصفح ماك العصري بأزرار جهة اليسار (Mac LTR Header) */}
-                <div className="showcase-browser-bar" dir="ltr">
-                  <div className="showcase-browser-dots">
-                    <span className="browser-dot red" />
-                    <span className="browser-dot yellow" />
-                    <span className="browser-dot green" />
-                  </div>
-                  <div className="showcase-browser-url">
-                    {miniDomain}
-                  </div>
-                  <div className="flex items-center gap-1.5" dir="rtl">
-                    {p.status === 'in_review' ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 flex items-center gap-1">
-                        <Clock size={10} />
-                        <span>مراجعة</span>
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
-                        <Check size={10} />
-                        <span>معتمد</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* لوحة المعاينة التفاعلية المصغرة لمخرجات المشروع الفعلي */}
+                {/* الجزء العلوي الملون مع زهرة قوقل البيضاء في المنتصف تماماً كما في صفحة 8 */}
                 <div
-                  className="showcase-preview-canvas"
+                  className="h-36 sm:h-40 w-full flex items-center justify-center relative p-4"
                   style={{
-                    backgroundColor: `${p.color}14`, // خلفية شفافة من لون الهوية
+                    backgroundColor: p.color,
                   }}
                 >
-                  {/* محاكاة واجهة متجر Grid */}
-                  {p.id === 'proj-1' && (
-                    <div className="w-[88%] h-[84%] bg-white rounded-xl border border-slate-300 p-2.5 shadow-sm flex flex-col justify-between" dir="ltr">
-                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
-                        <span className="text-[11px] font-extrabold text-blue-600">Product Grid Store</span>
-                        <div className="flex gap-1">
-                          <span className="w-2 h-2 rounded-full bg-blue-500" />
-                          <span className="w-2 h-2 rounded-full bg-slate-300" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-1.5 py-1">
-                        {[1, 2, 3].map((item) => (
-                          <div key={item} className="bg-slate-50 border border-slate-200 rounded-lg p-1.5 flex flex-col items-center gap-1">
-                            <div className="w-full h-8 bg-blue-50 rounded flex items-center justify-center text-[12px]">🛍️</div>
-                            <div className="w-3/4 h-1.5 bg-slate-200 rounded" />
-                            <div className="w-1/2 h-1.5 bg-blue-500 rounded" />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/25 backdrop-blur-xs flex items-center justify-center shadow-xs">
+                    <PinwheelFlower size={48} color="white" />
+                  </div>
 
-                  {/* محاكاة لوحة الإحصائيات Dashboard */}
-                  {p.id === 'proj-2' && (
-                    <div className="w-[88%] h-[84%] bg-slate-900 rounded-xl border border-slate-700 p-2.5 shadow-sm flex flex-col justify-between text-white" dir="ltr">
-                      <div className="flex items-center justify-between pb-1 border-b border-slate-800">
-                        <span className="text-[11px] font-extrabold text-amber-400">Analytics Widget</span>
-                        <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold">+28%</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 py-1">
-                        <div className="bg-slate-800/80 rounded-lg p-1.5 border border-slate-700">
-                          <div className="text-[9px] text-slate-400">Total Visits</div>
-                          <div className="text-xs font-black text-amber-300">14.8K</div>
-                        </div>
-                        <div className="bg-slate-800/80 rounded-lg p-1.5 border border-slate-700">
-                          <div className="text-[9px] text-slate-400">Avg Session</div>
-                          <div className="text-xs font-black text-emerald-300">4m 12s</div>
-                        </div>
-                      </div>
-                      <div className="flex items-end gap-1 h-6 pt-1">
-                        {[40, 65, 30, 85, 95, 70, 100].map((h, i) => (
-                          <div
-                            key={i}
-                            className="flex-1 bg-amber-400 rounded-t"
-                            style={{ height: `${h}%`, opacity: 0.7 + (i * 0.05) }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* محاكاة زر Keyframes الساحر */}
-                  {p.id === 'proj-3' && (
-                    <div className="w-[88%] h-[84%] bg-gradient-to-br from-emerald-950 to-slate-900 rounded-xl border border-emerald-700/60 p-3 shadow-sm flex flex-col items-center justify-center gap-2" dir="ltr">
-                      <div className="text-[10px] font-bold text-emerald-300 mb-1">CSS Keyframes Animation</div>
-                      <div className="relative group cursor-pointer">
-                        <div className="px-5 py-2 rounded-full font-black text-xs bg-emerald-500 text-slate-950 border-2 border-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.6)] flex items-center gap-2">
-                          <Sparkles size={13} className="text-slate-950" />
-                          <span>Magic Button ✨</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* محاكاة صفحة Portfolio */}
-                  {p.id === 'proj-4' && (
-                    <div className="w-[88%] h-[84%] bg-white rounded-xl border border-slate-300 p-2.5 shadow-sm flex flex-col justify-between" dir="ltr">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-red-500 text-white font-black text-[11px] flex items-center justify-center border border-slate-800">
-                          س
-                        </div>
-                        <div>
-                          <div className="text-[11px] font-black text-slate-900">Sara Al-Zahrani</div>
-                          <div className="text-[9px] text-slate-500">Frontend Developer</div>
-                        </div>
-                      </div>
-                      <div className="p-1.5 bg-slate-50 rounded border border-slate-200">
-                        <div className="text-[10px] font-mono text-slate-700">{'<WebTrackShowcase />'}</div>
-                      </div>
-                      <div className="flex gap-1">
-                        <span className="text-[8px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">HTML5</span>
-                        <span className="text-[8px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">CSS3</span>
-                        <span className="text-[8px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">Responsive</span>
-                      </div>
-                    </div>
+                  {p.status === 'in_review' && (
+                    <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-black bg-white/95 text-gray-900 border border-gray-300 shadow-2xs">
+                      قيد المراجعة ⏳
+                    </span>
                   )}
                 </div>
 
-                {/* متن البطاقة: عنوان ووصف وبطاقة العضو وأزرار العمل */}
-                <div className="showcase-card-body">
+                {/* الجزء السفلي الأبيض مع العنوان واسم العضو والمرحلة وزر GitHub */}
+                <div className="p-5 sm:p-6 flex flex-col items-center text-center justify-between flex-1 gap-3.5">
                   <div>
-                    {/* وسم فئة المهمة والورشة */}
-                    <div className="mb-2">
-                      <span
-                        className="inline-block px-3 py-1 rounded-full text-[11px] font-extrabold"
-                        style={{
-                          backgroundColor: `${p.color}20`,
-                          color: p.color === '#F9AB00' ? '#B45309' : p.color,
-                          border: `1.5px solid ${p.color}`,
-                        }}
-                      >
-                        {p.taskCategoryLabel}
-                      </span>
-                    </div>
-
-                    <h3 className="showcase-card-title">
+                    <h3 className="text-base sm:text-lg font-black text-gray-950 mb-1">
                       {p.title}
                     </h3>
-
-                    <p className="showcase-card-desc">
-                      {p.description}
+                    <p className="text-xs font-bold text-gray-500">
+                      {p.memberName} · {p.stageName}
                     </p>
                   </div>
 
-                  {/* معلومات العضو الصانع */}
-                  <div>
-                    <div className="showcase-author-row">
-                      <div
-                        className="showcase-author-avatar"
-                        style={{ backgroundColor: p.color }}
-                      >
-                        {initials}
-                      </div>
-                      <div className="showcase-author-meta">
-                        <span className="showcase-author-name">{p.memberName}</span>
-                        <span className="showcase-author-stage">{p.stageName}</span>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={p.githubUrl.startsWith('http') ? p.githubUrl : `https://${p.githubUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-6 py-1.5 rounded-full text-xs font-black text-gray-950 bg-white border-2 border-[#0F1729] hover:bg-gray-100 transition-all shadow-2xs inline-flex items-center gap-1.5 cursor-pointer no-underline active:scale-95"
+                    >
+                      <span>GitHub</span>
+                      <ExternalLink size={11} />
+                    </a>
 
-                    {/* زرا المعاينة والكود */}
-                    <div className="showcase-actions-row">
-                      {p.liveUrl ? (
-                        <a
-                          href={p.liveUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="showcase-btn-demo"
-                        >
-                          <ExternalLink size={14} />
-                          <span>معاينة حية</span>
-                        </a>
-                      ) : (
-                        <span className="showcase-btn-demo" style={{ opacity: 0.6, cursor: 'not-allowed' }}>
-                          <span>قريباً</span>
-                        </span>
-                      )}
-
+                    {p.liveUrl && (
                       <a
-                        href={p.githubUrl}
+                        href={p.liveUrl.startsWith('http') ? p.liveUrl : `https://${p.liveUrl}`}
                         target="_blank"
-                        rel="noreferrer"
-                        className="showcase-btn-code"
+                        rel="noopener noreferrer"
+                        className="px-4 py-1.5 rounded-full text-xs font-black text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-all inline-flex items-center gap-1 no-underline"
+                        title="معاينة حية للمشروع"
                       >
-                        <FolderGit2 size={14} />
-                        <span>الكود المصدري</span>
+                        <span>معاينة</span>
+                        <ExternalLink size={11} />
                       </a>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* نافذة إضافة مشروع جديد للمعرض */}
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+            onClick={() => setIsAddModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full border-2 border-[#0F1729] shadow-2xl text-right"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-400 border border-gray-900 flex items-center justify-center text-xl shadow-xs">
+                    🚀
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-gray-900">
+                      إضافة مشروع إلى معرض المسار
+                    </h3>
+                    <p className="text-xs text-gray-500 font-medium">
+                      اعرض مهاراتك البرمجية وكودك على زملاء وقادة المسار
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 cursor-pointer border-none"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {successMsg ? (
+                <div className="p-6 text-center bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-800 font-bold text-sm">
+                  {successMsg}
+                </div>
+              ) : (
+                <form onSubmit={handleAddProject} className="flex flex-col gap-4">
+                  <div>
+                    <label className="block text-xs font-black text-gray-700 mb-1">
+                      عنوان المشروع <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={projTitle}
+                      onChange={(e) => setProjTitle(e.target.value)}
+                      placeholder="مثال: تطبيق متجر إلكتروني متجاوب"
+                      className="w-full px-4 py-2.5 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-900 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-gray-700 mb-1">
+                      رابط مستودع GitHub <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="url"
+                      required
+                      value={projGithub}
+                      onChange={(e) => setProjGithub(e.target.value)}
+                      placeholder="https://github.com/username/project"
+                      className="w-full px-4 py-2.5 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-900 focus:outline-none focus:border-blue-500 ltr text-left"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-gray-700 mb-1">
+                      رابط المعاينة الحية (Live Demo) — اختياري
+                    </label>
+                    <input
+                      type="url"
+                      value={projLive}
+                      onChange={(e) => setProjLive(e.target.value)}
+                      placeholder="https://my-app.vercel.app"
+                      className="w-full px-4 py-2.5 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-900 focus:outline-none focus:border-blue-500 ltr text-left"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-black text-gray-700 mb-1">
+                        المرحلة البرمجية
+                      </label>
+                      <select
+                        value={projStage}
+                        onChange={(e) => setProjStage(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-800"
+                      >
+                        <option value="المرحلة 01">المرحلة 01 · الأساسيات</option>
+                        <option value="المرحلة 02">المرحلة 02 · التصميم والتفاعل</option>
+                        <option value="المرحلة 03">المرحلة 03 · التطبيقات الشاملة</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-gray-700 mb-1">
+                        التصنيف التابع
+                      </label>
+                      <input
+                        type="text"
+                        value={projCategory}
+                        onChange={(e) => setProjCategory(e.target.value)}
+                        placeholder="مشروع مسار الويب"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-800"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddModalOpen(false)}
+                      className="btn-pill px-5 py-2 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 border-none cursor-pointer"
+                    >
+                      إلغاء
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting || !projTitle.trim() || !projGithub.trim()}
+                      className="btn-pill px-7 py-2 text-xs font-black text-white bg-[#0F1729] hover:bg-gray-800 disabled:opacity-50 border-none cursor-pointer shadow-md"
+                    >
+                      {isSubmitting ? 'جاري الحفظ...' : 'حفظ ونشر في المعرض 🚀'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

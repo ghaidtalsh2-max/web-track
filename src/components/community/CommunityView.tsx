@@ -11,7 +11,7 @@ interface CommunityViewProps {
 
 export const CommunityView: React.FC<CommunityViewProps> = ({ currentUser }) => {
   const [polls, setPolls] = useState<Poll[]>(() => store.getPolls());
-  const activePoll = polls[0];
+  const activePoll = polls[0] || store.getPoll();
 
   const hasVoted = store.hasUserVoted(activePoll?.id || '', currentUser.id);
 
@@ -96,11 +96,11 @@ export const CommunityView: React.FC<CommunityViewProps> = ({ currentUser }) => 
         </p>
       </div>
 
-      {/* الصندوقان الرئيسيان المتوازيان المطابقان لصفحة 4 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+      {/* الصندوقان الرئيسيان المتوازيان جنب بعض تماماً المطابقان لصفحة 4 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
         {/* الصندوق الأيمن: الاستبيان التفاعلي */}
         <div
-          className="p-6 sm:p-8 rounded-3xl card-navy flex flex-col justify-between"
+          className="p-6 sm:p-8 rounded-3xl card-navy flex flex-col justify-between h-full"
           style={{
             backgroundColor: '#FFFFFF',
             border: '2px solid #0F1729',

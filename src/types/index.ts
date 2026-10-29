@@ -25,9 +25,11 @@ export interface MemberSkillItem {
   name: string;
   progressPercent: number; // 0 - 100
   status: 'approved' | 'in_progress' | 'upcoming';
-  source: 'self' | 'approved_by_leader';
+  source: 'self' | 'approved_by_leader' | 'survey_registration' | 'git_submission';
   category?: 'frontend' | 'tools' | 'languages' | 'design' | 'other';
   awardedAt?: string;
+  gitUrl?: string;
+  verificationNotes?: string;
 }
 
 export interface BadgeItem {
@@ -118,6 +120,7 @@ export type NavTab =
   | 'challenges'
   | 'lab'
   | 'showcase'
+  | 'resources'
   | 'community'
   | 'profile'
   // Leader specific tabs
@@ -128,6 +131,18 @@ export type NavTab =
   | 'polls_mgmt'
   | 'points_mgmt'
   | 'evaluations';
+
+export interface TrackResource {
+  id: string;
+  title: string;
+  description: string;
+  category: 'slides' | 'cheatsheet' | 'book' | 'code' | 'guide';
+  fileUrl: string;
+  fileType: 'pdf' | 'zip' | 'code' | 'doc' | 'link';
+  fileSize?: string;
+  uploadedBy: string;
+  uploadedAt: string;
+}
 
 export interface ActionItem {
   id: string;
@@ -170,6 +185,31 @@ export interface Workshop {
   tasks: string[];
   createdBy?: string;
   createdAt?: string;
+}
+
+export interface AdminScheduledWorkshop {
+  id: string;
+  orderNumber: number; // 1 to 8
+  titleAr: string;
+  titleEn: string;
+  dateStr: string;
+  presenter: string;
+  pillars: string[];
+  taskNumber: string;
+  taskTitle: string;
+  taskDescription: string;
+  isPublished: boolean;
+  publishedAt?: string;
+  meetingUrl?: string;
+  posterUrl?: string;
+}
+
+export interface WorkshopAttendanceRecord {
+  workshopId: string;
+  memberId: string;
+  attended: boolean;
+  markedAt: string;
+  markedBy?: string;
 }
 
 export interface WelcomePhrase {
@@ -357,6 +397,9 @@ export interface LabChallenge {
   defaultCss: string;
   defaultJs: string;
   solutionHint?: string;
+  solutionHtml?: string;
+  solutionCss?: string;
+  solutionJs?: string;
   badgeColor?: string;
 }
 

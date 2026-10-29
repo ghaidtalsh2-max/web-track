@@ -104,6 +104,43 @@
   --text-secondary: #CBD5E1;
 }
 
+[data-theme="dark"] body {
+  background-color: #0F131D !important;
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .bg-white {
+  background-color: #171C28 !important;
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .text-gray-900,
+[data-theme="dark"] .text-gray-950,
+[data-theme="dark"] .text-gray-800 {
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .text-gray-600,
+[data-theme="dark"] .text-gray-500 {
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .bg-gray-50,
+[data-theme="dark"] .bg-gray-100 {
+  background-color: #1E293B !important;
+}
+
+[data-theme="dark"] .border-gray-200,
+[data-theme="dark"] .border-gray-100 {
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .customize-popover-card {
+  background-color: #1E293B !important;
+  color: #F8FAFC !important;
+  border: 2px solid #334155 !important;
+}
+
 /* 3. القواعد العامة للـ DOM */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -815,6 +852,58 @@ body {
 .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
+/* شبكة الصندوقين المتجاورين في لوحة القيادة (تنتظر مراجعتك + موجة المسار) */
+.leader-split-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  gap: 24px !important;
+  align-items: stretch !important;
+  width: 100% !important;
+}
+
+@media (max-width: 900px) {
+  .leader-split-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* شبكة بطاقات معرض المشاريع (3 أعمدة متناسقة مطابقة لمخطط Claude) */
+.showcase-cards-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 24px !important;
+  width: 100% !important;
+}
+
+@media (max-width: 992px) {
+  .showcase-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .showcase-cards-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (min-width: 640px) {
+  .sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .sm\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
+
+@media (min-width: 768px) {
+  .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .md\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .md\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+}
+
+@media (min-width: 1024px) {
+  .lg\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .lg\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .lg\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+}
+
 .weblab-split-layout {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
@@ -839,8 +928,35 @@ body {
 .gap-2 { gap: 8px; }
 .gap-3 { gap: 12px; }
 .gap-4 { gap: 16px; }
+.gap-5 { gap: 20px; }
 .gap-6 { gap: 24px; }
 .gap-8 { gap: 32px; }
+
+.home-mission-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.leaderboard-scroll {
+  max-height: 420px;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #4285F4 #F1F5F9;
+}
+.leaderboard-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.leaderboard-scroll::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 9999px;
+}
+.leaderboard-scroll::-webkit-scrollbar-thumb {
+  background: #4285F4;
+  border-radius: 9999px;
+}
 
 .relative { position: relative; }
 .absolute { position: absolute; }

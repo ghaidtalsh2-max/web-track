@@ -4,6 +4,7 @@ import { UserProfile, NavTab, Course } from '../../types';
 import { store } from '../../services/store';
 import { supabase } from '../../services/supabase';
 import { Pinwheel, KpiTile, PathWave, QuickCreate } from './leaderVisuals';
+import { LeaderWorkshopsSheet } from './LeaderWorkshopsSheet';
 import confetti from 'canvas-confetti';
 import {
   Users,
@@ -38,6 +39,8 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
   const [courses, setCourses] = useState<Course[]>(() => store.getCourses());
   const [inquiries, setInquiries] = useState(() => store.getInquiries());
   const [polls, setPolls] = useState(() => store.getPolls());
+  const [rankings, setRankings] = useState(() => store.getActiveRankings());
+  const [starSuccessMsg, setStarSuccessMsg] = useState('');
   const [, forceRender] = useState(0);
 
   // الأعضاء والأرقام تأتي من Supabase بشكل غير متزامن → نعيد القراءة عند كل تحديث للـ store
@@ -205,19 +208,39 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
   const [newAnnounceBody, setNewAnnounceBody] = useState('');
   const [announceSuccessMsg, setAnnounceSuccessMsg] = useState('');
 
-  // البحث والتصفية للأعضاء
+  // البحث والتصفية والترتيب للأعضاء
   const [memberSearch, setMemberSearch] = useState('');
   const [memberLevelFilter, setMemberLevelFilter] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all');
+  const [memberSortBy, setMemberSortBy] = useState<'alpha_asc' | 'alpha_desc' | 'level' | 'points'>('alpha_asc');
 
-  const filteredMembers = members.filter((m) => {
-    if (m.role !== 'member') return false;
-    const matchesSearch =
-      m.fullName.toLowerCase().includes(memberSearch.toLowerCase()) ||
-      m.username.toLowerCase().includes(memberSearch.toLowerCase()) ||
-      m.major?.toLowerCase().includes(memberSearch.toLowerCase());
-    const matchesLevel = memberLevelFilter === 'all' || m.webLevel === memberLevelFilter;
-    return matchesSearch && matchesLevel;
-  });
+  const filteredMembers = members
+    .filter((m) => {
+      if (m.role !== 'member') return false;
+      const matchesSearch =
+        m.fullName.toLowerCase().includes(memberSearch.toLowerCase()) ||
+        m.username.toLowerCase().includes(memberSearch.toLowerCase()) ||
+        m.major?.toLowerCase().includes(memberSearch.toLowerCase()) ||
+        (m.academicYear && m.academicYear.toLowerCase().includes(memberSearch.toLowerCase())) ||
+        (m.skills && m.skills.some((s) => s.toLowerCase().includes(memberSearch.toLowerCase())));
+      const matchesLevel = memberLevelFilter === 'all' || m.webLevel === memberLevelFilter;
+      return matchesSearch && matchesLevel;
+    })
+    .sort((a, b) => {
+      if (memberSortBy === 'alpha_asc') {
+        return a.fullName.localeCompare(b.fullName, 'ar');
+      }
+      if (memberSortBy === 'alpha_desc') {
+        return b.fullName.localeCompare(a.fullName, 'ar');
+      }
+      if (memberSortBy === 'level') {
+        const levelOrder: Record<string, number> = { advanced: 3, intermediate: 2, beginner: 1 };
+        return (levelOrder[b.webLevel] || 1) - (levelOrder[a.webLevel] || 1);
+      }
+      if (memberSortBy === 'points') {
+        return (b.points || 0) - (a.points || 0);
+      }
+      return 0;
+    });
 
   const [reviewError, setReviewError] = useState('');
 
@@ -282,7 +305,8 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
           {/* العنوان الترحيبي المطابق لصفحة 12 */}
           <div className="mb-8">
             <h1 className="text-3xl sm:text-5xl font-black text-gray-900 mb-2">
-              يا هلا بالقائدة {leaderFirst}
+              يا هلا {currentUser.role === 'supervisor' ? (currentUser.gender === 'female' ? 'بالمشرفة' : 'بالمشرف') : currentUser.fullName.includes('سلمان') ? 'بنائب القادة' : 'بالقائدة'}{' '}
+              <span style={{ color: '#EA4335' }}>{leaderFirst}</span>
             </h1>
             <p className="text-sm sm:text-base text-gray-600 font-bold">
               {(stats.pendingSubmissionsCount + unansweredInquiries.length) > 0
@@ -331,8 +355,31 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
             }}
           />
 
-          {/* الصندوقان الرئيسيان المتجاوران: تنتظر مراجعتك وموجة المسار */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {/* شريط خطة الورش وشيت التحضير الميداني */}
+          <div className="mb-6 p-4 sm:p-5 rounded-3xl bg-gradient-to-l from-amber-50 via-white to-blue-50 border-2 border-gray-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-400 border-2 border-gray-900 flex items-center justify-center text-xl shadow-xs shrink-0">
+                📋
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-gray-900">
+                  خطة الورش (8 ورش) وشيت التحضير والتسليمات الميداني
+                </h3>
+                <p className="text-xs text-gray-600 font-medium">
+                  جدول الإدارة المعتمد لشهر نوفمبر، تحضير الأعضاء بنقرة واحدة (+20 نقطة)، ومراجعة تسليمات التحديات
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => onNavigateTab('content')}
+              className="btn-pill px-5 py-2.5 text-xs font-black text-gray-900 bg-amber-300 hover:bg-amber-400 border border-gray-900 transition-all cursor-pointer whitespace-nowrap shadow-xs"
+            >
+              فتح شيت التحضير والورش 🚀
+            </button>
+          </div>
+
+          {/* الصندوقان الرئيسيان المتجاوران: تنتظر مراجعتك وموجة المسار جنباً إلى جنب */}
+          <div className="leader-split-grid">
             {/* الصندوق 1 (اليمين): تنتظر مراجعتك */}
             <div
               className="p-6 sm:p-8 rounded-3xl card-navy"
@@ -429,6 +476,104 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
             {/* الصندوق 2 (اليسار): موجة المسار الرسمية الديناميكية */}
             <PathWave percent={stats.completionRate !== undefined && stats.completionRate !== null ? stats.completionRate : null} />
           </div>
+
+          {/* لوحة اعتماد نجوم الأسبوع وعضو الشهر (تحديث السبت الدوري) */}
+          <div className="mt-8 p-6 sm:p-7 rounded-3xl bg-white border-2 border-[#0F1729] shadow-xs">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-[#F9AB00] flex items-center justify-center border border-amber-300 font-black">
+                  👑
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-gray-900 leading-tight">
+                    اعتماد نجوم الأسبوع وعضو الشهر (تحديث السبت) ⭐
+                  </h3>
+                  <p className="text-xs text-gray-500 font-medium mt-0.5">
+                    الترتيب يُحتسب تلقائياً بالنقاط، ولا يظهر للأعضاء كمعتمد نهائي إلا بعد اعتمادك الدوري كل سبت
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {rankings.isApproved ? (
+                  <button
+                    onClick={() => {
+                      store.resetStarsApproval();
+                      setRankings(store.getActiveRankings());
+                      setStarSuccessMsg('تمت إعادة اللوحة إلى الترتيب التراكمي الأولي.');
+                      setTimeout(() => setStarSuccessMsg(''), 3000);
+                    }}
+                    className="px-4 py-2 rounded-2xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 cursor-pointer border-none"
+                  >
+                    إلغاء الاعتماد المؤقت
+                  </button>
+                ) : null}
+
+                <button
+                  onClick={() => {
+                    store.approveWeeklyAndMonthlyStars();
+                    setRankings(store.getActiveRankings());
+                    confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+                    setStarSuccessMsg('تم اعتماد وتكريم أعضاء الأسبوع وعضو الشهر وإرسال التنبيه الاحتفالي لجميع الأعضاء بنجاح! ✨');
+                    setTimeout(() => setStarSuccessMsg(''), 4000);
+                  }}
+                  className="px-5 py-2.5 rounded-2xl text-xs font-black text-gray-950 bg-[#F9AB00] hover:bg-amber-400 border-2 border-[#0F1729] shadow-xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <Star size={14} className="fill-[#0F1729]" />
+                  <span>{rankings.isApproved ? 'إعادة تأكيد الاعتماد والتكريم ✓' : 'اعتماد وتكريم نجوم الأسبوع وعضو الشهر 🎉'}</span>
+                </button>
+              </div>
+            </div>
+
+            {starSuccessMsg && (
+              <div className="mt-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-black text-center">
+                {starSuccessMsg}
+              </div>
+            )}
+
+            <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* عضو الشهر المرشح */}
+              <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase text-amber-800 block mb-0.5">
+                    عضو الشهر {rankings.isApproved ? '(معتمد رسميًا)' : '(المرشح الأول)'}
+                  </span>
+                  <div className="font-black text-sm text-gray-900">
+                    {rankings.memberOfTheMonth && rankings.memberOfTheMonth.monthPoints > 0
+                      ? rankings.memberOfTheMonth.member.fullName
+                      : 'مجهول (في انتظار بدء التفاعل والتتويج)'}
+                  </div>
+                  <div className="text-xs text-gray-500 font-medium">
+                    {rankings.memberOfTheMonth && rankings.memberOfTheMonth.monthPoints > 0
+                      ? `${rankings.memberOfTheMonth.member.webLevelTitle} · @${rankings.memberOfTheMonth.member.username}`
+                      : 'سيظهر اسم المتصدر فور تسجيل أي نقاط تفاعل'}
+                  </div>
+                </div>
+                <div className="text-left font-black text-amber-600 text-xl">
+                  {rankings.memberOfTheMonth?.monthPoints || 0} نقطة
+                </div>
+              </div>
+
+              {/* نجوم الأسبوع الـ 5 */}
+              <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200">
+                <span className="text-[10px] font-black uppercase text-blue-800 block mb-1.5">
+                  نجوم الأسبوع الـ 5 {rankings.isApproved ? '(معتمدون رسميًا)' : '(حسب النقاط الحالية)'}
+                </span>
+                <div className="space-y-1">
+                  {rankings.topWeekly.slice(0, 5).map((w, idx) => (
+                    <div key={w.member.id} className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-gray-900">
+                        {idx + 1}. {w.member.fullName}
+                      </span>
+                      <span className="font-black text-emerald-600">
+                        +{w.weekPoints} نقطة
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </motion.div>
       )}
 
@@ -476,12 +621,23 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
             <select
               value={memberLevelFilter}
               onChange={(e) => setMemberLevelFilter(e.target.value as any)}
-              className="px-4 py-2.5 text-xs rounded-xl bg-white border border-gray-300 text-gray-800 focus:outline-none shadow-xs"
+              className="px-4 py-2.5 text-xs rounded-xl bg-white border border-gray-300 text-gray-800 focus:outline-none shadow-xs font-bold"
             >
               <option value="all">جميع المستويات</option>
               <option value="beginner">المستوى 1: مبتدئ</option>
               <option value="intermediate">المستوى 2: متوسط</option>
               <option value="advanced">المستوى 3: متقدم</option>
+            </select>
+
+            <select
+              value={memberSortBy}
+              onChange={(e) => setMemberSortBy(e.target.value as any)}
+              className="px-4 py-2.5 text-xs rounded-xl bg-white border border-gray-300 text-gray-800 focus:outline-none shadow-xs font-bold"
+            >
+              <option value="alpha_asc">ترتيب أبجدياً (أ - ي) 🔤</option>
+              <option value="alpha_desc">ترتيب أبجدياً (ي - أ)</option>
+              <option value="level">ترتيب حسب المستوى (المرحلة) 🎯</option>
+              <option value="points">ترتيب حسب النقاط (الأعلى) 🏆</option>
             </select>
           </div>
 
@@ -493,17 +649,18 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                   <tr>
                     <th className="py-4 px-5">العضو</th>
                     <th className="py-4 px-5">اسم المستخدم</th>
-                    <th className="py-4 px-5">المستوى</th>
+                    <th className="py-4 px-5">المستوى البرمجي (الاستبيان)</th>
+                    <th className="py-4 px-5">المستوى الدراسي</th>
                     <th className="py-4 px-5">التخصص</th>
                     <th className="py-4 px-5">النقاط</th>
-                    <th className="py-4 px-5">المهارات</th>
+                    <th className="py-4 px-5">المهارات التقنية</th>
                     <th className="py-4 px-5">الحالة</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 font-medium text-gray-800">
                   {filteredMembers.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-10 px-5 text-center text-sm font-bold text-gray-500">
+                      <td colSpan={8} className="py-10 px-5 text-center text-sm font-bold text-gray-500">
                         لا توجد بيانات أعضاء لعرضها حالياً.
                       </td>
                     </tr>
@@ -512,31 +669,60 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                     <tr key={m.id} className="hover:bg-gray-50/80 transition-colors">
                       <td className="py-3.5 px-5 flex items-center gap-3">
                         <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-xs"
+                          className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-xs flex-shrink-0"
                           style={{ backgroundColor: m.badgeColor || '#4285F4' }}
                         >
                           {m.avatarLetter}
                         </div>
-                        <span className="font-bold text-gray-900">{m.fullName}</span>
+                        <span className="font-bold text-gray-900 whitespace-nowrap">{m.fullName}</span>
                       </td>
-                      <td className="py-3.5 px-5 font-mono text-gray-600">{m.username}</td>
-                      <td className="py-3.5 px-5">
-                        <span className="badge-pill bg-blue-50 text-blue-700 text-[11px] font-bold">
-                          المستوى {m.levelNumber}
+                      <td className="py-3.5 px-5 font-mono text-gray-600 whitespace-nowrap">{m.username}</td>
+                      <td className="py-3.5 px-5 whitespace-nowrap">
+                        {m.webLevel === 'advanced' ? (
+                          <span className="badge-pill bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-bold">
+                            متقدم (المستوى ٣) ⭐
+                          </span>
+                        ) : m.webLevel === 'intermediate' ? (
+                          <span className="badge-pill bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold">
+                            متوسط (المستوى ٢) ⚡
+                          </span>
+                        ) : (
+                          <span className="badge-pill bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold">
+                            مبتدئ (المستوى ١) 🌱
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-5 whitespace-nowrap">
+                        <span className="px-2.5 py-1 rounded-lg bg-gray-100 text-gray-800 text-[11px] font-bold border border-gray-200">
+                          {m.academicYear || 'غير محدد'}
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 text-gray-600">{m.major || 'علوم حاسب'}</td>
-                      <td className="py-3.5 px-5 font-bold text-green-700">{m.points} نقطة</td>
+                      <td className="py-3.5 px-5 text-gray-700 font-medium whitespace-nowrap">{m.major || 'علوم حاسب'}</td>
+                      <td className="py-3.5 px-5 font-bold text-green-700 whitespace-nowrap">{m.points} نقطة</td>
                       <td className="py-3.5 px-5">
-                        <div className="flex gap-1 flex-wrap">
-                          {m.skills?.slice(0, 3).map((s) => (
-                            <span key={s} className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-[10px]">
-                              {s}
-                            </span>
-                          ))}
+                        <div className="flex gap-1 flex-wrap max-w-xs">
+                          {m.skills && m.skills.length > 0 ? (
+                            <>
+                              {m.skills.slice(0, 3).map((s) => (
+                                <span
+                                  key={s}
+                                  className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold whitespace-nowrap"
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                              {m.skills.length > 3 && (
+                                <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600 text-[10px] font-bold">
+                                  +{m.skills.length - 3}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-gray-400 text-[11px]">—</span>
+                          )}
                         </div>
                       </td>
-                      <td className="py-3.5 px-5">
+                      <td className="py-3.5 px-5 whitespace-nowrap">
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-800">
                           نشط ✓
                         </span>
@@ -631,28 +817,33 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
+          className="space-y-10"
         >
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-black text-gray-900 mb-1">
-                إدارة المحتوى والمسارات التعليمية
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">
-                تعديل روابط منصة سطر، روابط يوتيوب، المخرجات، وشروط الإكمال
-              </p>
+          {/* ورش العمل وشيت التحضير الميداني والتسليمات */}
+          <LeaderWorkshopsSheet currentUser={currentUser} />
+
+          <div className="pt-8 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+              <div>
+                <h2 className="text-2xl font-black text-gray-900 mb-1">
+                  مسارات منصة سطر ودليل التعلم المعتمد
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-500 font-medium">
+                  المقررات الذاتية المعتمدة للرحلة مع منصة سطر وروابط المحتوى
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  alert('دليل التعلم المعتمد لمسار الويب (PDF) جاهز للتحميل والمشاركة مع الأعضاء.');
+                }}
+                className="btn-pill px-5 py-2.5 text-xs font-bold text-white bg-[#0F1729] hover:bg-gray-800 transition-all cursor-pointer shadow-xs"
+              >
+                تحميل ملف دليل التعلم PDF
+              </button>
             </div>
 
-            <button
-              onClick={() => {
-                alert('دليل التعلم المعتمد لمسار الويب (PDF) جاهز للتحميل والمشاركة مع الأعضاء.');
-              }}
-              className="btn-pill px-5 py-2.5 text-xs font-bold text-white bg-[#0F1729] hover:bg-gray-800 transition-all cursor-pointer shadow-xs"
-            >
-              تحميل ملف دليل التعلم PDF
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {courses.map((c) => (
               <div key={c.id} className="p-5 rounded-2xl bg-white border border-gray-200 text-right">
                 <div className="flex items-center justify-between mb-2">
@@ -666,8 +857,9 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
               </div>
             ))}
           </div>
-        </motion.div>
-      )}
+        </div>
+      </motion.div>
+    )}
 
       {/* 5. تبويب الاستبيانات والأنشطة (Polls Mgmt) */}
       {currentTab === 'polls_mgmt' && (
@@ -725,30 +917,39 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                 استفسارات تنتظر الرد
               </h2>
               <div className="flex flex-col gap-3">
-                {inquiries.map((inq) => (
-                  <div key={inq.id} className="p-3.5 rounded-xl bg-gray-50 border border-gray-200">
-                    <div className="flex justify-between text-xs font-bold text-gray-900 mb-1">
-                      <span>{inq.userName}</span>
-                      <span className="text-[10px] text-gray-400">{inq.title}</span>
-                    </div>
-                    <p className="text-xs text-gray-600 mb-2">{inq.details}</p>
-                    {inq.responseText ? (
-                      <div className="text-[11px] text-green-700 bg-green-50 p-2 rounded-lg font-bold">
-                        تم الرد: {inq.responseText}
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setSelectedInquiry(inq);
-                          setReplyModalOpen(true);
-                        }}
-                        className="text-xs font-bold text-blue-600 hover:underline"
-                      >
-                        كتابة رد رسمي للعضو ←
-                      </button>
-                    )}
+                {inquiries.length === 0 ? (
+                  <div className="py-12 px-4 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+                    <p className="text-sm font-bold text-gray-700 mb-1">لا توجد استفسارات معلقة حالياً</p>
+                    <p className="text-xs text-gray-400">
+                      ستظهر استفسارات واقتراحات الأعضاء هنا فور إرسالها للرد المباشر عليها ✨
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  inquiries.map((inq) => (
+                    <div key={inq.id} className="p-3.5 rounded-xl bg-gray-50 border border-gray-200">
+                      <div className="flex justify-between text-xs font-bold text-gray-900 mb-1">
+                        <span>{inq.userName}</span>
+                        <span className="text-[10px] text-gray-400">{inq.title}</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mb-2">{inq.details}</p>
+                      {inq.responseText ? (
+                        <div className="text-[11px] text-green-700 bg-green-50 p-2 rounded-lg font-bold">
+                          تم الرد: {inq.responseText}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setSelectedInquiry(inq);
+                            setReplyModalOpen(true);
+                          }}
+                          className="text-xs font-bold text-blue-600 hover:underline"
+                        >
+                          كتابة رد رسمي للعضو ←
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -765,11 +966,25 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
         >
           <div className="mb-8">
             <h1 className="text-3xl font-black text-gray-900 mb-1">
-              إدارة ومنح النقاط (Points Management)
+              إدارة مؤشرات التفاعل ومنح النقاط (Engagement & Points)
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 font-medium">
-              منح النقاط المباشرة للأعضاء وتدقيق قيود سجل التحفيز
+              التحكم الكامل بإضافة نقاط ومؤشر التفاعل للأعضاء، بينما مؤشر التعلم يُحسب تلقائياً حسب إنجاز العضو في مساره
             </p>
+          </div>
+
+          {/* تنبيه توضيحي بنظام المؤشرات */}
+          <div className="mb-6 p-4 rounded-2xl bg-blue-50 border border-blue-200 text-right flex items-start gap-3">
+            <span className="text-xl">💡</span>
+            <div>
+              <h4 className="text-xs font-black text-blue-900 mb-0.5">
+                نظام المؤشرات المعتمد للمسار
+              </h4>
+              <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
+                • <strong>مؤشر التفاعل</strong>: يتم التحكم به وإضافته من قبل القادة حصراً عبر منح النقاط وشيت التحضير ورصد المشاركات.<br />
+                • <strong>مؤشر التعلّم</strong>: مؤشر ذكي تلقائي 100% يرتبط بما ينجزه العضو بنفسه في المقررات والمسارات التعليمية دون تدخل يدوي.
+              </p>
+            </div>
           </div>
 
           {/* بطاقة إضافة ومنح النقاط */}
@@ -780,10 +995,10 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
               </div>
               <div>
                 <h2 className="text-xl font-black text-gray-900">
-                  منح نقاط للأعضاء
+                  إضافة نقاط التفاعل للأعضاء
                 </h2>
                 <p className="text-xs text-gray-500 font-medium">
-                  حدد عضواً معيناً بالاسم أو اختر "الكل" لمنح جميع الأعضاء دفعة واحدة
+                  حدد عضواً معيناً بالاسم أو اختر "الكل" لرفع مؤشر التفاعل لجميع الأعضاء دفعة واحدة
                 </p>
               </div>
             </div>

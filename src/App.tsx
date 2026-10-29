@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { store, CURRENT_MISSION } from './services/store';
 import { UserProfile, NavTab } from './types';
+import confetti from 'canvas-confetti';
 import { EntrySequence } from './components/intro/EntrySequence';
 import { LoginCard } from './components/auth/LoginCard';
 import { MandatoryBioModal } from './components/auth/MandatoryBioModal';
@@ -21,6 +22,7 @@ import { ShowcaseView } from './components/showcase/ShowcaseView';
 import { ProfileView } from './components/profile/ProfileView';
 import { ChallengesView } from './components/challenges/ChallengesView';
 import { LeaderDashboard } from './components/leader/LeaderDashboard';
+import { ResourcesView } from './components/resources/ResourcesView';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { WelcomeCelebrationModal } from './components/notifications/WelcomeCelebrationModal';
 import { selectWelcomePhrase } from './services/welcomePhrases';
@@ -74,6 +76,8 @@ export const App: React.FC = () => {
   const [showInquiriesModal, setShowInquiriesModal] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomePhraseText, setWelcomePhraseText] = useState('');
+  const [showStarsCelebrationAlert, setShowStarsCelebrationAlert] = useState(false);
+  const welcomeShownRef = React.useRef(false);
 
   const [showNotificationsModal, setShowNotificationsModal] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -102,15 +106,44 @@ export const App: React.FC = () => {
 
   // تطبيق الإعدادات الفورية على DOM
   useEffect(() => {
-    if (!currentUser) return;
-    const settings = currentUser.settings;
-    if (!settings) return;
+    const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('web_track_theme') : null;
+    const savedSize = typeof localStorage !== 'undefined' ? localStorage.getItem('web_track_font_size') : null;
+    const savedLang = typeof localStorage !== 'undefined' ? localStorage.getItem('web_track_lang') : null;
 
-    document.documentElement.style.setProperty('--base-font-size', `${settings.fontSize || 17}px`);
-    document.documentElement.setAttribute('data-theme', settings.theme || 'light');
-    document.documentElement.setAttribute('data-eye-comfort', settings.eyeComfort ? 'true' : 'false');
-    document.documentElement.setAttribute('data-reduced-motion', settings.reducedMotion ? 'true' : 'false');
-    document.documentElement.setAttribute('data-high-contrast', settings.highContrast ? 'true' : 'false');
+    const theme = savedTheme || currentUser?.settings?.theme || 'light';
+    const size = savedSize ? parseInt(savedSize, 10) : (currentUser?.settings?.fontSize || 16);
+    const lang = savedLang || currentUser?.settings?.language || 'ar';
+
+    document.documentElement.style.setProperty('--base-font-size', `${size}px`);
+    document.documentElement.style.fontSize = `${size}px`;
+    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('lang', lang);
+    document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+  }, [currentUser]);
+
+  // تفعيل الترحيب الاحتفالي في كل مرة يفتح فيها العضو المنصة
+  useEffect(() => {
+    if (currentUser && !store.mustChangePassword() && !welcomeShownRef.current) {
+      welcomeShownRef.current = true;
+      const phrase = selectWelcomePhrase(currentUser);
+      setWelcomePhraseText(phrase.text);
+      setShowWelcomeModal(true);
+      store.updateUserLastPhrase(currentUser.id, phrase.phraseId);
+
+      confetti({
+        particleCount: 75,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#4285F4', '#EA4335', '#F9AB00', '#34A853'],
+      });
+
+      // تنبيه عند اعتماد وإعلان نجوم الأسبوع أو عضو الشهر
+      if (store.isStarsApproved() && typeof sessionStorage !== 'undefined' && !sessionStorage.getItem('stars_alert_dismissed')) {
+        setTimeout(() => {
+          setShowStarsCelebrationAlert(true);
+        }, 3200);
+      }
+    }
   }, [currentUser]);
 
   const handleIntroComplete = () => {
@@ -126,12 +159,25 @@ export const App: React.FC = () => {
     setCurrentUser(user);
     setIsLoggedIn(true);
 
-    if (user && user.onboarded_at && !store.mustChangePassword()) {
-      // مستخدم عائد: احتفال الدخول (نغمات Web Audio والشرائط والقصاصات وعبارة سعودية متجددة)
+    if (user && !store.mustChangePassword()) {
+      welcomeShownRef.current = true;
       const phrase = selectWelcomePhrase(user);
       setWelcomePhraseText(phrase.text);
       setShowWelcomeModal(true);
       store.updateUserLastPhrase(user.id, phrase.phraseId);
+
+      confetti({
+        particleCount: 85,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ['#4285F4', '#EA4335', '#F9AB00', '#34A853'],
+      });
+
+      if (store.isStarsApproved() && typeof sessionStorage !== 'undefined' && !sessionStorage.getItem('stars_alert_dismissed')) {
+        setTimeout(() => {
+          setShowStarsCelebrationAlert(true);
+        }, 3200);
+      }
     }
 
     if (user && (user.role === 'track_leader' || user.role === 'supervisor')) {
@@ -209,6 +255,65 @@ export const App: React.FC = () => {
         />
       )}
 
+      {/* نافذة تنبيه الاحتفال بإعلان نجوم الأسبوع وعضو الشهر المعتمدين */}
+      {showStarsCelebrationAlert && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(4px)' }}
+          onClick={() => {
+            setShowStarsCelebrationAlert(false);
+            if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('stars_alert_dismissed', 'true');
+          }}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full border-2 border-[#0F1729] shadow-2xl text-center relative card-3d-tactile"
+            dir="rtl"
+          >
+            <div className="w-16 h-16 rounded-3xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4 text-3xl shadow-sm border border-amber-200">
+              🏆
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-gray-950 mb-2">
+              لديناااا احتفال جديد ولفتة تكريمية لأعضاء رهيبين! 🎉✨
+            </h3>
+            <p className="text-xs sm:text-sm text-gray-600 font-medium leading-relaxed mb-6">
+              تم اعتماد وإعلان قائمة <strong>أعضاء الأسبوع الـ 5 الأكثر تفاعلاً</strong> و<strong>عضو الشهر المتميز</strong> رسميًا في لوحة الشرف! تفضل بالاطلاع على إنجازات زملائك والاحتفاء بهم.
+            </p>
+
+            <div className="flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStarsCelebrationAlert(false);
+                  if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('stars_alert_dismissed', 'true');
+                  setCurrentTab('home');
+                  setTimeout(() => {
+                    const el = document.getElementById('leaderboard-section');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }, 150);
+                }}
+                className="w-full py-3 rounded-2xl text-xs sm:text-sm font-black text-white bg-[#4285F4] hover:bg-blue-600 transition-all border-none cursor-pointer shadow-md flex items-center justify-center gap-2"
+              >
+                <span>مشاهدة لوحة الشرف والمكرمين 🌟</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStarsCelebrationAlert(false);
+                  if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('stars_alert_dismissed', 'true');
+                }}
+                className="w-full py-2.5 rounded-2xl text-xs font-bold text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 transition-colors border-none cursor-pointer"
+              >
+                إغلاق التنبيه
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* لوحة تخصيص تجربتي كـ Popover أنيق تحت الترس */}
       <CustomizeModal
         currentUser={currentUser}
@@ -279,6 +384,11 @@ export const App: React.FC = () => {
             {/* التبويب 5: المعرض (صفحة 10 بالمرجع) */}
             {currentTab === 'showcase' && (
               <ShowcaseView currentUser={currentUser} />
+            )}
+
+            {/* التبويب الإثرائي: ملفات المسار والمكتبة */}
+            {currentTab === 'resources' && (
+              <ResourcesView currentUser={currentUser} />
             )}
 
             {/* التبويب 6: المجتمع (صفحة 4 بالمرجع) */}
