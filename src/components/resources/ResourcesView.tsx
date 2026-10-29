@@ -203,11 +203,23 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
             📂
           </div>
           <h3 className="text-xl font-black text-gray-900 mb-2">
-            لا توجد ملفات متطابقة حالياً
+            {resources.length === 0 ? 'لا توجد ملفات أو مراجع إثرائية مضافة بعد' : 'لا توجد ملفات متطابقة مع البحث'}
           </h3>
           <p className="text-xs sm:text-sm text-gray-500 font-medium leading-relaxed max-w-md mx-auto">
-            سيقوم قادة المسار بإضافة وتحديث الملفات والسلايدات الإثرائية لجميع الورش تباعاً ✨
+            {resources.length === 0
+              ? 'في انتظار طرح وإضافة الملفات وسلايدات الورش والمراجع من قادة المسار ⏳'
+              : 'جرّب البحث بكلمات أخرى أو اختر تصنيفاً مختلفاً'}
           </p>
+          {isLeader && resources.length === 0 && (
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              className="mt-5 btn-pill px-5 py-2.5 text-xs font-black text-white bg-[#0F1729] hover:bg-gray-800 transition-all inline-flex items-center gap-2 cursor-pointer border-none shadow-xs"
+            >
+              <Plus size={14} />
+              <span>إضافة ملف أو مرجع إثرائي جديد</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

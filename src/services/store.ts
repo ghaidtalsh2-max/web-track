@@ -3048,46 +3048,19 @@ class StoreManager {
   public getResources(): TrackResource[] {
     const raw = localStorage.getItem(STORAGE_KEYS.RESOURCES);
     if (!raw) {
-      const defaults: TrackResource[] = [
-        {
-          id: 'res-guide-1',
-          title: 'دليل التعلم المعتمد لمسار الويب 2026 📖',
-          description: 'خارطة طريق كاملة بمحاور الويب والتقنيات والمقررات والمصادر الموصى بها.',
-          category: 'guide',
-          fileUrl: 'https://gdsc.community.dev',
-          fileType: 'pdf',
-          fileSize: '2.4 MB',
-          uploadedBy: 'غيداء تركي الشريف · قائدة المسار',
-          uploadedAt: '2026-10-25',
-        },
-        {
-          id: 'res-cheatsheet-1',
-          title: 'مرجع الأكواد السريعة HTML5 & Modern CSS3 💻',
-          description: 'بطاقة مرجعية سريعة لأهم وسوم HTML5 وخواص Flexbox و CSS Grid الحديثة.',
-          category: 'cheatsheet',
-          fileUrl: 'https://developer.mozilla.org',
-          fileType: 'pdf',
-          fileSize: '1.1 MB',
-          uploadedBy: 'ريتال القثامي · قائدة المسار',
-          uploadedAt: '2026-10-26',
-        },
-        {
-          id: 'res-slides-1',
-          title: 'حقيبة أدوات المطور (Git, GitHub, VS Code Setup) 🛠️',
-          description: 'ملف يشرح تثبيت الأدوات وضبط بيئة العمل وأساسيات العمل الجماعي عبر GitHub.',
-          category: 'slides',
-          fileUrl: 'https://github.com',
-          fileType: 'pdf',
-          fileSize: '3.8 MB',
-          uploadedBy: 'سلمان الغامدي · نائب القادة',
-          uploadedAt: '2026-10-27',
-        },
-      ];
-      localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(defaults));
-      return defaults;
+      return [];
     }
     try {
-      return JSON.parse(raw) || [];
+      const parsed: TrackResource[] = JSON.parse(raw) || [];
+      return parsed.filter(
+        (r) =>
+          r.id !== 'res-guide-1' &&
+          r.id !== 'res-cheatsheet-1' &&
+          r.id !== 'res-slides-1' &&
+          !r.title?.includes('دليل التعلم المعتمد لمسار الويب') &&
+          !r.title?.includes('مرجع الأكواد السريعة') &&
+          !r.title?.includes('حقيبة أدوات المطور')
+      );
     } catch {
       return [];
     }
