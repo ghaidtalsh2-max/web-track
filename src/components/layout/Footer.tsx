@@ -36,6 +36,10 @@ export const Footer: React.FC = () => {
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EA4335', flexShrink: 0, display: 'inline-block' }} />
                 <span>عامر الحارثي — <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>نائب قائدة المجالات</span></span>
               </div>
+              <div className="flex items-center gap-2.5">
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#9C27B0', flexShrink: 0, display: 'inline-block' }} />
+                <span>رنا أمين فيض — <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>مشرفة المسار</span></span>
+              </div>
             </div>
           </div>
 
@@ -50,11 +54,15 @@ export const Footer: React.FC = () => {
             <div className="flex flex-col gap-2.5 text-sm font-semibold items-center" style={{ color: 'var(--text-secondary)' }}>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#34A853', flexShrink: 0, display: 'inline-block' }} />
-                <span>غيداء تركي الشريف</span>
+                <span>غيداء تركي الشريف — <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>قائدة المسار</span></span>
               </div>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FBBC04', flexShrink: 0, display: 'inline-block' }} />
-                <span>ريتال القثامي</span>
+                <span>ريتال القثامي — <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>قائدة المسار</span></span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4285F4', flexShrink: 0, display: 'inline-block' }} />
+                <span>سلمان الغامدي — <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>نائب القادة</span></span>
               </div>
             </div>
           </div>

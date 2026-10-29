@@ -1288,7 +1288,7 @@ class StoreManager {
       localStorage.setItem(STORAGE_KEYS.COURSES, JSON.stringify(INITIAL_COURSES));
     }
     const rawPolls = localStorage.getItem(STORAGE_KEYS.POLLS);
-    if (!rawPolls || rawPolls.includes('poll-1') || rawPolls.includes('Flexbox')) {
+    if (!rawPolls || rawPolls.includes('poll-1') || rawPolls.includes('poll-workshops-week') || rawPolls.includes('Flexbox') || rawPolls.includes('أي ورشة')) {
       localStorage.setItem(STORAGE_KEYS.POLLS, JSON.stringify([]));
     }
     if (!localStorage.getItem(STORAGE_KEYS.VOTES)) {
@@ -2449,13 +2449,15 @@ class StoreManager {
 
   public getPolls(): Poll[] {
     const raw = localStorage.getItem(STORAGE_KEYS.POLLS);
-    if (!raw) return [INITIAL_POLL];
+    if (!raw) return [];
     try {
       const list = JSON.parse(raw);
-      const filtered = Array.isArray(list) ? list.filter((p: Poll) => p.id !== 'poll-1') : [];
-      return filtered.length > 0 ? filtered : [INITIAL_POLL];
+      const filtered = Array.isArray(list)
+        ? list.filter((p: Poll) => p.id !== 'poll-1' && p.id !== 'poll-workshops-week' && !p.id?.includes('week') && !p.title?.includes('أي ورشة'))
+        : [];
+      return filtered;
     } catch {
-      return [INITIAL_POLL];
+      return [];
     }
   }
 

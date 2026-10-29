@@ -304,7 +304,8 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
           {/* العنوان الترحيبي المطابق لصفحة 12 */}
           <div className="mb-8">
             <h1 className="text-3xl sm:text-5xl font-black text-gray-900 mb-2">
-              يا هلا بالقائدة {leaderFirst}
+              يا هلا {currentUser.role === 'supervisor' ? (currentUser.gender === 'female' ? 'بالمشرفة' : 'بالمشرف') : currentUser.fullName.includes('سلمان') ? 'بنائب القادة' : 'بالقائدة'}{' '}
+              <span style={{ color: '#EA4335' }}>{leaderFirst}</span>
             </h1>
             <p className="text-sm sm:text-base text-gray-600 font-bold">
               {(stats.pendingSubmissionsCount + unansweredInquiries.length) > 0
@@ -353,8 +354,8 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
             }}
           />
 
-          {/* الصندوقان الرئيسيان المتجاوران: تنتظر مراجعتك وموجة المسار */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+          {/* الصندوقان الرئيسيان المتجاوران: تنتظر مراجعتك وموجة المسار جنباً إلى جنب */}
+          <div className="leader-split-grid">
             {/* الصندوق 1 (اليمين): تنتظر مراجعتك */}
             <div
               className="p-6 sm:p-8 rounded-3xl card-navy"
@@ -882,30 +883,39 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                 استفسارات تنتظر الرد
               </h2>
               <div className="flex flex-col gap-3">
-                {inquiries.map((inq) => (
-                  <div key={inq.id} className="p-3.5 rounded-xl bg-gray-50 border border-gray-200">
-                    <div className="flex justify-between text-xs font-bold text-gray-900 mb-1">
-                      <span>{inq.userName}</span>
-                      <span className="text-[10px] text-gray-400">{inq.title}</span>
-                    </div>
-                    <p className="text-xs text-gray-600 mb-2">{inq.details}</p>
-                    {inq.responseText ? (
-                      <div className="text-[11px] text-green-700 bg-green-50 p-2 rounded-lg font-bold">
-                        تم الرد: {inq.responseText}
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setSelectedInquiry(inq);
-                          setReplyModalOpen(true);
-                        }}
-                        className="text-xs font-bold text-blue-600 hover:underline"
-                      >
-                        كتابة رد رسمي للعضو ←
-                      </button>
-                    )}
+                {inquiries.length === 0 ? (
+                  <div className="py-12 px-4 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+                    <p className="text-sm font-bold text-gray-700 mb-1">لا توجد استفسارات معلقة حالياً</p>
+                    <p className="text-xs text-gray-400">
+                      ستظهر استفسارات واقتراحات الأعضاء هنا فور إرسالها للرد المباشر عليها ✨
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  inquiries.map((inq) => (
+                    <div key={inq.id} className="p-3.5 rounded-xl bg-gray-50 border border-gray-200">
+                      <div className="flex justify-between text-xs font-bold text-gray-900 mb-1">
+                        <span>{inq.userName}</span>
+                        <span className="text-[10px] text-gray-400">{inq.title}</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mb-2">{inq.details}</p>
+                      {inq.responseText ? (
+                        <div className="text-[11px] text-green-700 bg-green-50 p-2 rounded-lg font-bold">
+                          تم الرد: {inq.responseText}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setSelectedInquiry(inq);
+                            setReplyModalOpen(true);
+                          }}
+                          className="text-xs font-bold text-blue-600 hover:underline"
+                        >
+                          كتابة رد رسمي للعضو ←
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
