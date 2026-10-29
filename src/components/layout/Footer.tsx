@@ -38,7 +38,7 @@ export const Footer: React.FC = () => {
               </div>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#9C27B0', flexShrink: 0, display: 'inline-block' }} />
-                <span>رنا أمين فيض — <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>مشرفة المسار</span></span>
+                <span>رنا أمين فيض — <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>نائبة قادة النادي والمستشارة</span></span>
               </div>
             </div>
           </div>

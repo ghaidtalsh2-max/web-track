@@ -6,6 +6,7 @@ import { WorkshopDetailsModal } from './WorkshopDetailsModal';
 import { DualProgressMeters } from './DualProgressMeters';
 import { Calendar, Layers, ExternalLink, X, ChevronLeft, Trophy, Crown, Sparkles, TrendingUp, Info, ShieldCheck, Clock } from 'lucide-react';
 import { UserAvatar } from '../common/UserAvatar';
+import { PinwheelFlower } from '../brand/PinwheelFlower';
 
 interface MemberHomeProps {
   currentUser: UserProfile;
@@ -193,29 +194,10 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
 
       {/* 3. شبكة المحتوى (home-grid: 1fr للعمود الأيمن و 360px للعمود الأيسر) */}
       <div className="home-grid">
-        {/* العمود الأيمن (الرئيسي): الخطوة التالية + ينتظرك */}
+        {/* العمود الأيمن (الرئيسي): خانات الورش والاستبيان والتحدي */}
         <div className="flex flex-col gap-6">
-          {/* بطاقة الخطوة التالية الصفراء */}
-          <motion.div variants={itemVariants} className="next-mission-card">
-            <div className="flex-1 text-right">
-              <div className="text-xs sm:text-sm font-black text-gray-950 mb-1">
-                الخطوة التالية · {NEXT_MISSION.dueText}
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-gray-950">
-                {isFemale ? 'سلّمي تحدي «زر يتفاعل»' : 'سلّم تحدي «زر يتفاعل»'}
-              </h2>
-            </div>
-
-            <button
-              onClick={() => onNavigateTab('challenges')}
-              className="next-mission-btn"
-            >
-              {isFemale ? 'ابدئي' : 'ابدأ'}
-            </button>
-          </motion.div>
-
           {/* عنوان "ينتظرك" */}
-          <motion.div variants={itemVariants} className="mt-2 text-right">
+          <motion.div variants={itemVariants} className="text-right">
             <h3 className="text-xl sm:text-2xl font-black text-gray-900">
               ينتظرك
             </h3>
@@ -345,177 +327,6 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
               </button>
             </motion.div>
           </div>
-
-          {/* ================= لوحة تفاعل الأعضاء (شاشتان متقابلتان: الجهة الأولى العنوان والتحفيز، والجهة الثانية قائمة الأعضاء قابلة للتمرير Scroll) ================= */}
-          <motion.div
-            variants={itemVariants}
-            id="leaderboard-section"
-            className="mt-6 p-6 sm:p-7 rounded-3xl bg-white border-2 border-[#0F1729] shadow-xs relative overflow-hidden"
-            style={{
-              borderRadius: '28px',
-            }}
-          >
-            {/* شريط علوي ملون بهوية قوقل */}
-            <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-[#4285F4] via-[#EA4335] to-[#F9AB00]" />
-
-            {/* تخطيط جانبي متقابل: جهة اليمين للنص والتحفيز، وجهة اليسار شاشة سكرول للأعضاء */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* الجهة الأولى (اليمين): لوحة تفاعل الأعضاء + الميدان للجميع + عضو الشهر */}
-              <div className="lg:col-span-5 text-right flex flex-col justify-between h-full">
-                <div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-950 text-xs font-black mb-3 border border-amber-300">
-                    <Trophy size={14} className="text-[#F9AB00]" />
-                    <span>تفاعل الكل</span>
-                  </div>
-
-                  <h3 className="text-2xl sm:text-3xl font-black text-gray-950 leading-tight">
-                    لوحة تفاعل الأعضاء ⚡
-                  </h3>
-
-                  <p className="text-sm sm:text-base font-black text-gray-800 mt-2 leading-relaxed">
-                    {isFemale ? 'الميدان للجميع.. ورّينا كيف بتتغلّبين وتتصدّرين! 🔥' : 'الميدان للجميع.. ورينا كيف بتتغلّب وتتصدّر! 🔥'}
-                  </p>
-                </div>
-
-                {/* بطاقة عضو الشهر المتميز */}
-                {rankings.memberOfTheMonth && (
-                  <div
-                    className="mt-5 p-4 rounded-2xl border-2 border-amber-300 relative overflow-hidden"
-                    style={{
-                      background: 'linear-gradient(135deg, #FFFDF5 0%, #FEF8E7 100%)',
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <UserAvatar
-                            letter={rankings.memberOfTheMonth.member.avatarLetter}
-                            name={rankings.memberOfTheMonth.member.fullName}
-                            avatarUrl={rankings.memberOfTheMonth.member.avatarUrl}
-                            color={rankings.memberOfTheMonth.member.badgeColor || '#F9AB00'}
-                            size="md"
-                            variant="flower"
-                            role={rankings.memberOfTheMonth.member.role}
-                          />
-                          <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#F9AB00] text-gray-950 flex items-center justify-center text-xs font-black shadow-xs border-2 border-white">
-                            👑
-                          </span>
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] font-black tracking-wide uppercase px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
-                            عضو الشهر ⭐
-                          </span>
-                          <h4 className="text-sm font-black text-gray-900 mt-1">
-                            {rankings.memberOfTheMonth.member.fullName}
-                          </h4>
-                        </div>
-                      </div>
-
-                      <div className="text-left flex-shrink-0">
-                        <div className="text-xl font-black text-amber-600">
-                          {rankings.memberOfTheMonth.monthPoints}
-                        </div>
-                        <div className="text-[10px] font-bold text-gray-500">
-                          نقطة تفاعل
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* الجهة المقابلة (اليسار): شاشة الأعضاء وتفاعلهم مع إمكانية التمرير Scroll المباشر */}
-              <div className="lg:col-span-7">
-                <div className="flex items-center justify-between mb-3 px-1">
-                  <span className="text-xs font-black text-gray-800">
-                    قائمة الأعضاء المتنافسين ({
-                      allMembers.filter(
-                        (m) =>
-                          m.role !== 'track_leader' &&
-                          m.role !== 'supervisor' &&
-                          !['عامر', 'أثير', 'غيداء', 'ريتال'].some((leadName) => m.fullName.includes(leadName))
-                      ).length
-                    } عضو) 👥
-                  </span>
-                  <span className="text-[11px] font-bold text-gray-400">
-                    مرر لتصفح تفاعل الجميع ↕
-                  </span>
-                </div>
-
-                {/* الحاوية القابلة للتمرير scroll */}
-                <div
-                  className="space-y-2 max-h-[380px] overflow-y-auto pr-1 pl-1"
-                  style={{
-                    scrollbarWidth: 'thin',
-                    scrollbarColor: '#CBD5E1 transparent',
-                  }}
-                >
-                  {[...allMembers]
-                    .filter(
-                      (m) =>
-                        m.role !== 'track_leader' &&
-                        m.role !== 'supervisor' &&
-                        !['عامر', 'أثير', 'غيداء', 'ريتال'].some((leadName) => m.fullName.includes(leadName))
-                    )
-                    .sort((a, b) => (b.points || 0) - (a.points || 0))
-                    .map((m, mIdx) => {
-                      const rankIcons = ['🥇', '🥈', '🥉'];
-                      const isTop3 = mIdx < 3;
-
-                      return (
-                        <div
-                          key={m.id}
-                          className={`p-3 rounded-2xl border transition-all flex items-center justify-between text-right ${
-                            isTop3
-                              ? 'bg-amber-50/50 border-amber-200 shadow-2xs'
-                              : 'bg-gray-50/80 border-gray-200 hover:bg-gray-100'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            {/* رقم الرتبة أو الميدالية */}
-                            <span
-                              className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
-                                mIdx === 0
-                                  ? 'bg-amber-300 text-amber-950 border border-amber-400'
-                                  : mIdx === 1
-                                  ? 'bg-slate-200 text-slate-800 border border-slate-300'
-                                  : mIdx === 2
-                                  ? 'bg-orange-200 text-orange-950 border border-orange-300'
-                                  : 'bg-white text-gray-500 border border-gray-200'
-                              }`}
-                            >
-                              {rankIcons[mIdx] || mIdx + 1}
-                            </span>
-
-                            <UserAvatar
-                              letter={m.avatarLetter}
-                              name={m.fullName}
-                              avatarUrl={m.avatarUrl}
-                              color={m.badgeColor}
-                              size="xs"
-                              role={m.role}
-                            />
-
-                            <div className="min-w-0">
-                              <span className="font-black text-xs text-gray-900 block truncate">
-                                {m.fullName}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
-                              {m.points || 0} نقطة
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            </div>
-          </motion.div>
         </div>
 
         {/* العمود الأيسر (الجانبي): شريط أسبوعك الديناميكي + المؤشران الإبداعيان + اكتب لنا */}
@@ -639,6 +450,158 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
           </motion.button>
         </div>
       </div>
+
+      {/* ================= لوحة تفاعل الأعضاء (في المنتصف تماماً، شاشة متناسقة بزهور الهوية وتمرير داخلي لـ 7 أعضاء) ================= */}
+      <motion.div
+        variants={itemVariants}
+        id="leaderboard-section"
+        className="mt-12 p-6 sm:p-8 rounded-3xl bg-white border-2 border-[#0F1729] shadow-xs relative overflow-hidden max-w-2xl mx-auto w-full text-right"
+        style={{
+          borderRadius: '28px',
+          boxShadow: '0 4px 0 0 #0F1729',
+        }}
+      >
+        {/* زخرفة زهرة قوقل في الزوايا */}
+        <div className="absolute -top-6 -left-6 opacity-15 pointer-events-none">
+          <PinwheelFlower size={100} color="#4285F4" />
+        </div>
+        <div className="absolute -bottom-8 -right-8 opacity-10 pointer-events-none">
+          <PinwheelFlower size={120} color="#F9AB00" />
+        </div>
+
+        {/* الشريط العلوي بهوية الألوان */}
+        <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#F9AB00] to-[#34A853]" />
+
+        {/* ترويسة اللوحة */}
+        <div className="text-center mb-6 relative">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-50 text-amber-950 text-xs font-black mb-2 border border-amber-300 shadow-2xs">
+            <Trophy size={14} className="text-[#F9AB00]" />
+            <span>تفاعل الكل</span>
+          </div>
+
+          <h3 className="text-2xl sm:text-3xl font-black text-gray-950 tracking-tight">
+            لوحة تفاعل الأعضاء ⚡
+          </h3>
+
+          <p className="text-xs sm:text-sm font-black text-gray-700 mt-1">
+            {isFemale ? 'الميدان للجميع.. ورّينا كيف بتتغلّبين وتتصدّرين! 🔥' : 'الميدان للجميع.. ورينا كيف بتتغلّب وتتصدّر! 🔥'}
+          </p>
+
+          {/* بطاقة عضو الشهر إن وجد */}
+          {rankings.memberOfTheMonth && (
+            <div className="mt-4 p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 border border-amber-300 flex items-center justify-between shadow-2xs max-w-md mx-auto">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <UserAvatar
+                    letter={rankings.memberOfTheMonth.member.avatarLetter}
+                    name={rankings.memberOfTheMonth.member.fullName}
+                    avatarUrl={rankings.memberOfTheMonth.member.avatarUrl}
+                    color={rankings.memberOfTheMonth.member.badgeColor || '#F9AB00'}
+                    size="sm"
+                    variant="flower"
+                    role={rankings.memberOfTheMonth.member.role}
+                  />
+                  <span className="absolute -top-1.5 -right-1.5 text-xs">👑</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-black text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full border border-amber-300 inline-block mb-0.5">
+                    عضو الشهر ⭐
+                  </span>
+                  <h4 className="text-xs sm:text-sm font-black text-gray-900">
+                    {rankings.memberOfTheMonth.member.fullName}
+                  </h4>
+                </div>
+              </div>
+              <div className="text-left">
+                <span className="text-base sm:text-lg font-black text-amber-600 block">
+                  {rankings.memberOfTheMonth.monthPoints}
+                </span>
+                <span className="text-[10px] font-bold text-gray-500">نقطة تفاعل</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* شريط الإحصائية: يوضح أن اللوحة تحتوي على جميع الأعضاء مع إمكانية التمرير الداخلي لـ 7 أعضاء */}
+        <div className="flex items-center justify-between mb-3 px-1 text-xs font-bold text-gray-500 border-b border-gray-100 pb-2">
+          <span className="flex items-center gap-1.5 text-gray-800 font-black">
+            <span>قائمة الأعضاء المتنافسين</span>
+            <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+              {allMembers.filter((m) => m.role === 'member').length} عضو
+            </span>
+          </span>
+          <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+            <span>مرر داخل القائمة لتصفح الجميع</span>
+            <span>↕</span>
+          </span>
+        </div>
+
+        {/* شاشة الأعضاء: بارتفاع محدد يكفي تماماً لـ 7 أعضاء فقط والتمرير بالداخل (Scroll) */}
+        <div
+          className="flex flex-col gap-2 overflow-y-auto pr-1"
+          style={{
+            maxHeight: '430px',
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#CBD5E1 #F8FAFC',
+          }}
+        >
+          {allMembers
+            .filter((m) => m.role === 'member')
+            .sort((a, b) => (b.points || 0) - (a.points || 0))
+            .map((m, mIdx) => {
+              const rankIcons = ['🥇', '🥈', '🥉'];
+              const isTop3 = mIdx < 3;
+
+              return (
+                <div
+                  key={m.id}
+                  className={`p-2.5 sm:p-3 rounded-2xl border transition-all flex items-center justify-between text-right ${
+                    isTop3
+                      ? 'bg-amber-50/40 border-amber-200 shadow-2xs'
+                      : 'bg-gray-50/70 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span
+                      className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                        mIdx === 0
+                          ? 'bg-amber-300 text-amber-950 border border-amber-400'
+                          : mIdx === 1
+                          ? 'bg-slate-200 text-slate-800 border border-slate-300'
+                          : mIdx === 2
+                          ? 'bg-orange-200 text-orange-950 border border-orange-300'
+                          : 'bg-white text-gray-500 border border-gray-200'
+                      }`}
+                    >
+                      {rankIcons[mIdx] || mIdx + 1}
+                    </span>
+
+                    <UserAvatar
+                      letter={m.avatarLetter}
+                      name={m.fullName}
+                      avatarUrl={m.avatarUrl}
+                      color={m.badgeColor}
+                      size="xs"
+                      role={m.role}
+                    />
+
+                    <div className="min-w-0">
+                      <span className="font-black text-xs text-gray-900 block truncate">
+                        {m.fullName}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                      {m.points || 0} نقطة
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+      </motion.div>
 
       {/* نافذة تفاصيل الورشة الرسمية */}
       <WorkshopDetailsModal

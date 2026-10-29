@@ -174,6 +174,31 @@ export interface Workshop {
   createdAt?: string;
 }
 
+export interface AdminScheduledWorkshop {
+  id: string;
+  orderNumber: number; // 1 to 8
+  titleAr: string;
+  titleEn: string;
+  dateStr: string;
+  presenter: string;
+  pillars: string[];
+  taskNumber: string;
+  taskTitle: string;
+  taskDescription: string;
+  isPublished: boolean;
+  publishedAt?: string;
+  meetingUrl?: string;
+  posterUrl?: string;
+}
+
+export interface WorkshopAttendanceRecord {
+  workshopId: string;
+  memberId: string;
+  attended: boolean;
+  markedAt: string;
+  markedBy?: string;
+}
+
 export interface WelcomePhrase {
   id: string;
   text_m: string;

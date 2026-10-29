@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { UserProfile, NavTab } from '../../types';
 import { store } from '../../services/store';
-import { Settings, LogOut } from 'lucide-react';
+import { Settings, LogOut, Bell } from 'lucide-react';
 import { UserAvatar } from '../common/UserAvatar';
 
 interface NavbarProps {
@@ -117,23 +117,38 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* 2. أدوات الرأس على اليسار: ترس التخصيص + زر تنبيهات ٣ + الحساب وتسجيل الخروج */}
           <div className="flex items-center gap-3 mr-auto">
             {/* زر التنبيهات الأحمر المطابق للمرجع: تنبيهات ٣ كحبة دائرية حمراء */}
-            <button
-              type="button"
-              onClick={onOpenNotifications}
-              className="btn-pill"
-              style={{
-                backgroundColor: '#EA4335',
-                color: '#FFFFFF',
-                padding: '8px 20px',
-                fontSize: '0.9rem',
-                borderRadius: '9999px',
-                border: 'none',
-                boxShadow: '0 2px 6px rgba(234, 67, 53, 0.25)',
-              }}
-              aria-label="عرض التنبيهات"
-            >
-              <span>تنبيهات ٣</span>
-            </button>
+            {/* زر التنبيهات: شارة حمراء فقط عند وجود تنبيهات حقيقية، وأيقونة جرس هادئة وأنيقة عند 0 */}
+            {unreadNotificationsCount > 0 ? (
+              <button
+                type="button"
+                onClick={onOpenNotifications}
+                className="btn-pill"
+                style={{
+                  backgroundColor: '#EA4335',
+                  color: '#FFFFFF',
+                  padding: '8px 18px',
+                  fontSize: '0.85rem',
+                  fontWeight: 900,
+                  borderRadius: '9999px',
+                  border: 'none',
+                  boxShadow: '0 2px 6px rgba(234, 67, 53, 0.25)',
+                }}
+                aria-label="عرض التنبيهات"
+              >
+                <span>تنبيهات {unreadNotificationsCount}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenNotifications}
+                className="w-10 h-10 rounded-full flex items-center justify-center text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all shadow-xs cursor-pointer border border-gray-300 active:scale-90"
+                style={{ borderRadius: '50%' }}
+                title="التنبيهات"
+                aria-label="التنبيهات"
+              >
+                <Bell size={18} className="text-gray-700" />
+              </button>
+            )}
 
             {/* زر ترس التخصيص الدائري المعتمد والمريح */}
             <button

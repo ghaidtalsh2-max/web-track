@@ -4,6 +4,7 @@ import { UserProfile, NavTab, Course } from '../../types';
 import { store } from '../../services/store';
 import { supabase } from '../../services/supabase';
 import { Pinwheel, KpiTile, PathWave, QuickCreate } from './leaderVisuals';
+import { LeaderWorkshopsSheet } from './LeaderWorkshopsSheet';
 import confetti from 'canvas-confetti';
 import {
   Users,
@@ -353,6 +354,29 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
               else if (type === 'announcement') setAnnouncementModalOpen(true);
             }}
           />
+
+          {/* شريط خطة الورش وشيت التحضير الميداني */}
+          <div className="mb-6 p-4 sm:p-5 rounded-3xl bg-gradient-to-l from-amber-50 via-white to-blue-50 border-2 border-gray-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-400 border-2 border-gray-900 flex items-center justify-center text-xl shadow-xs shrink-0">
+                📋
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-gray-900">
+                  خطة الورش (8 ورش) وشيت التحضير والتسليمات الميداني
+                </h3>
+                <p className="text-xs text-gray-600 font-medium">
+                  جدول الإدارة المعتمد لشهر نوفمبر، تحضير الأعضاء بنقرة واحدة (+20 نقطة)، ومراجعة تسليمات التحديات
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => onNavigateTab('content')}
+              className="btn-pill px-5 py-2.5 text-xs font-black text-gray-900 bg-amber-300 hover:bg-amber-400 border border-gray-900 transition-all cursor-pointer whitespace-nowrap shadow-xs"
+            >
+              فتح شيت التحضير والورش 🚀
+            </button>
+          </div>
 
           {/* الصندوقان الرئيسيان المتجاوران: تنتظر مراجعتك وموجة المسار جنباً إلى جنب */}
           <div className="leader-split-grid">
@@ -789,28 +813,33 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
+          className="space-y-10"
         >
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-black text-gray-900 mb-1">
-                إدارة المحتوى والمسارات التعليمية
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">
-                تعديل روابط منصة سطر، روابط يوتيوب، المخرجات، وشروط الإكمال
-              </p>
+          {/* ورش العمل وشيت التحضير الميداني والتسليمات */}
+          <LeaderWorkshopsSheet currentUser={currentUser} />
+
+          <div className="pt-8 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+              <div>
+                <h2 className="text-2xl font-black text-gray-900 mb-1">
+                  مسارات منصة سطر ودليل التعلم المعتمد
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-500 font-medium">
+                  المقررات الذاتية المعتمدة للرحلة مع منصة سطر وروابط المحتوى
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  alert('دليل التعلم المعتمد لمسار الويب (PDF) جاهز للتحميل والمشاركة مع الأعضاء.');
+                }}
+                className="btn-pill px-5 py-2.5 text-xs font-bold text-white bg-[#0F1729] hover:bg-gray-800 transition-all cursor-pointer shadow-xs"
+              >
+                تحميل ملف دليل التعلم PDF
+              </button>
             </div>
 
-            <button
-              onClick={() => {
-                alert('دليل التعلم المعتمد لمسار الويب (PDF) جاهز للتحميل والمشاركة مع الأعضاء.');
-              }}
-              className="btn-pill px-5 py-2.5 text-xs font-bold text-white bg-[#0F1729] hover:bg-gray-800 transition-all cursor-pointer shadow-xs"
-            >
-              تحميل ملف دليل التعلم PDF
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {courses.map((c) => (
               <div key={c.id} className="p-5 rounded-2xl bg-white border border-gray-200 text-right">
                 <div className="flex items-center justify-between mb-2">
@@ -824,8 +853,9 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
               </div>
             ))}
           </div>
-        </motion.div>
-      )}
+        </div>
+      </motion.div>
+    )}
 
       {/* 5. تبويب الاستبيانات والأنشطة (Polls Mgmt) */}
       {currentTab === 'polls_mgmt' && (

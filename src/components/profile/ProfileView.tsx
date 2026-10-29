@@ -32,6 +32,14 @@ import {
   HeartHandshake,
   Terminal,
   Crown,
+  Zap,
+  Flame,
+  Target,
+  Rocket,
+  Star,
+  Code,
+  Wrench,
+  Diamond,
 } from 'lucide-react';
 
 interface ProfileViewProps {
@@ -165,6 +173,24 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
   // خريطة أيقونات الشارات
   const getBadgeIcon = (iconName: string) => {
     switch (iconName) {
+      case 'Zap':
+        return <Zap size={18} className="text-[#4285F4]" />;
+      case 'Flame':
+        return <Flame size={18} className="text-[#EA4335]" />;
+      case 'Diamond':
+        return <Diamond size={18} className="text-[#34A853]" />;
+      case 'Target':
+        return <Target size={18} className="text-[#4285F4]" />;
+      case 'Rocket':
+        return <Rocket size={18} className="text-[#34A853]" />;
+      case 'Star':
+        return <Star size={18} className="text-[#F9AB00]" />;
+      case 'Code':
+        return <Code size={18} className="text-[#4285F4]" />;
+      case 'Wrench':
+        return <Wrench size={18} className="text-[#EA4335]" />;
+      case 'Trophy':
+        return <Trophy size={18} className="text-[#34A853]" />;
       case 'Sparkles':
         return <Sparkles size={18} className="text-[#F9AB00]" />;
       case 'FileCode2':

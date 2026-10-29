@@ -451,6 +451,8 @@ const STORAGE_KEYS = {
   CHALLENGE_CHOICES: 'gdg_webtrack_challenge_choices_v9',
   ACTIVE_LAB_CHALLENGE: 'gdg_webtrack_active_lab_challenge_v9',
   CUSTOM_LAB_CHALLENGES: 'gdg_webtrack_custom_lab_challenges_v9',
+  ADMIN_WORKSHOPS: 'gdg_webtrack_admin_workshops_plan_v1',
+  ATTENDANCE: 'gdg_webtrack_attendance_v1',
 };
 
 // مجموعات التحديات والخيارات المعتمدة (المعمارية الرسمية للقسم 3)
@@ -505,41 +507,268 @@ export const INITIAL_CHALLENGE_GROUPS: ChallengeGroup[] = [
 // الورش الرسمية المعتمدة (فارغة افتراضياً حتى يضيفها القادة)
 export const INITIAL_WORKSHOPS: Workshop[] = [];
 
-// التنبيهات الأولية (مطابقة لصفحة 9 في المرجع)
-export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
+// التنبيهات الأولية (فارغة افتراضياً حتى صدور تنبيهات حقيقية)
+export const INITIAL_NOTIFICATIONS: NotificationItem[] = [];
+
+export interface TrackBadgeDefinition {
+  id: string;
+  name: string;
+  title: string;
+  category: 'points' | 'workshops' | 'tasks';
+  icon: string;
+  color: string;
+  description: string;
+  targetValue: number;
+}
+
+export const TRACK_BADGES: TrackBadgeDefinition[] = [
   {
-    id: 'notif-1',
-    userId: 'member-noura',
-    type: 'points',
-    title: 'نقاط جديدة',
-    description: 'قبلنا تسليمك: صفحتك الأولى',
-    badgeText: '30+',
-    pointsAmount: 30,
-    targetTab: 'home',
-    createdAt: 'منذ ساعتين',
-    read: true,
+    id: 'badge-pts-200',
+    name: 'شرارة البداية ⚡',
+    title: 'شرارة البداية',
+    category: 'points',
+    icon: '⚡',
+    color: '#4285F4',
+    description: 'تحقيق أول 200 نقطة تميز في مسار الويب',
+    targetValue: 200,
   },
   {
-    id: 'notif-2',
-    userId: 'member-noura',
-    type: 'workshop',
-    title: 'ورشة جديدة',
-    description: 'Grid و Flexbox · الأحد ٨ مساءً',
-    badgeText: '◆',
-    targetTab: 'home',
-    createdAt: 'منذ يوم',
-    read: true,
+    id: 'badge-pts-500',
+    name: 'شعلة الإنجاز 🔥',
+    title: 'شعلة الإنجاز',
+    category: 'points',
+    icon: '🔥',
+    color: '#EA4335',
+    description: 'الوصول إلى 500 نقطة من التفاعل والإتقان',
+    targetValue: 500,
   },
   {
-    id: 'notif-3',
-    userId: 'member-noura',
-    type: 'task',
-    title: 'مهمة جديدة',
-    description: 'تحدي: زر يتفاعل · آخر موعد الخميس',
-    badgeText: '!',
-    targetTab: 'home',
-    createdAt: 'منذ يومين',
-    read: true,
+    id: 'badge-pts-700',
+    name: 'أسطورة المسار 💎',
+    title: 'أسطورة المسار',
+    category: 'points',
+    icon: '💎',
+    color: '#34A853',
+    description: 'تجاوز 700 نقطة والدخول في نادي نخبة المطورين',
+    targetValue: 700,
+  },
+  {
+    id: 'badge-pts-1000',
+    name: 'التاج الذهبي 👑',
+    title: 'التاج الذهبي',
+    category: 'points',
+    icon: '👑',
+    color: '#F9AB00',
+    description: 'كسر حاجز 1000 نقطة والتربع على عرش التميز البرمجي',
+    targetValue: 1000,
+  },
+  {
+    id: 'badge-ws-3',
+    name: 'حاضر ومبادر 🎯',
+    title: 'حاضر ومبادر',
+    category: 'workshops',
+    icon: '🎯',
+    color: '#4285F4',
+    description: 'الالتزام بحضور 3 ورش عمل تطبيقية',
+    targetValue: 3,
+  },
+  {
+    id: 'badge-ws-5',
+    name: 'شغف المعرفة 🚀',
+    title: 'شغف المعرفة',
+    category: 'workshops',
+    icon: '🚀',
+    color: '#34A853',
+    description: 'الالتزام بحضور 5 ورش عمل تطبيقية متقدمة',
+    targetValue: 5,
+  },
+  {
+    id: 'badge-ws-8',
+    name: 'سفير الورش الذهبي 🌟',
+    title: 'سفير الورش الذهبي',
+    category: 'workshops',
+    icon: '🌟',
+    color: '#F9AB00',
+    description: 'حضور جميع ورش المسار الثماني بنسبة التزام 100%',
+    targetValue: 8,
+  },
+  {
+    id: 'badge-task-1',
+    name: 'أول خطوة كود 💻',
+    title: 'أول خطوة كود',
+    category: 'tasks',
+    icon: '💻',
+    color: '#4285F4',
+    description: 'تسليم واعتماد أول مهمة برمجية بنجاح',
+    targetValue: 1,
+  },
+  {
+    id: 'badge-task-4',
+    name: 'مطوّر نصف المسار 🛠️',
+    title: 'مطوّر نصف المسار',
+    category: 'tasks',
+    icon: '🛠️',
+    color: '#EA4335',
+    description: 'إنجاز وتسليم 4 مهام برمجية تطبيقية',
+    targetValue: 4,
+  },
+  {
+    id: 'badge-task-8',
+    name: 'خبير الويب الشامل 🏆',
+    title: 'خبير الويب الشامل',
+    category: 'tasks',
+    icon: '🏆',
+    color: '#34A853',
+    description: 'إنجاز وتسليم جميع مهام وتحديات ورش المسار الثماني',
+    targetValue: 8,
+  },
+];
+
+// خطة ورش مسار تصميم وتطوير الويب — نوفمبر 2026 (مسودة مجدولة لحسابات الإدارة فقط)
+export const INITIAL_ADMIN_SCHEDULED_WORKSHOPS: AdminScheduledWorkshop[] = [
+  {
+    id: 'plan-ws-1',
+    orderNumber: 1,
+    titleAr: 'أساسيات الويب',
+    titleEn: 'Web Fundamentals',
+    dateStr: 'الثلاثاء 3 نوفمبر 2026',
+    presenter: 'سلمان الغامدي',
+    pillars: [
+      'كيف يعمل الويب؟ فهم المتصفح والخادم وكيف تظهر المواقع للمستخدم.',
+      'HTML: بناء هيكل الصفحة وتنظيم محتواها.',
+      'CSS: تنسيق الواجهات والتحكم في الألوان والتخطيط والتصميم المتجاوب.',
+      'JavaScript: إضافة التفاعل وربط عناصر الصفحة بأحداث المستخدم.',
+    ],
+    taskNumber: 'Task 01',
+    taskTitle: 'Make It Interactive',
+    taskDescription: 'بناء صفحة ويب متجاوبة تحتوي على محتوى منظم وتصميم مناسب، مع عنصر تفاعلي باستخدام JavaScript.',
+    isPublished: false,
+  },
+  {
+    id: 'plan-ws-2',
+    orderNumber: 2,
+    titleAr: 'إدارة المشاريع البرمجية',
+    titleEn: 'Git & GitHub',
+    dateStr: 'السبت 7 نوفمبر 2026',
+    presenter: 'مهاد الحارثي',
+    pillars: [
+      'أساسيات Git وGitHub: الفرق بينهما ودورهما في تطوير مواقع الويب.',
+      'إدارة التعديلات: استخدام add وcommit وpush وpull.',
+      'تنظيم العمل والتعاون: المستودعات والفروع وPull Requests.',
+      'توثيق المشاريع: كتابة README وتنظيم ملفات المستودع.',
+    ],
+    taskNumber: 'Task 02',
+    taskTitle: 'Repo Makeover',
+    taskDescription: 'رفع مشروع ويب إلى GitHub، وتنظيم ملفاته، وإضافة README يشرح فكرته وطريقة تشغيله، مع توثيق التعديلات باستخدام Commits واضحة.',
+    isPublished: false,
+  },
+  {
+    id: 'plan-ws-3',
+    orderNumber: 3,
+    titleAr: 'تصميم الواجهات وتجربة المستخدم',
+    titleEn: 'UI/UX Design',
+    dateStr: 'الثلاثاء 10 نوفمبر 2026',
+    presenter: 'دانة الشهري وشوق الزايدي',
+    pillars: [
+      'فهم المستخدم: تحديد احتياجاته والمشكلة التي يحلها الموقع.',
+      'تخطيط الواجهة: بناء User Flow وWireframes قبل التصميم.',
+      'التصميم البصري: الألوان والخطوط والمسافات والتسلسل البصري.',
+      'التصميم التفاعلي والمتجاوب: إنشاء Prototype في Figma ومراعاة اختلاف أحجام الشاشات.',
+    ],
+    taskNumber: 'Task 03',
+    taskTitle: 'The UI Rescue',
+    taskDescription: 'اختيار واجهة موقع تحتاج إلى تحسين، وإعادة تصميمها باستخدام Figma مع توضيح أبرز المشكلات التي عالجها التصميم.',
+    isPublished: false,
+  },
+  {
+    id: 'plan-ws-4',
+    orderNumber: 4,
+    titleAr: 'البيانات وقواعد البيانات',
+    titleEn: 'Data & Databases',
+    dateStr: 'السبت 14 نوفمبر 2026',
+    presenter: 'لانا الجعيد',
+    pillars: [
+      'البيانات في مواقع الويب: أنواع البيانات وكيفية تنظيمها والاستفادة منها.',
+      'أساسيات قواعد البيانات: الجداول والحقول والسجلات والمفاتيح والعلاقات.',
+      'تصميم قواعد البيانات: تحديد الجداول والعلاقات المناسبة لاحتياج الموقع.',
+      'SQL عمليًا: أساسيات الاستعلام وإضافة البيانات وتعديلها وحذفها.',
+    ],
+    taskNumber: 'Task 04',
+    taskTitle: 'Structure the Data',
+    taskDescription: 'اختيار فكرة موقع مثل مكتبة أو متجر، وتصميم قاعدة بيانات مناسبة لها، مع تحديد الجداول والحقول والعلاقات وكتابة استعلامات SQL أساسية.',
+    isPublished: false,
+  },
+  {
+    id: 'plan-ws-5',
+    orderNumber: 5,
+    titleAr: 'تطوير الواجهات باستخدام React',
+    titleEn: 'React',
+    dateStr: 'الثلاثاء 17 نوفمبر 2026',
+    presenter: 'ريتال القثامي وغيداء الشريف',
+    pillars: [
+      'مقدمة في React: فهم دورها في بناء واجهات الويب وتجهيز المشروع.',
+      'Components وJSX: تقسيم الواجهة إلى عناصر قابلة لإعادة الاستخدام.',
+      'Props وState: تمرير البيانات وتحديث الواجهة.',
+      'التفاعل مع البيانات: الأحداث والنماذج وعرض القوائم بصورة ديناميكية.',
+    ],
+    taskNumber: 'Task 05',
+    taskTitle: 'Build It with React',
+    taskDescription: 'بناء واجهة تفاعلية باستخدام React، مثل قائمة مهام أو لوحة مشاريع، مع مكونات قابلة لإعادة الاستخدام وإمكانية إضافة العناصر وعرضها.',
+    isPublished: false,
+  },
+  {
+    id: 'plan-ws-6',
+    orderNumber: 6,
+    titleAr: 'بناء تطبيق ويب متكامل',
+    titleEn: 'Full-Stack Web Development',
+    dateStr: 'السبت 21 نوفمبر 2026',
+    presenter: 'غيداء الشريف وريتال القثامي',
+    pillars: [
+      'بنية تطبيق الويب: كيف تتكامل الواجهة والخدمات والبيانات.',
+      'APIs وتبادل البيانات: إرسال الطلبات واستقبال البيانات وعرضها.',
+      'ربط الموقع بالبيانات: استخدام خدمة مثل Supabase أو Firebase عند الحاجة.',
+      'العمليات الأساسية وإدارة الحالات: CRUD والتعامل مع التحميل والأخطاء والنجاح.',
+    ],
+    taskNumber: 'Task 06',
+    taskTitle: 'Make It Work',
+    taskDescription: 'بناء تطبيق ويب مصغّر يتيح للمستخدم إضافة بيانات وعرضها وتعديلها وحذفها، باستخدام مصدر بيانات مناسب للمشروع.',
+    isPublished: false,
+  },
+  {
+    id: 'plan-ws-7',
+    orderNumber: 7,
+    titleAr: 'الأمن السيبراني لمواقع الويب',
+    titleEn: 'Web Security',
+    dateStr: 'الثلاثاء 24 نوفمبر 2026',
+    presenter: 'ريماس الحارثي',
+    pillars: [
+      'مخاطر تطبيقات الويب: أشهر الثغرات وكيف تنشأ.',
+      'حماية المدخلات والمخرجات: التحقق من البيانات والوقاية من XSS وSQL Injection.',
+      'المصادقة والصلاحيات: الفرق بين Authentication وAuthorization وحماية بيانات المستخدم.',
+      'تأمين المشروع: حماية مفاتيح API والأسرار، واكتشاف الأخطاء وإصلاحها في بيئة تدريبية.',
+    ],
+    taskNumber: 'Task 07',
+    taskTitle: 'Secure the Site',
+    taskDescription: 'مراجعة تطبيق ويب تدريبي، وتحديد مشكلتين أمنيتين على الأقل، ثم توضيح طريقة إصلاحهما أو تطبيق الإصلاح والتحقق منه.',
+    isPublished: false,
+  },
+  {
+    id: 'plan-ws-8',
+    orderNumber: 8,
+    titleAr: 'توظيف الذكاء الاصطناعي في مواقع الويب',
+    titleEn: 'AI-Powered Web Apps',
+    dateStr: 'السبت 28 نوفمبر 2026',
+    presenter: 'عبدالعزيز العصيمي',
+    pillars: [
+      'اختيار ميزة ذكية للموقع: تحديد مشكلة يمكن حلها أو تحسينها باستخدام AI.',
+      'دمج AI APIs: إرسال مدخلات المستخدم إلى خدمة ذكاء اصطناعي واستقبال النتائج.',
+      'بناء تجربة المستخدم: عرض النتائج والتعامل مع التحميل والأخطاء والمخرجات غير المناسبة.',
+      'الأمان وجودة المخرجات: حماية مفاتيح API ومراعاة الخصوصية والتحقق من النتائج.',
+    ],
+    taskNumber: 'Task 08',
+    taskTitle: 'Add an AI Feature',
+    taskDescription: 'إضافة ميزة ذكاء اصطناعي إلى موقع ويب، مثل مساعد يجيب عن أسئلة حول محتوى الموقع أو أداة تلخيص نصوص، مع توضيح طريقة عمل الميزة.',
+    isPublished: false,
   },
 ];
 
@@ -1281,8 +1510,9 @@ class StoreManager {
       // ignore
     }
 
-    if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS)) {
-      localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(INITIAL_NOTIFICATIONS));
+    const rawNotifs = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
+    if (!rawNotifs || rawNotifs.includes('notif-1') || rawNotifs.includes('صفحتك الأولى')) {
+      localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify([]));
     }
     if (!localStorage.getItem(STORAGE_KEYS.COURSES)) {
       localStorage.setItem(STORAGE_KEYS.COURSES, JSON.stringify(INITIAL_COURSES));
@@ -1296,6 +1526,12 @@ class StoreManager {
     }
     if (!localStorage.getItem(STORAGE_KEYS.WORKSHOPS)) {
       localStorage.setItem(STORAGE_KEYS.WORKSHOPS, JSON.stringify(INITIAL_WORKSHOPS));
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.ADMIN_WORKSHOPS)) {
+      localStorage.setItem(STORAGE_KEYS.ADMIN_WORKSHOPS, JSON.stringify(INITIAL_ADMIN_SCHEDULED_WORKSHOPS));
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.ATTENDANCE)) {
+      localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify({}));
     }
     if (!localStorage.getItem(STORAGE_KEYS.ACTION_ITEMS)) {
       localStorage.setItem(STORAGE_KEYS.ACTION_ITEMS, JSON.stringify(INITIAL_ACTION_ITEMS));
@@ -1952,78 +2188,136 @@ class StoreManager {
     };
   }
 
-  // --- User Badges & Achievements ---
+  // --- User Badges & Achievements (الشارات المعتمدة لتحفيز الأعضاء) ---
   public getUserBadges(userId: string): BadgeItem[] {
     const member = this.members.find((m) => m.id === userId);
     if (!member) return [];
 
     const badges: BadgeItem[] = [];
-    const stats = this.getUserStats(userId);
+    const pts = member.points || 0;
 
-    if (member.bio && member.bio.length >= 20) {
+    // احتساب حضور الورش
+    const attendanceMap = this.getAttendanceMap();
+    const attendedWorkshopsCount = Object.values(attendanceMap).filter(
+      (a) => a.memberId === userId && a.attended
+    ).length;
+
+    // احتساب تسليم المهام المعتمدة
+    const submissions = this.getSubmissions();
+    const approvedTasksCount = submissions.filter(
+      (s) => (s.profile_id === userId || s.userId === userId) && s.status === 'approved'
+    ).length;
+
+    // 1. شارات النقاط
+    if (pts >= 200) {
       badges.push({
-        id: 'badge-first-step',
-        name: 'الخطوة الأولى',
-        description: 'إكمال التسجيل وتعيين النبذة التعريفية في المسار',
-        iconName: 'Sparkles',
-        category: 'milestone',
-        reason: 'إعداد الملف الشخصي والنبذة التعريفية بنجاح ✨',
-        awardedAt: member.onboarded_at || 'معتمد',
+        id: 'badge-pts-200',
+        name: 'شرارة البداية ⚡',
+        description: 'تحقيق أول 200 نقطة تميز في مسار الويب',
+        iconName: 'Zap',
+        category: 'points',
+        reason: 'تجاوز حاجز 200 نقطة تفاعل بنجاح ⚡',
       });
     }
 
-    if (member.points >= 50 || stats.challengesCompleted >= 1) {
+    if (pts >= 500) {
       badges.push({
-        id: 'badge-html-hero',
-        name: 'بطل الويب التأسيسي',
-        description: 'إتقان أساسيات HTML5 وبناء أول هيكل ويب نظيف',
-        iconName: 'FileCode2',
-        category: 'challenge',
-        reason: 'إنجاز أول تحدي في مسار تطوير الويب 🚀',
+        id: 'badge-pts-500',
+        name: 'شعلة الإنجاز 🔥',
+        description: 'الوصول إلى 500 نقطة من التفاعل والإتقان البرمجي',
+        iconName: 'Flame',
+        category: 'points',
+        reason: 'الوصول إلى 500 نقطة في مسار الويب 🔥',
       });
     }
 
-    if (stats.projectsCompleted >= 1) {
+    if (pts >= 700) {
       badges.push({
-        id: 'badge-first-project',
-        name: 'أول مشروع معتمد',
-        description: 'تسليم أول مشروع تطبيقي واعتماده رسمياً من قادة المسار',
-        iconName: 'CheckCircle2',
-        category: 'milestone',
-        reason: 'اعتماد رابط المشروع البرمجي من قيادة المسار 🎯',
+        id: 'badge-pts-700',
+        name: 'أسطورة المسار 💎',
+        description: 'تجاوز 700 نقطة والدخول في نادي نخبة مطوري المسار',
+        iconName: 'Diamond',
+        category: 'points',
+        reason: 'التميز الاستثنائي وتجاوز 700 نقطة 💎',
       });
     }
 
-    if (member.points >= 200) {
+    if (pts >= 1000) {
       badges.push({
-        id: 'badge-css-artist',
-        name: 'مهندس الواجهات',
-        description: 'تصميم واجهة متناسقة بهوية قوقل وتطبيق CSS الحديث',
-        iconName: 'Palette',
-        category: 'challenge',
-        reason: 'الوصول إلى 200 نقطة إنجاز في بناء وتنسيق الواجهات 🎨',
-      });
-    }
-
-    if (stats.initiativesCount >= 1) {
-      badges.push({
-        id: 'badge-community-star',
-        name: 'نجم المجتمع',
-        description: 'التفاعل المستمر في استبيانات ومبادرات المسار',
-        iconName: 'HeartHandshake',
-        category: 'community',
-        reason: 'المشاركة الفعالة في مبادرات ونقاشات المسار 🤝',
-      });
-    }
-
-    if (member.role === 'track_leader' || member.role === 'supervisor' || member.points >= 500) {
-      badges.push({
-        id: 'badge-leader-pioneer',
-        name: member.gender === 'female' ? 'رائدة الويب' : 'رائد الويب',
-        description: 'القيادة التقنية والمساهمة الفاعلة في توجيه أعضاء المسار',
+        id: 'badge-pts-1000',
+        name: 'التاج الذهبي 👑',
+        description: 'كسر حاجز 1000 نقطة والتربع على عرش التميز البرمجي',
         iconName: 'Crown',
-        category: 'leadership',
-        reason: 'التميز القيادي والإشرافي في مجتمع مطوري قوقل 👑',
+        category: 'points',
+        reason: 'تحقيق المركز الأسطوري و1000 نقطة 👑',
+      });
+    }
+
+    // 2. شارات حضور الورش
+    if (attendedWorkshopsCount >= 3) {
+      badges.push({
+        id: 'badge-ws-3',
+        name: 'حاضر ومبادر 🎯',
+        description: 'الالتزام بحضور 3 ورش عمل تطبيقية في المسار',
+        iconName: 'Target',
+        category: 'workshops',
+        reason: 'حضور والمشاركة في 3 ورش عمل معتمدة 🎯',
+      });
+    }
+
+    if (attendedWorkshopsCount >= 5) {
+      badges.push({
+        id: 'badge-ws-5',
+        name: 'شغف المعرفة 🚀',
+        description: 'الالتزام بحضور 5 ورش عمل تطبيقية متقدمة',
+        iconName: 'Rocket',
+        category: 'workshops',
+        reason: 'المواظبة على حضور 5 ورش عمل تقنية 🚀',
+      });
+    }
+
+    if (attendedWorkshopsCount >= 8) {
+      badges.push({
+        id: 'badge-ws-8',
+        name: 'سفير الورش الذهبي 🌟',
+        description: 'حضور جميع ورش المسار الثماني بنسبة التزام 100%',
+        iconName: 'Star',
+        category: 'workshops',
+        reason: 'نسبة حضور كاملة لجميع ورش المسار الثماني 🌟',
+      });
+    }
+
+    // 3. شارات تسليم المهام والتاسكات
+    if (approvedTasksCount >= 1) {
+      badges.push({
+        id: 'badge-task-1',
+        name: 'أول خطوة كود 💻',
+        description: 'تسليم واعتماد أول مهمة برمجية تطبيقية بنجاح',
+        iconName: 'Code',
+        category: 'tasks',
+        reason: 'اعتماد أول تسليم برمجي تطبيقي 💻',
+      });
+    }
+
+    if (approvedTasksCount >= 4) {
+      badges.push({
+        id: 'badge-task-4',
+        name: 'مطوّر نصف المسار 🛠️',
+        description: 'إنجاز وتسليم 4 مهام برمجية تطبيقية معتمدة',
+        iconName: 'Wrench',
+        category: 'tasks',
+        reason: 'إنجاز واعتماد 4 مهام برمجية بنجاح 🛠️',
+      });
+    }
+
+    if (approvedTasksCount >= 8) {
+      badges.push({
+        id: 'badge-task-8',
+        name: 'خبير الويب الشامل 🏆',
+        description: 'إنجاز وتسليم جميع مهام ورش المسار الثماني',
+        iconName: 'Trophy',
+        category: 'tasks',
+        reason: 'إتمام كامل مهام وتحديات خطة ورش المسار 🏆',
       });
     }
 
@@ -2958,6 +3252,166 @@ class StoreManager {
     }
     this.notify();
     return newChallenge;
+  }
+
+  // --- خطة ورش الإدارة المجدولة (Admin Scheduled Workshops) ---
+  public getAdminScheduledWorkshops(): AdminScheduledWorkshop[] {
+    if (typeof window === 'undefined') return INITIAL_ADMIN_SCHEDULED_WORKSHOPS;
+    const raw = localStorage.getItem(STORAGE_KEYS.ADMIN_WORKSHOPS);
+    return raw ? JSON.parse(raw) : INITIAL_ADMIN_SCHEDULED_WORKSHOPS;
+  }
+
+  public updateAdminScheduledWorkshop(updated: AdminScheduledWorkshop) {
+    if (typeof window === 'undefined') return;
+    const list = this.getAdminScheduledWorkshops();
+    const idx = list.findIndex((w) => w.id === updated.id);
+    if (idx !== -1) {
+      list[idx] = updated;
+    } else {
+      list.push(updated);
+    }
+    localStorage.setItem(STORAGE_KEYS.ADMIN_WORKSHOPS, JSON.stringify(list));
+    this.notify();
+  }
+
+  public publishAdminScheduledWorkshop(workshopId: string): boolean {
+    if (typeof window === 'undefined') return false;
+    const list = this.getAdminScheduledWorkshops();
+    const ws = list.find((w) => w.id === workshopId);
+    if (!ws) return false;
+
+    ws.isPublished = true;
+    ws.publishedAt = new Date().toISOString();
+    localStorage.setItem(STORAGE_KEYS.ADMIN_WORKSHOPS, JSON.stringify(list));
+
+    // إضافة الورشة كورشة معتمدة عامة للأعضاء
+    const publicWs: Workshop = {
+      id: ws.id,
+      title: `${ws.titleAr} | ${ws.titleEn}`,
+      description: `المقدّم: ${ws.presenter} · الموعد: ${ws.dateStr} · المحاور: ${ws.pillars.slice(0, 2).join(' | ')}`,
+      scheduledAt: ws.dateStr,
+      topics: ws.pillars,
+      tasks: [ws.taskTitle],
+      imageUrl: ws.posterUrl,
+      registrationUrl: ws.meetingUrl,
+      createdAt: new Date().toISOString(),
+    };
+
+    const currentWorkshops = this.getWorkshops();
+    if (!currentWorkshops.some((w) => w.id === ws.id)) {
+      currentWorkshops.unshift(publicWs);
+      localStorage.setItem(STORAGE_KEYS.WORKSHOPS, JSON.stringify(currentWorkshops));
+    }
+
+    // إضافة التاسك كالمهمة المعتمدة
+    this.tasks = [
+      {
+        id: `task-${ws.id}`,
+        title: `${ws.taskNumber} — ${ws.taskTitle}`,
+        description: ws.taskDescription,
+        pointsReward: 50,
+        due_date: ws.dateStr,
+        workshop_id: ws.id,
+        is_active: true,
+      },
+      ...this.tasks,
+    ];
+
+    // إشعار الأعضاء بالورشة والمهمة
+    const members = this.getMembers();
+    members.forEach((m) => {
+      this.addNotification({
+        userId: m.id,
+        type: 'workshop',
+        title: `ورشة معتمدة: ${ws.titleAr}`,
+        description: `المقدّم: ${ws.presenter} · ${ws.dateStr}`,
+        badgeText: 'ورشة',
+        targetTab: 'home',
+      });
+    });
+
+    this.notify();
+    return true;
+  }
+
+  // --- التحضير والتسليمات الميدانية (Attendance & Task Sheet) ---
+  public getAttendanceMap(): Record<string, WorkshopAttendanceRecord> {
+    if (typeof window === 'undefined') return {};
+    const raw = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
+    return raw ? JSON.parse(raw) : {};
+  }
+
+  public getWorkshopAttendance(workshopId: string): Record<string, WorkshopAttendanceRecord> {
+    const all = this.getAttendanceMap();
+    const result: Record<string, WorkshopAttendanceRecord> = {};
+    Object.entries(all).forEach(([key, rec]) => {
+      if (rec.workshopId === workshopId) {
+        result[rec.memberId] = rec;
+      }
+    });
+    return result;
+  }
+
+  public toggleAttendance(workshopId: string, memberId: string, attended: boolean): boolean {
+    if (typeof window === 'undefined') return false;
+    const all = this.getAttendanceMap();
+    const key = `${workshopId}_${memberId}`;
+    all[key] = {
+      workshopId,
+      memberId,
+      attended,
+      markedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(all));
+
+    // إذا تم التحضير، منح نقاط الحضور (+20 نقطة)
+    if (attended) {
+      this.awardPoints(memberId, 20, 'حضور ورشة عمل تطبيقية 🎯');
+    }
+
+    this.notify();
+    return true;
+  }
+
+  // --- حساب الشارات المستحقة لكل عضو (Badges Calculation) ---
+  public getMemberBadges(memberId: string) {
+    const member = this.getMemberById(memberId);
+    const memberPoints = member?.points || 0;
+
+    // احتساب الورش التي حضرها
+    const attendanceMap = this.getAttendanceMap();
+    const attendedWorkshopsCount = Object.values(attendanceMap).filter(
+      (a) => a.memberId === memberId && a.attended
+    ).length;
+
+    // احتساب المهام المعتمدة المسلّمة
+    const submissions = this.getSubmissions();
+    const approvedTasksCount = submissions.filter(
+      (s) => (s.profile_id === memberId || s.userId === memberId) && s.status === 'approved'
+    ).length;
+
+    return TRACK_BADGES.map((badge) => {
+      let isUnlocked = false;
+      let currentProgress = 0;
+
+      if (badge.category === 'points') {
+        currentProgress = memberPoints;
+        isUnlocked = memberPoints >= badge.targetValue;
+      } else if (badge.category === 'workshops') {
+        currentProgress = attendedWorkshopsCount;
+        isUnlocked = attendedWorkshopsCount >= badge.targetValue;
+      } else if (badge.category === 'tasks') {
+        currentProgress = approvedTasksCount;
+        isUnlocked = approvedTasksCount >= badge.targetValue;
+      }
+
+      return {
+        ...badge,
+        unlocked: isUnlocked,
+        currentProgress,
+        progressPercent: Math.min(Math.round((currentProgress / badge.targetValue) * 100), 100),
+      };
+    });
   }
 
   public resetIntro() {
