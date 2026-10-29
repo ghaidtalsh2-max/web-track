@@ -539,10 +539,14 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                     عضو الشهر {rankings.isApproved ? '(معتمد رسميًا)' : '(المرشح الأول)'}
                   </span>
                   <div className="font-black text-sm text-gray-900">
-                    {rankings.memberOfTheMonth?.member.fullName || 'لا يوجد بعد'}
+                    {rankings.memberOfTheMonth && rankings.memberOfTheMonth.monthPoints > 0
+                      ? rankings.memberOfTheMonth.member.fullName
+                      : 'مجهول (في انتظار بدء التفاعل والتتويج)'}
                   </div>
                   <div className="text-xs text-gray-500 font-medium">
-                    {rankings.memberOfTheMonth?.member.webLevelTitle} · @{rankings.memberOfTheMonth?.member.username}
+                    {rankings.memberOfTheMonth && rankings.memberOfTheMonth.monthPoints > 0
+                      ? `${rankings.memberOfTheMonth.member.webLevelTitle} · @${rankings.memberOfTheMonth.member.username}`
+                      : 'سيظهر اسم المتصدر فور تسجيل أي نقاط تفاعل'}
                   </div>
                 </div>
                 <div className="text-left font-black text-amber-600 text-xl">

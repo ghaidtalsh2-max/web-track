@@ -498,8 +498,38 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
             {isFemale ? 'الميدان للجميع.. ورّينا كيف بتتغلّبين وتتصدّرين! 🔥' : 'الميدان للجميع.. ورينا كيف بتتغلّب وتتصدّر! 🔥'}
           </p>
 
-          {/* بطاقة عضو الشهر إن وجد */}
-          {rankings.memberOfTheMonth && (
+          {/* بطاقة عضو الشهر (مجهول حتى اعتماد التتويج أو وجود نقاط تفاعل فعلية) */}
+          {(!rankings.isApproved || !rankings.memberOfTheMonth || (rankings.memberOfTheMonth.monthPoints || 0) <= 0) ? (
+            <div className="mt-4 p-3.5 rounded-2xl bg-gradient-to-r from-amber-50/90 via-yellow-50/60 to-amber-50/90 border border-amber-300 flex items-center justify-between shadow-xs max-w-md mx-auto">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <UserAvatar
+                    letter="؟"
+                    name="مجهول"
+                    color="#F9AB00"
+                    size="sm"
+                    variant="flower"
+                  />
+                  <span className="absolute -top-1.5 -right-1.5 text-xs">👑</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-black text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full border border-amber-300 inline-block mb-0.5">
+                    عضو الشهر ⭐
+                  </span>
+                  <h4 className="text-xs sm:text-sm font-black text-gray-800 flex items-center gap-1.5">
+                    <span>مجهول</span>
+                    <span className="text-[10px] font-bold text-gray-500">(في انتظار التتويج ⏳)</span>
+                  </h4>
+                </div>
+              </div>
+              <div className="text-left">
+                <span className="text-sm sm:text-base font-black text-amber-600 block">
+                  -- نقطة
+                </span>
+                <span className="text-[10px] font-bold text-gray-400">نقطة تفاعل</span>
+              </div>
+            </div>
+          ) : (
             <div className="mt-4 p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 border border-amber-300 flex items-center justify-between shadow-2xs max-w-md mx-auto">
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -516,7 +546,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                 </div>
                 <div className="text-right">
                   <span className="text-[10px] font-black text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full border border-amber-300 inline-block mb-0.5">
-                    عضو الشهر ⭐
+                    عضو الشهر ⭐ (معتمد)
                   </span>
                   <h4 className="text-xs sm:text-sm font-black text-gray-900">
                     {rankings.memberOfTheMonth.member.fullName}

@@ -2360,7 +2360,8 @@ class StoreManager {
       item.monthRank = index + 1;
     });
 
-    const memberOfTheMonth = sortedByMonth.length > 0 ? sortedByMonth[0] : null;
+    const hasAnyMonthPoints = sortedByMonth.some((m) => m.monthPoints > 0);
+    const memberOfTheMonth = hasAnyMonthPoints ? sortedByMonth[0] : null;
 
     return {
       topWeekly,
