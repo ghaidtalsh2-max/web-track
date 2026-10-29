@@ -340,25 +340,8 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
           </div>
         </div>
 
-        {/* العمود الأيسر (الجانبي): شعار قوقل حق النادي ومجال الويب + شريط أسبوعك + المؤشران + اكتب لنا */}
+        {/* العمود الأيسر (الجانبي): شريط أسبوعك الديناميكي + المؤشران الإبداعيان + اكتب لنا */}
         <div className="flex flex-col gap-6 w-full lg:w-[380px] shrink-0">
-          {/* شعار قوقل حق النادي ومجال الويب بالجهة اليسرى بدال المساحة المهدرة */}
-          <motion.div
-            variants={itemVariants}
-            className="p-4 sm:p-5 rounded-3xl bg-white border-2 border-[#0F1729] shadow-[0_4px_0_0_#0F1729] flex items-center justify-between gap-3 text-right"
-          >
-            <div className="flex items-center gap-2">
-              <GDGLogo variant="full" size="sm" />
-            </div>
-            <div className="text-right border-r-2 border-gray-100 pr-3">
-              <span className="badge-pill bg-blue-50 text-blue-700 font-black text-xs border border-blue-200">
-                مسار تصميم وتطوير الويب 🌐
-              </span>
-              <p className="text-[11px] font-bold text-gray-500 mt-1">
-                نادي الطلبة المطورين · جامعة الطائف
-              </p>
-            </div>
-          </motion.div>
           {/* بطاقة أسبوعك التفاعلية مع دعم تقسيم الدائرة لأنصاف وأثلاث */}
           <motion.div variants={itemVariants} className="week-card">
             <div className="flex items-center justify-between mb-4">

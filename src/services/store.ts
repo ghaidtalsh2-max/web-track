@@ -2972,7 +2972,13 @@ class StoreManager {
 
   // --- Supabase-backed data & stats (no demo fallbacks: empty = empty state) ---
   public getTasks(): any[] {
-    return this.tasks;
+    return (this.tasks || []).filter(
+      (t) =>
+        t.is_demo !== true &&
+        !t.id?.includes('interactive-btn') &&
+        !t.id?.includes('css-card') &&
+        !t.title?.includes('زر يتفاعل')
+    );
   }
 
   public getSubmissions(): any[] {
