@@ -104,15 +104,19 @@ export const App: React.FC = () => {
 
   // تطبيق الإعدادات الفورية على DOM
   useEffect(() => {
-    if (!currentUser) return;
-    const settings = currentUser.settings;
-    if (!settings) return;
+    const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('web_track_theme') : null;
+    const savedSize = typeof localStorage !== 'undefined' ? localStorage.getItem('web_track_font_size') : null;
+    const savedLang = typeof localStorage !== 'undefined' ? localStorage.getItem('web_track_lang') : null;
 
-    document.documentElement.style.setProperty('--base-font-size', `${settings.fontSize || 17}px`);
-    document.documentElement.setAttribute('data-theme', settings.theme || 'light');
-    document.documentElement.setAttribute('data-eye-comfort', settings.eyeComfort ? 'true' : 'false');
-    document.documentElement.setAttribute('data-reduced-motion', settings.reducedMotion ? 'true' : 'false');
-    document.documentElement.setAttribute('data-high-contrast', settings.highContrast ? 'true' : 'false');
+    const theme = savedTheme || currentUser?.settings?.theme || 'light';
+    const size = savedSize ? parseInt(savedSize, 10) : (currentUser?.settings?.fontSize || 16);
+    const lang = savedLang || currentUser?.settings?.language || 'ar';
+
+    document.documentElement.style.setProperty('--base-font-size', `${size}px`);
+    document.documentElement.style.fontSize = `${size}px`;
+    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('lang', lang);
+    document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
   }, [currentUser]);
 
   // تفعيل الترحيب الاحتفالي في كل مرة يفتح فيها العضو المنصة

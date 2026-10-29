@@ -207,21 +207,39 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
   const [newAnnounceBody, setNewAnnounceBody] = useState('');
   const [announceSuccessMsg, setAnnounceSuccessMsg] = useState('');
 
-  // البحث والتصفية للأعضاء
+  // البحث والتصفية والترتيب للأعضاء
   const [memberSearch, setMemberSearch] = useState('');
   const [memberLevelFilter, setMemberLevelFilter] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all');
+  const [memberSortBy, setMemberSortBy] = useState<'alpha_asc' | 'alpha_desc' | 'level' | 'points'>('alpha_asc');
 
-  const filteredMembers = members.filter((m) => {
-    if (m.role !== 'member') return false;
-    const matchesSearch =
-      m.fullName.toLowerCase().includes(memberSearch.toLowerCase()) ||
-      m.username.toLowerCase().includes(memberSearch.toLowerCase()) ||
-      m.major?.toLowerCase().includes(memberSearch.toLowerCase()) ||
-      (m.academicYear && m.academicYear.toLowerCase().includes(memberSearch.toLowerCase())) ||
-      (m.skills && m.skills.some((s) => s.toLowerCase().includes(memberSearch.toLowerCase())));
-    const matchesLevel = memberLevelFilter === 'all' || m.webLevel === memberLevelFilter;
-    return matchesSearch && matchesLevel;
-  });
+  const filteredMembers = members
+    .filter((m) => {
+      if (m.role !== 'member') return false;
+      const matchesSearch =
+        m.fullName.toLowerCase().includes(memberSearch.toLowerCase()) ||
+        m.username.toLowerCase().includes(memberSearch.toLowerCase()) ||
+        m.major?.toLowerCase().includes(memberSearch.toLowerCase()) ||
+        (m.academicYear && m.academicYear.toLowerCase().includes(memberSearch.toLowerCase())) ||
+        (m.skills && m.skills.some((s) => s.toLowerCase().includes(memberSearch.toLowerCase())));
+      const matchesLevel = memberLevelFilter === 'all' || m.webLevel === memberLevelFilter;
+      return matchesSearch && matchesLevel;
+    })
+    .sort((a, b) => {
+      if (memberSortBy === 'alpha_asc') {
+        return a.fullName.localeCompare(b.fullName, 'ar');
+      }
+      if (memberSortBy === 'alpha_desc') {
+        return b.fullName.localeCompare(a.fullName, 'ar');
+      }
+      if (memberSortBy === 'level') {
+        const levelOrder: Record<string, number> = { advanced: 3, intermediate: 2, beginner: 1 };
+        return (levelOrder[b.webLevel] || 1) - (levelOrder[a.webLevel] || 1);
+      }
+      if (memberSortBy === 'points') {
+        return (b.points || 0) - (a.points || 0);
+      }
+      return 0;
+    });
 
   const [reviewError, setReviewError] = useState('');
 
@@ -336,7 +354,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
           />
 
           {/* الصندوقان الرئيسيان المتجاوران: تنتظر مراجعتك وموجة المسار */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
             {/* الصندوق 1 (اليمين): تنتظر مراجعتك */}
             <div
               className="p-6 sm:p-8 rounded-3xl card-navy"
@@ -574,12 +592,23 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
             <select
               value={memberLevelFilter}
               onChange={(e) => setMemberLevelFilter(e.target.value as any)}
-              className="px-4 py-2.5 text-xs rounded-xl bg-white border border-gray-300 text-gray-800 focus:outline-none shadow-xs"
+              className="px-4 py-2.5 text-xs rounded-xl bg-white border border-gray-300 text-gray-800 focus:outline-none shadow-xs font-bold"
             >
               <option value="all">جميع المستويات</option>
               <option value="beginner">المستوى 1: مبتدئ</option>
               <option value="intermediate">المستوى 2: متوسط</option>
               <option value="advanced">المستوى 3: متقدم</option>
+            </select>
+
+            <select
+              value={memberSortBy}
+              onChange={(e) => setMemberSortBy(e.target.value as any)}
+              className="px-4 py-2.5 text-xs rounded-xl bg-white border border-gray-300 text-gray-800 focus:outline-none shadow-xs font-bold"
+            >
+              <option value="alpha_asc">ترتيب أبجدياً (أ - ي) 🔤</option>
+              <option value="alpha_desc">ترتيب أبجدياً (ي - أ)</option>
+              <option value="level">ترتيب حسب المستوى (المرحلة) 🎯</option>
+              <option value="points">ترتيب حسب النقاط (الأعلى) 🏆</option>
             </select>
           </div>
 

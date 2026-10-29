@@ -88,9 +88,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
   const [proofFeedback, setProofFeedback] = useState<string | null>(null);
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
 
-  // أسئلة كويز المهارات الأربعة متوسطة المستوى
+  // أسئلة كويز المهارات الأربعة متوسطة المستوى مع تمهيد ومؤقت 60 ثانية لكل سؤال
+  const [quizStep, setQuizStep] = useState<'intro' | 'question' | 'result'>('intro');
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [quizScore, setQuizScore] = useState(0);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
   const [quizFeedback, setQuizFeedback] = useState<string | null>(null);
+
+  // إعادة ضبط حالة الكويز عند فتحه
+  useEffect(() => {
+    setQuizStep('intro');
+    setCurrentQuestionIndex(0);
+    setTimeLeft(60);
+    setQuizAnswers({});
+    setQuizFeedback(null);
+  }, [selectedSkillForProof, proofType]);
 
   const SKILL_QUIZ_QUESTIONS = [
     {
@@ -252,34 +265,53 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
     }
   };
 
-  // تصحيح كويز المهارات واعتماد المهارة تلقائياً ورصد النقاط
-  const handleGradeQuiz = async (e: React.FormEvent) => {
-    e.preventDefault();
-    let score = 0;
-    SKILL_QUIZ_QUESTIONS.forEach((q) => {
-      if (quizAnswers[q.id] === q.correctIndex) {
-        score++;
-      }
-    });
+  // مؤقت 60 ثانية لكل سؤال في الكويز
+  useEffect(() => {
+    if (proofType !== 'quiz' || quizStep !== 'question') return;
+    if (timeLeft <= 0) {
+      handleNextQuizQuestion();
+      return;
+    }
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [proofType, quizStep, timeLeft, currentQuestionIndex]);
 
-    if (score >= 3) {
-      if (selectedSkillForProof) {
-        await store.approveSkillViaQuiz(displayedMember.id, selectedSkillForProof.name, score);
-      }
-      confetti({
-        particleCount: 90,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#34A853', '#4285F4', '#F9AB00', '#EA4335'],
-      });
-      setQuizFeedback(`🎉 كفو عليك! اجتزت الكويز بنجاح بدرجة (${score}/4). تم اعتماد مهارة "${selectedSkillForProof?.name}" فوراً ورصد +25 نقطة لرصيدك!`);
-      setTimeout(() => {
-        setSelectedSkillForProof(null);
-        setQuizFeedback(null);
-        setQuizAnswers({});
-      }, 2500);
+  const handleStartQuiz = () => {
+    setQuizStep('question');
+    setCurrentQuestionIndex(0);
+    setTimeLeft(60);
+    setQuizAnswers({});
+    setQuizFeedback(null);
+  };
+
+  const handleNextQuizQuestion = async () => {
+    if (currentQuestionIndex < SKILL_QUIZ_QUESTIONS.length - 1) {
+      setCurrentQuestionIndex((prev) => prev + 1);
+      setTimeLeft(60);
     } else {
-      setQuizFeedback(`حصلت على (${score}/4). يلزم 3 إجابات صحيحة على الأقل للاجتياز. راجع إجاباتك وأعد المحاولة! 💪`);
+      // نهاية الكويز وحساب النتيجة
+      let score = 0;
+      SKILL_QUIZ_QUESTIONS.forEach((q) => {
+        if (quizAnswers[q.id] === q.correctIndex) {
+          score++;
+        }
+      });
+      setQuizScore(score);
+      setQuizStep('result');
+
+      if (score >= 3) {
+        if (selectedSkillForProof) {
+          await store.approveSkillViaQuiz(displayedMember.id, selectedSkillForProof.name, score);
+        }
+        confetti({
+          particleCount: 90,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#34A853', '#4285F4', '#F9AB00', '#EA4335'],
+        });
+      }
     }
   };
 
@@ -1196,62 +1228,191 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
                         />
                       </div>
                     ) : (
-                      <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-1">
-                        <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 font-bold text-xs leading-relaxed">
-                          📝 <strong>كويز المسار المعتمد:</strong> أجب على الأسئلة الأربعة التالية (متوسطة المستوى). يلزم 3 إجابات صحيحة للاجتياز واعتماد المهارة فوراً (+25 نقطة).
-                        </div>
-
-                        {SKILL_QUIZ_QUESTIONS.map((q, qIdx) => (
-                          <div key={q.id} className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200">
-                            <span className="font-black text-gray-900 block mb-2 text-xs">
-                              {qIdx + 1}. {q.question}
-                            </span>
-                            <div className="space-y-1.5">
-                              {q.options.map((opt, optIdx) => (
-                                <label
-                                  key={optIdx}
-                                  className={`p-2 rounded-xl border transition-all flex items-center gap-2 cursor-pointer text-xs ${
-                                    quizAnswers[q.id] === optIdx
-                                      ? 'bg-blue-50 border-blue-500 font-bold text-blue-900'
-                                      : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-100'
-                                  }`}
-                                >
-                                  <input
-                                    type="radio"
-                                    name={`quiz-q-${q.id}`}
-                                    checked={quizAnswers[q.id] === optIdx}
-                                    onChange={() =>
-                                      setQuizAnswers((prev) => ({ ...prev, [q.id]: optIdx }))
-                                    }
-                                    className="accent-blue-600 cursor-pointer"
-                                  />
-                                  <span>{opt}</span>
-                                </label>
-                              ))}
+                      <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                        {quizStep === 'intro' && (
+                          <div className="p-5 rounded-2xl bg-blue-50/70 border-2 border-blue-200 text-right space-y-4">
+                            <div className="flex items-center gap-2">
+                              <span className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                                ⏱️
+                              </span>
+                              <div>
+                                <h3 className="text-base font-black text-gray-950">
+                                  تمهيد: كويز اعتماد مهارة «{selectedSkillForProof?.name}»
+                                </h3>
+                                <span className="text-[11px] font-bold text-gray-500">
+                                  تقييم مباشر ومعتمد لتوثيق المهارة في ملفك الشخصي
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
 
-                        {quizFeedback && (
-                          <div className={`p-3 rounded-xl text-xs font-black text-center border ${
-                            quizFeedback.includes('🎉')
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              : 'bg-amber-50 text-amber-900 border-amber-200'
-                          }`}>
-                            {quizFeedback}
+                            <div className="bg-white p-4 rounded-xl border border-blue-100 space-y-2 text-xs font-bold text-gray-700">
+                              <div className="flex items-center gap-2">
+                                <span className="text-blue-600">•</span>
+                                <span>عدد الأسئلة: <strong>4 أسئلة برمجية متوسطة</strong></span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-blue-600">•</span>
+                                <span>الوقت المخصص: <strong>دقيقة واحدة (60 ثانية) لكل سؤال على حدة</strong></span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-blue-600">•</span>
+                                <span>شرط النجاح: <strong>3 إجابات صحيحة على الأقل</strong></span>
+                              </div>
+                              <div className="flex items-center gap-2 text-emerald-800">
+                                <span className="text-emerald-600">✓</span>
+                                <span>المكافأة: <strong>اعتماد المهارة فوراً + إضافة 25 نقطة لرصيدك!</strong></span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={handleStartQuiz}
+                              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs cursor-pointer border-none shadow-md transition-all flex items-center justify-center gap-2"
+                            >
+                              <span>بدء الكويز الآن</span>
+                              <span>🚀</span>
+                            </button>
                           </div>
                         )}
 
-                        <button
-                          type="button"
-                          onClick={handleGradeQuiz}
-                          disabled={Object.keys(quizAnswers).length < 4}
-                          className="w-full py-3 rounded-xl bg-[#34A853] hover:bg-green-700 disabled:opacity-50 text-white font-black text-xs cursor-pointer border-none shadow-sm transition-all"
-                        >
-                          {Object.keys(quizAnswers).length < 4
-                            ? `أجب على جميع الأسئلة (${Object.keys(quizAnswers).length}/4)`
-                            : 'تصحيح الكويز واعتماد المهارة الآن ✓'}
-                        </button>
+                        {quizStep === 'question' && (() => {
+                          const q = SKILL_QUIZ_QUESTIONS[currentQuestionIndex];
+                          const hasAnswer = quizAnswers[q.id] !== undefined;
+
+                          return (
+                            <div className="space-y-4">
+                              {/* شريط التقدم والعداد */}
+                              <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-200">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-black text-gray-900">
+                                    السؤال {currentQuestionIndex + 1} من {SKILL_QUIZ_QUESTIONS.length}
+                                  </span>
+                                  <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-blue-600 transition-all duration-300"
+                                      style={{ width: `${((currentQuestionIndex + 1) / SKILL_QUIZ_QUESTIONS.length) * 100}%` }}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div
+                                  className={`px-3 py-1 rounded-xl font-mono text-xs font-black border flex items-center gap-1.5 ${
+                                    timeLeft <= 15
+                                      ? 'bg-red-50 text-red-700 border-red-300 animate-pulse'
+                                      : 'bg-white text-gray-800 border-gray-300'
+                                  }`}
+                                >
+                                  <span>⏱️</span>
+                                  <span>00:{timeLeft < 10 ? '0' : ''}{timeLeft}</span>
+                                </div>
+                              </div>
+
+                              {/* نص السؤال والخيارات */}
+                              <div className="p-4 rounded-2xl bg-white border-2 border-gray-200">
+                                <span className="font-black text-gray-950 block mb-3 text-sm leading-relaxed">
+                                  {q.question}
+                                </span>
+
+                                <div className="space-y-2">
+                                  {q.options.map((opt, optIdx) => (
+                                    <label
+                                      key={optIdx}
+                                      className={`p-3 rounded-xl border-2 transition-all flex items-center gap-3 cursor-pointer text-xs ${
+                                        quizAnswers[q.id] === optIdx
+                                          ? 'bg-blue-50 border-blue-600 font-black text-blue-950 shadow-2xs'
+                                          : 'bg-white border-gray-200 text-gray-800 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <input
+                                        type="radio"
+                                        name={`quiz-q-${q.id}`}
+                                        checked={quizAnswers[q.id] === optIdx}
+                                        onChange={() =>
+                                          setQuizAnswers((prev) => ({ ...prev, [q.id]: optIdx }))
+                                        }
+                                        className="accent-blue-600 cursor-pointer w-4 h-4"
+                                      />
+                                      <span className="flex-1">{opt}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* زر الانتقال أو الإنهاء */}
+                              <button
+                                type="button"
+                                onClick={handleNextQuizQuestion}
+                                disabled={!hasAnswer}
+                                className={`w-full py-3 rounded-xl font-black text-xs cursor-pointer border-none shadow-sm transition-all flex items-center justify-center gap-2 ${
+                                  hasAnswer
+                                    ? 'bg-[#34A853] hover:bg-green-700 text-white'
+                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                }`}
+                              >
+                                {currentQuestionIndex < SKILL_QUIZ_QUESTIONS.length - 1 ? (
+                                  <>
+                                    <span>السؤال التالي</span>
+                                    <span>←</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>إنهاء الكويز وعرض النتيجة</span>
+                                    <span>✓</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          );
+                        })()}
+
+                        {quizStep === 'result' && (
+                          <div className="p-5 rounded-2xl bg-white border-2 border-gray-200 text-center space-y-4">
+                            {quizScore >= 3 ? (
+                              <div className="space-y-3">
+                                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 text-3xl flex items-center justify-center mx-auto shadow-sm">
+                                  🎉
+                                </div>
+                                <h3 className="text-lg font-black text-emerald-900">
+                                  ألف مبروك! اجتزت الكويز بنجاح
+                                </h3>
+                                <p className="text-xs font-bold text-gray-600">
+                                  حصلت على <span className="text-emerald-700 font-black text-sm">{quizScore} من 4</span> إجابات صحيحة.
+                                  تم اعتماد مهارة «{selectedSkillForProof?.name}» فوراً وإضافة <strong>+25 نقطة</strong> إلى رصيدك!
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedSkillForProof(null);
+                                    setQuizStep('intro');
+                                  }}
+                                  className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-black text-xs border-none cursor-pointer hover:bg-emerald-700"
+                                >
+                                  إغلاق والعودة للملف الشخصي
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-700 text-3xl flex items-center justify-center mx-auto shadow-sm">
+                                  ⏳
+                                </div>
+                                <h3 className="text-lg font-black text-amber-950">
+                                  لم يتم اجتياز الكويز هذه المرة
+                                </h3>
+                                <p className="text-xs font-bold text-gray-600">
+                                  حصلت على <span className="text-amber-800 font-black text-sm">{quizScore} من 4</span>. يلزم 3 إجابات صحيحة للاعتماد.
+                                  يمكنك مراجعة المفاهيم وإعادة المحاولة.
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={handleStartQuiz}
+                                  className="w-full py-2.5 rounded-xl bg-blue-600 text-white font-black text-xs border-none cursor-pointer hover:bg-blue-700"
+                                >
+                                  إعادة المحاولة 🔄
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </>

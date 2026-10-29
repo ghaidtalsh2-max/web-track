@@ -99,12 +99,13 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
     return unsubscribe;
   }, []);
 
+  const isFemale = currentUser.gender === 'female';
+
   const getGreeting = () => {
     if (currentUser.role === 'track_leader') {
       const leaderFirst = currentUser.fullName.split(' ')[0];
       return `هلا بالقائدة ${leaderFirst}`;
     }
-    const isFemale = currentUser.gender === 'female';
     const first = currentUser.fullName.split(' ')[0];
     return isFemale ? `هلا بالمطوّرة ${first}` : `هلا بالمطوّر ${first}`;
   };
@@ -201,7 +202,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                 الخطوة التالية · {NEXT_MISSION.dueText}
               </div>
               <h2 className="text-2xl sm:text-3xl font-black text-gray-950">
-                {NEXT_MISSION.title}
+                {isFemale ? 'سلّمي تحدي «زر يتفاعل»' : 'سلّم تحدي «زر يتفاعل»'}
               </h2>
             </div>
 
@@ -209,7 +210,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
               onClick={() => onNavigateTab('challenges')}
               className="next-mission-btn"
             >
-              ابدأ
+              {isFemale ? 'ابدئي' : 'ابدأ'}
             </button>
           </motion.div>
 
@@ -255,7 +256,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                   }}
                   className="next-mission-btn"
                 >
-                  شوف التفاصيل
+                  {isFemale ? 'شوفي التفاصيل' : 'شوف التفاصيل'}
                 </button>
               ) : (
                 <button
@@ -287,7 +288,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                 </h3>
                 <p className="text-xs sm:text-sm font-bold text-blue-100 mt-1 opacity-95">
                   {poll
-                    ? 'شارك بصوتك لاختيار موضوع الورشة والتحدي واكسب نقاط المشاركة (+10 نقاط) 🎯'
+                    ? (isFemale ? 'شاركي بصوتك لاختيار موضوع الورشة واكسبي نقاط المشاركة (+10 نقاط) 🎯' : 'شارك بصوتك لاختيار موضوع الورشة واكسب نقاط المشاركة (+10 نقاط) 🎯')
                     : 'في انتظار طرح الاستبيان والمشاركة القادمة من القائدة ⏳'}
                 </p>
               </div>
@@ -298,7 +299,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                   onClick={() => onNavigateTab('community')}
                   className="next-mission-btn"
                 >
-                  شارك وصوّت
+                  {isFemale ? 'شاركي وصوّتي' : 'شارك وصوّت'}
                 </button>
               ) : (
                 <button
@@ -330,7 +331,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                 </h3>
                 <p className="text-xs sm:text-sm font-bold text-amber-950 mt-1 opacity-90">
                   {tasks && tasks.length > 0
-                    ? 'نفّذ الخيار البرمجي المفضل وارفعه للاعتماد لتصدّر لوحة التفاعل! 🚀'
+                    ? (isFemale ? 'نفّذي الخيار البرمجي المفضل وارفعيه للاعتماد لتتصدّري لوحة التفاعل! 🚀' : 'نفّذ الخيار البرمجي المفضل وارفعه للاعتماد لتصدّر لوحة التفاعل! 🚀')
                     : 'في انتظار إطلاق التحديات والمهام التابعة للورش من القائدة ⏳'}
                 </p>
               </div>
@@ -340,7 +341,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                 onClick={() => onNavigateTab('challenges')}
                 className="next-mission-btn"
               >
-                {tasks && tasks.length > 0 ? 'ابدأ التحدي' : 'عرض التحديات'}
+                {tasks && tasks.length > 0 ? (isFemale ? 'ابدئي التحدي' : 'ابدأ التحدي') : (isFemale ? 'سلّمي تحدي' : 'سلّم تحدي')}
               </button>
             </motion.div>
           </div>
@@ -372,11 +373,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                   </h3>
 
                   <p className="text-sm sm:text-base font-black text-gray-800 mt-2 leading-relaxed">
-                    الميدان للجميع.. ورينا كيف بتتغلّب وتتصدّر! 🔥
-                  </p>
-
-                  <p className="text-xs text-gray-500 font-bold mt-2">
-                    الترتيب والتفاعل محسوب تلقائياً حسب النقاط والإنجاز الحقيقي، والقادة والإشراف خارج التقييم تماماً.
+                    {isFemale ? 'الميدان للجميع.. ورّينا كيف بتتغلّبين وتتصدّرين! 🔥' : 'الميدان للجميع.. ورينا كيف بتتغلّب وتتصدّر! 🔥'}
                   </p>
                 </div>
 
@@ -412,9 +409,6 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                           <h4 className="text-sm font-black text-gray-900 mt-1">
                             {rankings.memberOfTheMonth.member.fullName}
                           </h4>
-                          <span className="text-[11px] text-gray-500 font-medium">
-                            {rankings.memberOfTheMonth.member.webLevelTitle}
-                          </span>
                         </div>
                       </div>
 
@@ -507,9 +501,6 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                               <span className="font-black text-xs text-gray-900 block truncate">
                                 {m.fullName}
                               </span>
-                              <span className="text-[10px] text-gray-500 font-medium block truncate">
-                                {m.webLevelTitle} · {m.academicLevel || 'جامعة الطائف'}
-                              </span>
                             </div>
                           </div>
 
@@ -550,17 +541,15 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                 if (count === 0) {
                   circleStyle = {
                     backgroundColor: '#FFFFFF',
-                    color: '#64748B',
-                    border: d.isToday ? '2px solid #0F1729' : '2px solid #CBD5E1',
-                    boxShadow: d.isToday ? '0 2px 6px rgba(15, 23, 42, 0.12)' : 'none',
+                    color: d.isToday ? '#0F1729' : '#64748B',
+                    border: d.isToday ? '2px solid #0F1729' : '1.5px solid #CBD5E1',
                   };
                 } else if (count === 1) {
                   const actColor = d.activities[0].color;
                   circleStyle = {
-                    backgroundColor: actColor, // كامل لون دائرة اليوم بالنشاط صلب 100%
+                    backgroundColor: actColor,
                     color: '#FFFFFF',
-                    border: '2px solid #0F1729',
-                    boxShadow: '0 4px 10px rgba(0,0,0,0.18)',
+                    border: 'none',
                   };
                 } else if (count === 2) {
                   isMulti = true;
@@ -569,8 +558,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                   circleStyle = {
                     background: `conic-gradient(${c1} 0deg 180deg, ${c2} 180deg 360deg)`,
                     color: '#FFFFFF',
-                    border: '2px solid #0F1729',
-                    boxShadow: '0 4px 10px rgba(0,0,0,0.18)',
+                    border: 'none',
                   };
                 } else {
                   isMulti = true;
@@ -580,8 +568,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                   circleStyle = {
                     background: `conic-gradient(${c1} 0deg 120deg, ${c2} 120deg 240deg, ${c3} 240deg 360deg)`,
                     color: '#FFFFFF',
-                    border: '2px solid #0F1729',
-                    boxShadow: '0 4px 10px rgba(0,0,0,0.18)',
+                    border: 'none',
                   };
                 }
 
@@ -598,19 +585,15 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                     </span>
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-black transition-transform active:scale-90 relative overflow-hidden"
-                      style={{
-                        ...circleStyle,
-                        outline: d.isToday ? '2.5px solid #0F1729' : 'none',
-                        outlineOffset: '2px',
-                      }}
+                      style={circleStyle}
                     >
                       <span
                         className={
                           count > 0
-                            ? 'text-white font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]'
+                            ? 'text-white font-black'
                             : d.isToday
                             ? 'text-gray-950 font-black'
-                            : 'font-bold'
+                            : 'text-gray-700 font-bold'
                         }
                       >
                         {d.dateNumber}

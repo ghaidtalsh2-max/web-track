@@ -104,6 +104,43 @@
   --text-secondary: #CBD5E1;
 }
 
+[data-theme="dark"] body {
+  background-color: #0F131D !important;
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .bg-white {
+  background-color: #171C28 !important;
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .text-gray-900,
+[data-theme="dark"] .text-gray-950,
+[data-theme="dark"] .text-gray-800 {
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .text-gray-600,
+[data-theme="dark"] .text-gray-500 {
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .bg-gray-50,
+[data-theme="dark"] .bg-gray-100 {
+  background-color: #1E293B !important;
+}
+
+[data-theme="dark"] .border-gray-200,
+[data-theme="dark"] .border-gray-100 {
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .customize-popover-card {
+  background-color: #1E293B !important;
+  color: #F8FAFC !important;
+  border: 2px solid #334155 !important;
+}
+
 /* 3. القواعد العامة للـ DOM */
 *, *::before, *::after {
   box-sizing: border-box;
