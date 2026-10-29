@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { UserProfile, NavTab, ActionItem, WeeklyDay, Workshop, DayActivity } from '../../types';
 import { store, NEXT_MISSION } from '../../services/store';
 import { WorkshopDetailsModal } from './WorkshopDetailsModal';
-import { Calendar, Layers, ExternalLink, X, ChevronLeft, Trophy, Crown, Sparkles, TrendingUp, Info, ShieldCheck } from 'lucide-react';
+import { DualProgressMeters } from './DualProgressMeters';
+import { Calendar, Layers, ExternalLink, X, ChevronLeft, Trophy, Crown, Sparkles, TrendingUp, Info, ShieldCheck, Clock } from 'lucide-react';
 import { UserAvatar } from '../common/UserAvatar';
 
 interface MemberHomeProps {
@@ -214,7 +215,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
 
           {/* بطاقات "ينتظرك" */}
           <div className="flex flex-col gap-4">
-            {/* 1. بطاقة الورشة التطبيقية المعتمدة مع الزرين ومربع الصورة / الأيقونة */}
+            {/* 1. بطاقة الورشة التطبيقية المعتمدة (تظهر فقط عند وجود ورشة حقيقية) */}
             {currentWorkshop && (
               <motion.div
                 variants={itemVariants}
@@ -227,9 +228,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                 }}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  {/* مربع الصورة أو الأيقونة + العنوان والموعد */}
                   <div className="flex items-center gap-4 text-right flex-1">
-                    {/* مربع صورة الورشة أو الأيقونة الافتراضية */}
                     <div className="w-14 h-14 rounded-2xl bg-green-50 border border-green-200 flex items-center justify-center shrink-0 overflow-hidden">
                       {currentWorkshop.imageUrl ? (
                         <img
@@ -266,7 +265,6 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                     </div>
                   </div>
 
-                  {/* الزران المعتمدان تحت/بجانب الورشة: شوف التفاصيل + رابط التسجيل والحضور */}
                   <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
                     <button
                       type="button"
@@ -308,85 +306,23 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
               </motion.div>
             )}
 
-            {/* 2. بطاقة الاستبيان المستقلة (زر جاوب يفتح صفحة الاستبيان حصراً) */}
-            <motion.div
-              variants={itemVariants}
-              whileHover={{ y: -3 }}
-              className="p-5 sm:p-6 rounded-3xl flex items-center justify-between gap-4 card-navy"
-              style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: '28px',
-                border: '2px solid #4285F4',
-              }}
-            >
-              <div className="flex items-center gap-4 text-right flex-1">
-                <span
-                  className="badge-pill"
-                  style={{
-                    backgroundColor: '#4285F4',
-                    color: '#FFFFFF',
-                  }}
-                >
-                  استبيان
-                </span>
-                <div>
-                  <h4 className="text-base sm:text-lg font-black text-gray-900">
-                    أي ورشة تبغون الأسبوع الجاي؟
-                  </h4>
-                  <p className="text-xs sm:text-sm text-gray-500 font-medium mt-0.5">
-                    ينتهي بعد ٣ أيام · صوّت للورشة القادمة واكسب +15 نقطة
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => onNavigateTab('community')}
-                className="btn-pill btn-pill-blue px-7 py-2.5 text-sm font-black cursor-pointer"
+            {/* حالة عدم وجود ورش أو أنشطة مسبقة: خانات فارغة نظيفة حتى تنشرها القائدة */}
+            {!currentWorkshop && (
+              <motion.div
+                variants={itemVariants}
+                className="p-8 rounded-3xl bg-white border-2 border-dashed border-gray-300 text-center flex flex-col items-center justify-center gap-2"
               >
-                جاوب
-              </button>
-            </motion.div>
-
-            {/* 3. بطاقة اتعلّم (CSS · Flexbox) */}
-            <motion.div
-              variants={itemVariants}
-              whileHover={{ y: -3 }}
-              className="p-5 sm:p-6 rounded-3xl flex items-center justify-between gap-4 card-navy"
-              style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: '28px',
-                border: '2px solid #0F1729',
-              }}
-            >
-              <div className="flex items-center gap-4 text-right flex-1">
-                <span
-                  className="badge-pill"
-                  style={{
-                    backgroundColor: '#F9AB00',
-                    color: '#0F1729',
-                  }}
-                >
-                  اتعلّم
-                </span>
-                <div>
-                  <h4 className="text-base sm:text-lg font-black text-gray-900">
-                    CSS · Flexbox
-                  </h4>
-                  <p className="text-xs sm:text-sm text-gray-500 font-medium mt-0.5">
-                    اختياري لمستواك · التطوير التفاعلي
-                  </p>
+                <div className="w-12 h-12 rounded-2xl bg-gray-50 text-gray-400 flex items-center justify-center border border-gray-200">
+                  <Sparkles size={22} className="text-[#F9AB00]" />
                 </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => onNavigateTab('journey')}
-                className="btn-pill btn-pill-yellow px-7 py-2.5 text-sm font-black cursor-pointer"
-              >
-                افتح
-              </button>
-            </motion.div>
+                <h4 className="text-base font-black text-gray-900 mt-1">
+                  الجدول فارغ بانتظار إعلان القائدة 🌿
+                </h4>
+                <p className="text-xs text-gray-500 font-medium max-w-sm">
+                  لا توجد ورش عمل أو استبيانات مجدولة حالياً. فور نشر الورش والتاسكات من لوحة الإدارة ستظهر هنا مباشرة.
+                </p>
+              </motion.div>
+            )}
 
             {/* ================= لوحة التفاعل والتنافس القوقلي (نمط كلاسيرا) ================= */}
             <motion.div
@@ -414,10 +350,19 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                   </div>
                 </div>
 
-                <span className="text-[11px] font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 flex items-center gap-1">
-                  <ShieldCheck size={13} />
-                  <span>احتساب فوري بدون تكرار</span>
-                </span>
+                <div className="flex items-center gap-2">
+                  {rankings.isApproved ? (
+                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-300 flex items-center gap-1.5 shadow-2xs">
+                      <Crown size={13} className="text-amber-500" />
+                      <span>معتمد رسميًا لهذا الأسبوع ⭐ ({rankings.approvalDate || 'تحديث السبت'})</span>
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-bold text-amber-900 bg-amber-50 px-3 py-1 rounded-full border border-amber-300 flex items-center gap-1.5 shadow-2xs">
+                      <Clock size={13} className="text-amber-600" />
+                      <span>المراكز مبنية على التفاعل (بانتظار اعتماد السبت من القائدة ⏳)</span>
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* 1. تكريم عضو الشهر المتميز (Member of the Month) */}
@@ -446,9 +391,9 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                       </div>
 
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[10px] font-black tracking-wide uppercase px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
-                            عضو الشهر ⭐
+                            عضو الشهر ⭐ {rankings.isApproved ? '(معتمد)' : '(ترتيب تراكمي)'}
                           </span>
                           <span className="text-xs font-bold text-gray-500">
                             الأعلى تفاعلاً وإنجازاً
@@ -478,8 +423,8 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
               {/* 2. قائمة أعضاء الأسبوع الخمسة الأكثر تفاعلاً (Top 5 of the Week) */}
               <div className="space-y-2.5 mb-5">
                 <div className="text-xs font-bold text-gray-700 mb-2 flex items-center justify-between">
-                  <span>أعضاء الأسبوع الأكثر تفاعلاً (الخمسة الأوائل):</span>
-                  <span className="text-[11px] text-gray-400">آخر 7 أيام</span>
+                  <span>أعضاء الأسبوع الـ 5 الأكثر تفاعلاً {rankings.isApproved ? '(معتمدون)' : '(حسب النقاط)'}:</span>
+                  <span className="text-[11px] text-gray-400">التحديث والاعتماد كل سبت</span>
                 </div>
 
                 {rankings.topWeekly.map((item, idx) => {
@@ -552,9 +497,9 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
           </div>
         </div>
 
-        {/* العمود الأيسر (الجانبي): شريط أسبوعك الديناميكي + حلقة التقدم + اكتب لنا */}
-        <div className="flex flex-col gap-6">
-          {/* بطاقة أسبوعك التفاعلية المقروءة من البيانات الحقيقية */}
+        {/* العمود الأيسر (الجانبي): شريط أسبوعك الديناميكي + المؤشران الإبداعيان + اكتب لنا */}
+        <div className="flex flex-col gap-6 w-full lg:w-[380px] shrink-0">
+          {/* بطاقة أسبوعك التفاعلية مع دعم تقسيم الدائرة لأنصاف وأثلاث */}
           <motion.div variants={itemVariants} className="week-card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-black text-gray-900 text-right">
@@ -565,34 +510,45 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
               </span>
             </div>
 
-            {/* شريط الأيام السبعة بالألوان المعتمدة:
-                ورشة = دائرة خضراء #34A853
-                تاسك = دائرة صفراء #F9AB00
-                استبيان = دائرة زرقاء #4285F4
-                نقاط صغيرة ملونة عند اجتماع أكثر من نشاط */}
+            {/* شريط الأيام السبعة مع تلوين الدائرة بالكامل أو بالنصف أو بالأثلاث */}
             <div className="week-grid" dir="rtl">
               {weekDays.map((d) => {
-                const hasWorkshop = d.activities.some((a) => a.type === 'workshop');
-                const hasTask = d.activities.some((a) => a.type === 'task');
-                const hasPoll = d.activities.some((a) => a.type === 'poll');
+                const count = d.activities.length;
+                let circleStyle: React.CSSProperties = {};
+                let isMulti = false;
 
-                // تحديد لون الدائرة المحيطة بالرقم
-                let circleBorder = 'transparent';
-                let circleBg = '#F1F3F5';
-                let circleTextColor = '#0F1729';
-
-                if (hasWorkshop) {
-                  circleBorder = '#34A853';
-                  circleBg = '#E6F4EA';
-                  circleTextColor = '#137333';
-                } else if (hasTask) {
-                  circleBorder = '#F9AB00';
-                  circleBg = '#FEF7E0';
-                  circleTextColor = '#B06000';
-                } else if (hasPoll) {
-                  circleBorder = '#4285F4';
-                  circleBg = '#EEF4FD';
-                  circleTextColor = '#1A73E8';
+                if (count === 0) {
+                  circleStyle = {
+                    backgroundColor: '#F8FAFC',
+                    color: '#64748B',
+                    border: '2px solid #E2E8F0',
+                  };
+                } else if (count === 1) {
+                  const actColor = d.activities[0].color;
+                  circleStyle = {
+                    backgroundColor: `${actColor}18`,
+                    color: '#0F1729',
+                    border: `2.5px solid ${actColor}`,
+                  };
+                } else if (count === 2) {
+                  isMulti = true;
+                  const c1 = d.activities[0].color;
+                  const c2 = d.activities[1].color;
+                  circleStyle = {
+                    background: `conic-gradient(${c1} 0deg 180deg, ${c2} 180deg 360deg)`,
+                    padding: '3px',
+                    border: '1.5px solid #0F1729',
+                  };
+                } else {
+                  isMulti = true;
+                  const c1 = d.activities[0].color;
+                  const c2 = d.activities[1].color;
+                  const c3 = d.activities[2].color;
+                  circleStyle = {
+                    background: `conic-gradient(${c1} 0deg 120deg, ${c2} 120deg 240deg, ${c3} 240deg 360deg)`,
+                    padding: '3px',
+                    border: '1.5px solid #0F1729',
+                  };
                 }
 
                 return (
@@ -601,21 +557,25 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                     type="button"
                     onClick={() => setSelectedDay(d)}
                     className="flex flex-col items-center gap-1.5 p-1 rounded-2xl hover:bg-gray-100 transition-all cursor-pointer border-none bg-transparent"
-                    title={`عرض أنشطة يوم ${d.dayFullName}`}
+                    title={`عرض أنشطة يوم ${d.dayFullName} (${count} نشاط)`}
                   >
                     <span className="text-xs font-bold text-gray-600">
                       {d.dayName}
                     </span>
                     <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black transition-transform active:scale-90"
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-black transition-transform active:scale-90 relative overflow-hidden"
                       style={{
-                        backgroundColor: circleBg,
-                        color: circleTextColor,
-                        border: `2px solid ${circleBorder}`,
-                        boxShadow: d.isToday ? '0 0 0 2px #0F1729' : 'none',
+                        ...circleStyle,
+                        boxShadow: d.isToday ? '0 0 0 2.5px #0F1729' : 'none',
                       }}
                     >
-                      {d.dateNumber}
+                      {isMulti ? (
+                        <div className="w-full h-full rounded-full bg-white flex items-center justify-center font-black text-xs text-gray-950">
+                          {d.dateNumber}
+                        </div>
+                      ) : (
+                        d.dateNumber
+                      )}
                     </div>
 
                     {/* النقاط الملونة تحت الرقم لكل نشاط */}
@@ -634,47 +594,15 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
             </div>
           </motion.div>
 
-          {/* بطاقة نسبة التقدم (النص على اليمين والحلقة الخضراء على اليسار) */}
-          <motion.div variants={itemVariants} className="progress-card">
-            <div className="text-right flex-1">
-              <div className="text-sm font-bold text-gray-500 mb-0.5">
-                المرحلة {currentUser.levelNumber || 2}
-              </div>
-              <h4 className="text-base font-black text-gray-900">
-                {currentUser.webLevelTitle?.split(':')[1] || 'التطوير التفاعلي'}
-              </h4>
-              <div className="text-sm font-black text-green-600 mt-1">
-                {currentUser.points || 0} نقطة
-              </div>
-            </div>
-
-            <div className="progress-ring-box">
-              <svg style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }} viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  stroke="#E2E8F0"
-                  strokeWidth="10"
-                  fill="none"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  stroke="#34A853"
-                  strokeWidth="10"
-                  fill="none"
-                  strokeDasharray="251.2"
-                  strokeDashoffset={251.2 - (251.2 * progressPercent) / 100}
-                  strokeLinecap="round"
-                  style={{ transition: 'stroke-dashoffset 0.5s ease-out' }}
-                />
-              </svg>
-              <span className="absolute font-black text-xl text-gray-900">
-                {progressPercent}%
-              </span>
-            </div>
+          {/* المؤشران الإبداعيان (مؤشر التفاعل بشكل الوردة + مؤشر التعلم بشكل النجمة) */}
+          <motion.div variants={itemVariants}>
+            <DualProgressMeters
+              engagementPercent={Math.min(100, Math.round(((currentUser.points || 0) / 200) * 100)) || 10}
+              learningPercent={Math.min(100, Math.round(((currentUser.points || 0) / ((currentUser.levelNumber || 1) * 500)) * 100)) || 15}
+              points={currentUser.points || 0}
+              levelNumber={currentUser.levelNumber || 1}
+              levelTitle={currentUser.webLevelTitle?.split(':')[1] || 'التطوير التفاعلي'}
+            />
           </motion.div>
 
           {/* زر اكتب لنا العريض */}

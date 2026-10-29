@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ExternalLink, FolderGit2, Sparkles, Filter, Check, Clock } from 'lucide-react';
 import { UserProfile } from '../../types';
+import { PinwheelFlower } from '../brand/PinwheelFlower';
+import { AsteriskStar } from '../brand/AsteriskStar';
 
 interface ShowcaseViewProps {
   currentUser: UserProfile;
@@ -146,29 +148,79 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((slot) => (
+            {[
+              {
+                id: 1,
+                color: '#4285F4',
+                bg: 'bg-blue-50/60',
+                border: 'border-blue-300',
+                title: 'مساحة مشروع متجر Grid وتطبيقات الويب',
+                desc: 'المساحة مجهزة لعرض أول تطبيق متجر إلكتروني معتمد بنظام CSS Grid و Flexbox.',
+                badge: 'مشروع شاغر #1',
+                variant: 'flower',
+              },
+              {
+                id: 2,
+                color: '#34A853',
+                bg: 'bg-emerald-50/60',
+                border: 'border-emerald-300',
+                title: 'مساحة واجهات لوحات التحكم التفاعلية',
+                desc: 'بانتظار اعتماد أول تصميم داشبورد إحصائي بهوية قوقل لطلبة جامعة الطائف.',
+                badge: 'مشروع شاغر #2',
+                variant: 'star',
+              },
+              {
+                id: 3,
+                color: '#F9AB00',
+                bg: 'bg-amber-50/60',
+                border: 'border-amber-300',
+                title: 'مساحة الابتكارات والمشاريع الشاملة',
+                desc: 'تُعرض هنا إنجازات وتطبيقات الأعضاء المتميزة بعد مراجعتها واعتمادها من القائدة.',
+                badge: 'مشروع شاغر #3',
+                variant: 'flower',
+              },
+            ].map((slot) => (
               <div
-                key={slot}
-                className="rounded-3xl border-2 border-dashed border-gray-300 bg-white/70 p-6 flex flex-col items-center justify-center min-h-[300px] text-center"
+                key={slot.id}
+                className={`rounded-3xl border-2 ${slot.border} ${slot.bg} p-6 flex flex-col items-center justify-between min-h-[320px] text-center shadow-xs transition-transform hover:-translate-y-1 relative overflow-hidden`}
               >
-                {/* شريط متصفح مصغر فارغ */}
-                <div className="w-full flex items-center justify-between pb-3 mb-4 border-b border-gray-100" dir="ltr">
+                {/* شريط متصفح عصري بهوية قوقل */}
+                <div className="w-full flex items-center justify-between pb-3 mb-4 border-b border-gray-200/70" dir="ltr">
                   <div className="flex gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-gray-200" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-gray-200" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-gray-200" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
                   </div>
-                  <span className="text-[10px] text-gray-300 font-mono">project-slot-0{slot}</span>
+                  <span className="text-[11px] text-gray-500 font-mono font-bold">gdgoc.dev/project-slot-0{slot.id}</span>
                 </div>
 
-                <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-400 mb-4">
-                  <FolderGit2 size={28} className="text-gray-300" />
+                <div className="my-auto flex flex-col items-center">
+                  <div
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3 shadow-sm border-2 border-[#0F1729]"
+                    style={{ backgroundColor: '#FFFFFF' }}
+                  >
+                    {slot.variant === 'flower' ? (
+                      <PinwheelFlower size={34} color={slot.id === 1 ? 'blue' : 'yellow'} />
+                    ) : (
+                      <AsteriskStar size={34} color="green" />
+                    )}
+                  </div>
+                  <h4 className="text-sm font-black text-gray-900 mb-1.5 max-w-[200px]">
+                    {slot.title}
+                  </h4>
+                  <p className="text-[11px] text-gray-500 font-medium leading-relaxed max-w-[220px]">
+                    {slot.desc}
+                  </p>
                 </div>
-                <div className="w-24 h-2.5 bg-gray-200 rounded-full mb-2" />
-                <div className="w-36 h-2 bg-gray-100 rounded-full mb-6" />
-                <span className="text-[11px] font-bold text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
-                  أيقونة شاغرة لمشروع قادم #{slot}
-                </span>
+
+                <div className="mt-4 pt-3 border-t border-gray-200/60 w-full flex items-center justify-center">
+                  <span
+                    className="text-[11px] font-black px-3.5 py-1 rounded-full border-2 border-[#0F1729] shadow-2xs"
+                    style={{ backgroundColor: '#FFFFFF', color: '#0F1729' }}
+                  >
+                    ✨ {slot.badge}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

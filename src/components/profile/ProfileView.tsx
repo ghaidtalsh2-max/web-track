@@ -80,6 +80,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
   const [newSkillName, setNewSkillName] = useState('');
   const [isAddingSkill, setIsAddingSkill] = useState(false);
 
+  // حالة نافذة تسليم إثبات المهارة (استبيان / رابط تطبيق / كويز / رابط قيت)
+  const [selectedSkillForProof, setSelectedSkillForProof] = useState<MemberSkillItem | null>(null);
+  const [proofType, setProofType] = useState<'app_link' | 'quiz' | 'git_url'>('app_link');
+  const [proofValue, setProofValue] = useState('');
+  const [proofFeedback, setProofFeedback] = useState<string | null>(null);
+  const [isSubmittingProof, setIsSubmittingProof] = useState(false);
+
   // جلب إحصائيات وشارات وتسليمات العضو المختار
   const userStats: UserStats = store.getUserStats(displayedMember.id);
   const userBadges: BadgeItem[] = store.getUserBadges(displayedMember.id);
@@ -159,6 +166,43 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
   // معالجة حذف مهارة شخصية
   const handleRemoveSkill = async (skillName: string) => {
     await store.removeSelfSkill(displayedMember.id, skillName);
+  };
+
+  // فتح نافذة تقديم إثبات للمهارة
+  const handleOpenProofModal = (skill: MemberSkillItem) => {
+    setSelectedSkillForProof(skill);
+    setProofValue(skill.gitUrl || '');
+    setProofFeedback(null);
+    if (skill.source === 'survey_registration') {
+      setProofType('app_link');
+    } else {
+      setProofType('git_url');
+    }
+  };
+
+  // معالجة إرسال إثبات المهارة (رابط تطبيق / طلب كويز / رابط قيت)
+  const handleSubmitProof = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSkillForProof) return;
+    setIsSubmittingProof(true);
+    setProofFeedback(null);
+    try {
+      await store.submitSkillProof(
+        displayedMember.id,
+        selectedSkillForProof.name,
+        proofType,
+        proofValue
+      );
+      setProofFeedback('تم تسليم إثبات المهارة للقائدة للمراجعة واعتماد النقاط! ✨');
+      setTimeout(() => {
+        setSelectedSkillForProof(null);
+        setProofFeedback(null);
+      }, 1500);
+    } catch (err: any) {
+      setProofFeedback('حدث خطأ أثناء التسليم، يرجى المحاولة ثانية');
+    } finally {
+      setIsSubmittingProof(false);
+    }
   };
 
   // مهارات العضو المفصلة من قاعدة البيانات والاستبيان
@@ -542,63 +586,152 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
                 </div>
 
                 {/* قائمة المهارات مع التمييز الواضح */}
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3.5">
                   {skillsList.map((skill, idx) => {
                     const isApproved = skill.source === 'approved_by_leader';
+                    const isSurvey = skill.source === 'survey_registration';
+                    const hasGitUrl = Boolean(skill.gitUrl);
+
                     return (
                       <div
                         key={idx}
-                        className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-between gap-3"
+                        className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex flex-col gap-2.5 transition-all hover:border-gray-300"
                       >
-                        <div className="flex items-center gap-2.5">
-                          {isApproved ? (
-                            <span
-                              className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs"
-                              title="معتمدة رسمياً من قادة المسار"
-                            >
-                              🛡️
-                            </span>
-                          ) : (
-                            <span
-                              className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs"
-                              title="أضافها العضو ذاتياً"
-                            >
-                              ✍️
-                            </span>
-                          )}
-                          <div>
-                            <span className="font-bold text-xs text-gray-900">
-                              {skill.name}
-                            </span>
-                            <div className="text-[10px] text-gray-500 font-medium">
-                              {isApproved ? 'معتمدة من قادة المسار' : 'أضافها العضو'}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            {isApproved ? (
+                              <span
+                                className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs flex-shrink-0 mt-0.5"
+                                title="معتمدة رسمياً من قادة المسار"
+                              >
+                                🛡️
+                              </span>
+                            ) : isSurvey ? (
+                              <span
+                                className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs flex-shrink-0 mt-0.5"
+                                title="من استبيان التسجيل"
+                              >
+                                📋
+                              </span>
+                            ) : (
+                              <span
+                                className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs flex-shrink-0 mt-0.5"
+                                title="مهارة شخصية مضافة"
+                              >
+                                🐙
+                              </span>
+                            )}
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-black text-sm text-gray-900">
+                                  {skill.name}
+                                </span>
+                                {isApproved && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                                    معتمدة من قادة المسار ✨
+                                  </span>
+                                )}
+                                {isSurvey && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
+                                    مأخوذة من استبيان التسجيل (غير معتمدة بعد)
+                                  </span>
+                                )}
+                                {!isApproved && !isSurvey && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+                                    مهارة شخصية (تعتمد برابط Git)
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* الملاحظة التوضيحية الخاصة بقرار الاستبيان */}
+                              {isSurvey && (
+                                <div className="text-[11px] text-amber-800 font-medium mt-1 leading-relaxed bg-amber-50/70 p-2 rounded-xl border border-amber-200/60">
+                                  💡 <strong>توضيح:</strong> تُعتمد المهارة وتُضاف نقاطها بعد تسليم رابط تطبيق عملي أو اجتياز كويز نضعه لكم.
+                                </div>
+                              )}
+
+                              {/* توضيح رابط Git للمهارات الشخصية */}
+                              {!isApproved && !isSurvey && (
+                                <div className="text-[11px] text-purple-800 font-medium mt-1 leading-relaxed bg-purple-50/70 p-2 rounded-xl border border-purple-200/60">
+                                  {hasGitUrl ? (
+                                    <span>
+                                      ⏳ <strong>تم إرسال رابط Git للمراجعة:</strong>{' '}
+                                      <a
+                                        href={skill.gitUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 underline"
+                                      >
+                                        {skill.gitUrl}
+                                      </a>
+                                    </span>
+                                  ) : (
+                                    <span>
+                                      🐙 <strong>طريقة الاعتماد:</strong> ارفع كود المشروع على GitHub وأرفق الرابط هنا لإضافة النقاط إلى رصيدك.
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+
+                              {skill.verificationNotes && isSurvey && (
+                                <div className="text-[10px] text-blue-700 font-bold mt-1">
+                                  {skill.verificationNotes}
+                                </div>
+                              )}
                             </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-xs font-bold px-2.5 py-1 rounded-xl ${
+                                isApproved
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-gray-200 text-gray-700'
+                              }`}
+                            >
+                              {skill.progressPercent}%
+                            </span>
+
+                            {/* زر حذف المهارة الشخصية لصاحب الحساب فقط */}
+                            {isViewingSelf && !isApproved && skill.source === 'self' && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSkill(skill.name)}
+                                className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors border-none bg-transparent cursor-pointer"
+                                title="حذف المهارة الشخصية"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-xs font-bold px-2.5 py-1 rounded-xl ${
-                              isApproved
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-gray-200 text-gray-700'
-                            }`}
-                          >
-                            {skill.progressPercent}%
-                          </span>
-
-                          {/* زر حذف المهارة الشخصية لصاحب الحساب فقط */}
-                          {isViewingSelf && !isApproved && (
+                        {/* زر تسليم الإثبات لصاحب الحساب إن لم تكن معتمدة */}
+                        {isViewingSelf && !isApproved && (
+                          <div className="flex justify-end pt-2 border-t border-gray-100">
                             <button
                               type="button"
-                              onClick={() => handleRemoveSkill(skill.name)}
-                              className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors border-none bg-transparent cursor-pointer"
-                              title="حذف المهارة"
+                              onClick={() => handleOpenProofModal(skill)}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all cursor-pointer border-none flex items-center gap-1.5 shadow-xs"
+                              style={{
+                                backgroundColor: isSurvey ? '#F9AB00' : '#4285F4',
+                                color: isSurvey ? '#0F1729' : '#FFFFFF',
+                              }}
                             >
-                              <Trash2 size={14} />
+                              {isSurvey ? (
+                                <>
+                                  <FileCode2 size={13} />
+                                  <span>تسليم إثبات (تطبيق عملي أو طلب كويز) 🔗</span>
+                                </>
+                              ) : (
+                                <>
+                                  <FolderGit2 size={13} />
+                                  <span>{hasGitUrl ? 'تحديث رابط GitHub 🐙' : 'إرفاق رابط GitHub للاعتماد والنقاط 🐙'}</span>
+                                </>
+                              )}
                             </button>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -626,9 +759,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
                 )}
               </div>
 
-              <div className="text-[11px] text-gray-400 font-medium mt-6 pt-3 border-t border-gray-100 flex items-center gap-1.5">
-                <Info size={13} className="text-blue-500 flex-shrink-0" />
-                <span>المهارات المعتمدة تُمنح تلقائياً عند اعتماد المشاريع من قبل قادة المسار.</span>
+              <div className="text-[11px] text-gray-500 font-medium mt-6 pt-3 border-t border-gray-100 flex items-center gap-1.5">
+                <Info size={14} className="text-blue-500 flex-shrink-0" />
+                <span>المهارات من الاستبيان تتطلب كويز أو رابط تطبيق للاعتماد. والمهارات الشخصية تُعتمد برابط Git من قبل القائدة مع إضافة النقاط.</span>
               </div>
             </div>
 
@@ -885,6 +1018,163 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
                     className="px-5 py-2 rounded-xl bg-[#4285F4] text-white font-bold hover:bg-blue-600 transition-colors border-none cursor-pointer flex items-center gap-1.5"
                   >
                     {isSaving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* نافذة تسليم إثبات المهارة (استبيان / رابط تطبيق / كويز / رابط قيت) */}
+        {selectedSkillForProof && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(4px)' }}
+            onClick={() => setSelectedSkillForProof(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full border-2 border-[#0F1729] shadow-2xl text-right"
+              dir="rtl"
+            >
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-black">
+                    {selectedSkillForProof.source === 'survey_registration' ? '📋' : '🐙'}
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base text-gray-900">
+                      اعتماد مهارة: {selectedSkillForProof.name}
+                    </h3>
+                    <span className="text-[11px] text-gray-500 font-medium">
+                      {selectedSkillForProof.source === 'survey_registration'
+                        ? 'مأخوذة من استبيان التسجيل'
+                        : 'مهارة شخصية مضافة'}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedSkillForProof(null)}
+                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 border-none bg-transparent cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitProof} className="space-y-4 text-xs">
+                {selectedSkillForProof.source === 'survey_registration' ? (
+                  <>
+                    <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 leading-relaxed font-medium">
+                      📌 <strong>ملاحظة الاعتماد:</strong> مهارات الاستبيان تُعتمد بعد تسليم رابط تطبيق عملي أنجزته أو تقديم طلب لحل كويز المسار ليتم رصد النقاط لك.
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-gray-800 mb-2">طريقة الإثبات التي تفضلها:</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setProofType('app_link')}
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                            proofType === 'app_link'
+                              ? 'bg-blue-50 border-blue-600 text-blue-800'
+                              : 'bg-gray-50 border-gray-200 text-gray-600'
+                          }`}
+                        >
+                          <FileCode2 size={14} />
+                          <span>رابط تطبيق عملي</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setProofType('quiz')}
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                            proofType === 'quiz'
+                              ? 'bg-blue-50 border-blue-600 text-blue-800'
+                              : 'bg-gray-50 border-gray-200 text-gray-600'
+                          }`}
+                        >
+                          <Award size={14} />
+                          <span>حل كويز تقييمي</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {proofType === 'app_link' ? (
+                      <div>
+                        <label className="block font-bold text-gray-800 mb-1">
+                          رابط التطبيق أو مستودع الكود (GitHub / Vercel / Netlify):
+                        </label>
+                        <input
+                          type="url"
+                          required
+                          value={proofValue}
+                          onChange={(e) => setProofValue(e.target.value)}
+                          placeholder="https://github.com/username/project"
+                          dir="ltr"
+                          className="w-full p-2.5 rounded-xl border border-gray-300 focus:outline-none focus:border-blue-500 text-xs text-left"
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block font-bold text-gray-800 mb-1">
+                          ملاحظاتك أو التوقيت المناسب لحل الكويز:
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={proofValue}
+                          onChange={(e) => setProofValue(e.target.value)}
+                          placeholder="أنا جاهز لأداء كويز مهارة HTML/CSS في أي وقت..."
+                          className="w-full p-2.5 rounded-xl border border-gray-300 focus:outline-none focus:border-blue-500 text-xs"
+                        />
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 leading-relaxed font-medium">
+                      🐙 <strong>اعتماد المهارة برابط Git:</strong> الصق رابط مستودع GitHub الذي يثبت استخدامك لهذه المهارة لتقوم القائدة بمراجعته وإضافة النقاط إلى رصيدك.
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-gray-800 mb-1">
+                        رابط مستودع GitHub:
+                      </label>
+                      <input
+                        type="url"
+                        required
+                        value={proofValue}
+                        onChange={(e) => setProofValue(e.target.value)}
+                        placeholder="https://github.com/username/repository"
+                        dir="ltr"
+                        className="w-full p-2.5 rounded-xl border border-gray-300 focus:outline-none focus:border-blue-500 text-xs text-left"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {proofFeedback && (
+                  <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 font-bold text-center border border-emerald-200">
+                    {proofFeedback}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSkillForProof(null)}
+                    className="px-4 py-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors border-none bg-transparent cursor-pointer font-bold"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingProof || !proofValue.trim()}
+                    className="px-5 py-2 rounded-xl bg-[#4285F4] text-white font-bold hover:bg-blue-600 disabled:opacity-50 transition-colors border-none cursor-pointer flex items-center gap-1.5"
+                  >
+                    {isSubmittingProof ? 'جاري الإرسال...' : 'إرسال للقائدة للاعتماد ✨'}
                   </button>
                 </div>
               </form>

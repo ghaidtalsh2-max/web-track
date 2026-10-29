@@ -481,9 +481,16 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
               </div>
 
               {/* عنوان المجموعة */}
-              <h2 className="text-xl sm:text-2xl font-black text-[#0F172A] mb-3">
-                {group.title}
-              </h2>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-600 to-amber-500 text-white flex items-center justify-center shadow-xs shrink-0 border-2 border-[#0F172A]">
+                  <Code2 size={24} />
+                </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black text-[#0F172A]">
+                    {group.title}
+                  </h2>
+                </div>
+              </div>
 
               <p className="text-xs sm:text-sm text-gray-600 font-medium mb-6">
                 {group.mode === 'choice'
@@ -499,8 +506,34 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
 
               {/* شبكة خيارات التحدي كبطاقات تشبه التصويت */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {group.options.map((option) => {
+                {group.options.map((option, optIdx) => {
                   const isSelected = userChoice?.optionId === option.id;
+
+                  const creativeIcon =
+                    optIdx === 0 ? (
+                      <div className="w-10 h-10 rounded-2xl bg-blue-50 border-2 border-blue-200 flex items-center justify-center text-[#4285F4] shadow-2xs shrink-0">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="16 18 22 12 16 6" />
+                          <polyline points="8 6 2 12 8 18" />
+                          <line x1="14" y1="4" x2="10" y2="20" stroke="#EA4335" />
+                        </svg>
+                      </div>
+                    ) : optIdx === 1 ? (
+                      <div className="w-10 h-10 rounded-2xl bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center text-[#34A853] shadow-2xs shrink-0">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="7" height="7" fill="#34A853" fillOpacity="0.25" stroke="#34A853" />
+                          <rect x="14" y="3" width="7" height="7" stroke="#F9AB00" />
+                          <rect x="14" y="14" width="7" height="7" fill="#F9AB00" fillOpacity="0.25" stroke="#F9AB00" />
+                          <rect x="3" y="14" width="7" height="7" stroke="#4285F4" />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-2xl bg-amber-50 border-2 border-amber-200 flex items-center justify-center text-[#F9AB00] shadow-2xs shrink-0">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z" fill="#F9AB00" stroke="#0F1729" strokeWidth="1.5" />
+                        </svg>
+                      </div>
+                    );
 
                   return (
                     <div
@@ -517,11 +550,19 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
                       } ${!isSubmitted ? 'cursor-pointer hover:translate-y-[-2px]' : 'cursor-default'}`}
                     >
                       <div>
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <h3 className="text-sm font-black text-[#0F172A]">
-                            {option.name}
-                          </h3>
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-900 shadow-xs">
+                        <div className="flex items-start justify-between gap-3 mb-2.5">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {creativeIcon}
+                            <div className="min-w-0">
+                              <h3 className="text-sm font-black text-[#0F172A] leading-tight truncate">
+                                {option.name}
+                              </h3>
+                              <span className="text-[11px] font-bold text-gray-500">
+                                خيار التحدي #{optIdx + 1}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs shrink-0">
                             +{option.points} نقطة
                           </span>
                         </div>

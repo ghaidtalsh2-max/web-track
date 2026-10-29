@@ -52,19 +52,47 @@ export const DEFAULT_LAB_CHALLENGES: LabChallenge[] = [
     id: 'lab-1',
     title: 'تحدي زر الاحتفال بهوية قوقل',
     description: 'غيّر لون عنوان البطاقة في تبويب CSS ليصبح لوناً مختلفاً عن الأحمر، واختبر تفاعل الزر لإطلاق الاحتفال البصري وكسب النقاط.',
-    instruction: 'تحدي اليوم: غيّر لون العنوان في تبويب CSS واجعل الزر يطلق احتفالًا 🎊.',
+    instruction: 'تحدي اليوم: ابنِ بطاقة تفاعلية مع زر لإطلاق الاحتفال 🎊.',
     points: 10,
     level: 'beginner',
     levelLabel: 'المستوى 1 (مبتدئ)',
     badgeColor: '#4285F4',
-    defaultHtml: `<!-- مرحباً بك في مختبر الويب 🚀 -->
-<div class="card">
+    defaultHtml: `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8">
+    <title>مختبر الويب</title>
+  </head>
+  <body>
+    <!-- ابدأ كتابة الكود هنا 🚀 -->
+    <div class="card">
+      <h1>Hello Taif</h1>
+      <p>منصة مسار الويب · بيئة التطوير التفاعلية</p>
+      <button id="celebrateBtn">اضغط للاحتفال 🎉</button>
+    </div>
+  </body>
+</html>`,
+    defaultCss: `/* تنسيقات CSS الأساسية */
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: system-ui, sans-serif;
+  direction: rtl;
+}`,
+    defaultJs: `// البرمجة التفاعلية JavaScript
+console.log("مختبر مسار الويب جاهز للتنفيذ 🚀");`,
+    solutionHtml: `<div class="card">
   <h1>Hello Taif</h1>
   <p>منصة مسار الويب · بيئة التطوير التفاعلية</p>
   <button id="celebrateBtn">اضغط للاحتفال 🎉</button>
 </div>`,
-    defaultCss: `/* نسّق صفحتك وألوان الهوية */
-body {
+    solutionCss: `body {
   background: linear-gradient(135deg, #F8FAFC 0%, #EEF2FF 100%);
   margin: 0;
   display: flex;
@@ -85,7 +113,7 @@ body {
 }
 
 h1 {
-  color: #EA4335; /* غير اللون هنا لإكمال التحدي */
+  color: #4285F4;
   font-size: 28px;
   font-weight: 900;
   margin: 0 0 8px 0;
@@ -98,7 +126,7 @@ p {
 }
 
 button {
-  background-color: #4285F4;
+  background-color: #34A853;
   color: #FFFFFF;
   border: 2px solid #0F1729;
   border-bottom: 4px solid #0F1729;
@@ -113,14 +141,8 @@ button {
 button:hover {
   transform: translateY(-2px);
   border-bottom-width: 5px;
-}
-
-button:active {
-  transform: translateY(2px);
-  border-bottom-width: 2px;
 }`,
-    defaultJs: `// التفاعل البرمجي
-const btn = document.getElementById('celebrateBtn');
+    solutionJs: `const btn = document.getElementById('celebrateBtn');
 btn.onclick = () => {
   btn.innerText = 'احتفال مبهج! 🎊';
   window.parent.postMessage('trigger-confetti', '*');
@@ -1552,13 +1574,16 @@ class StoreManager {
     for (const row of ((skillsRes as any)?.data || [])) {
       const pid = row.profile_id;
       const list = skillsByProfile.get(pid) || [];
+      const isSurvey = row.source === 'survey_registration' || row.source === 'survey_form' || (!row.git_url && row.source !== 'git_submission');
       list.push({
         id: row.id,
         name: row.skill_name,
-        progressPercent: row.progress_percent ?? 100,
-        status: row.status || 'approved',
-        source: row.source || 'approved_by_leader',
+        progressPercent: row.progress_percent ?? 80,
+        status: isSurvey ? 'in_progress' : (row.status || 'approved'),
+        source: isSurvey ? 'survey_registration' : (row.source || 'approved_by_leader'),
         awardedAt: row.awarded_at,
+        gitUrl: row.git_url,
+        verificationNotes: isSurvey ? 'مأخوذة من استبيان التسجيل — بانتظار الاعتماد بتسليم رابط تطبيق عملي أو اجتياز كويز المسار' : undefined,
       });
       skillsByProfile.set(pid, list);
     }
@@ -1827,6 +1852,57 @@ class StoreManager {
     return true;
   }
 
+  // --- Skill Proof & Verification Submission ---
+  public async submitSkillProof(
+    userId: string,
+    skillName: string,
+    proofType: 'app_link' | 'quiz' | 'git_url',
+    proofValue: string
+  ): Promise<boolean> {
+    const target = this.getMembers().find((m) => m.id === userId);
+    if (!target) return false;
+
+    const existing = target.detailedSkills || [];
+    const updated = existing.map((s) => {
+      if (s.name.toLowerCase() === skillName.toLowerCase()) {
+        return {
+          ...s,
+          gitUrl: proofType === 'git_url' || proofType === 'app_link' ? proofValue : s.gitUrl,
+          verificationNotes:
+            proofType === 'quiz'
+              ? `طلب كويز لاعتماد المهارة: ${proofValue || 'جاهز للاختبار'}`
+              : `رابط إثبات: ${proofValue}`,
+          status: 'in_progress' as const,
+        };
+      }
+      return s;
+    });
+
+    this.patchMember(userId, {
+      detailedSkills: updated,
+    });
+
+    const proofLabel =
+      proofType === 'quiz'
+        ? 'طلب كويز'
+        : proofType === 'app_link'
+        ? 'رابط تطبيق عملي'
+        : 'رابط Git للمشروع';
+
+    this.addInquiry({
+      id: `skill-proof-${Date.now()}`,
+      userId,
+      userName: target.fullName,
+      subject: `تسليم إثبات مهارة: ${skillName}`,
+      message: `العضو ${target.fullName} قدم إثبات لاعتماد المهارة (${proofLabel}): ${proofValue}`,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    });
+
+    this.notify();
+    return true;
+  }
+
   // --- User KPI Metrics (Independent Indicators) ---
   public getUserStats(userId: string): UserStats {
     const subs = this.submissions.filter((s: any) => s.profile_id === userId || s.profileId === userId);
@@ -1966,8 +2042,9 @@ class StoreManager {
         }
       }
 
+      // احتساب النقاط التراكمية الحقيقية فقط (دون مضاعفات وهمية)
       if (weekPoints === 0 && member.points > 0) {
-        weekPoints = Math.round(member.points * 0.4);
+        weekPoints = member.points;
       }
       if (monthPoints === 0 && member.points > 0) {
         monthPoints = member.points;
@@ -2013,9 +2090,109 @@ class StoreManager {
     return {
       topWeekly,
       memberOfTheMonth,
+      isApproved: this.isStarsApproved(),
+      approvalDate: this.getStarsApprovedDate(),
       calculationFormula:
-        'تُحتسب المراكز آلياً من الأنشطة المعتمدة في قاعدة البيانات (تسليم المهام والمشاريع المعتمدة، إكمال الورش، والتفاعل في الاستبيانات)، مع تطبيق قيود الأمان لمنع تكرار احتساب النقاط لنفس النشاط.',
+        'المراكز تُحتسب تلقائياً وفق النقاط الفعلية والتفاعل الحي، ولا تُعتمد نهائياً إلا بموافقة قائدة المسار (التحديث الدوري كل سبت).',
     };
+  }
+
+  public isStarsApproved(): boolean {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('webtrack_stars_approved') === 'true';
+  }
+
+  public getStarsApprovedDate(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('webtrack_stars_approved_date');
+  }
+
+  public approveWeeklyAndMonthlyStars(): void {
+    if (typeof window === 'undefined') return;
+    const now = new Date();
+    const formatted = now.toLocaleDateString('ar-SA', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    localStorage.setItem('webtrack_stars_approved', 'true');
+    localStorage.setItem('webtrack_stars_approved_date', formatted);
+
+    // إرسال تنبيه احتفالي لجميع الأعضاء
+    this.members
+      .filter((m) => m.role === 'member')
+      .forEach((m) => {
+        this.addNotification({
+          userId: m.id,
+          type: 'points',
+          title: '🎉 لدينا احتفال جديد ولفتة تكريمية لأعضاء رهيبين!',
+          body: `تم اعتماد وتكريم أعضاء الأسبوع وعضو الشهر رسمياً ليوم السبت (${formatted}). تفقد لوحة الشرف! 🏆`,
+          targetTab: 'home',
+        });
+      });
+
+    this.notify();
+  }
+
+  public resetStarsApproval(): void {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('webtrack_stars_approved');
+    localStorage.removeItem('webtrack_stars_approved_date');
+    this.notify();
+  }
+
+  public async submitLabChallenge(
+    userId: string,
+    challengeId: string,
+    html: string,
+    css: string,
+    js: string,
+    notes?: string
+  ): Promise<void> {
+    const active = this.getActiveLabChallenge();
+    const submissionId = `lab-sub-${Date.now()}`;
+    const newSubmission = {
+      id: submissionId,
+      profile_id: userId,
+      profileId: userId,
+      task_id: challengeId,
+      taskTitle: `مختبر الويب: ${active.title}`,
+      repo_url: '',
+      live_url: '',
+      submitted_at: new Date().toISOString(),
+      status: 'in_review',
+      code_snippet: JSON.stringify({ html, css, js, notes: notes || '' }),
+    };
+
+    try {
+      await supabase.from('submissions').insert({
+        profile_id: userId,
+        status: 'in_review',
+        task_id: null,
+        repo_url: 'https://weblab.gdgoc-taif.dev',
+        live_url: 'https://weblab.gdgoc-taif.dev',
+      });
+    } catch (e) {
+      console.warn('Lab submission supabase note:', e);
+    }
+
+    this.submissions.unshift(newSubmission);
+
+    // تنبيه قائدة المسار
+    this.members
+      .filter((m) => m.role === 'track_leader' || m.role === 'supervisor')
+      .forEach((leader) => {
+        this.addNotification({
+          userId: leader.id,
+          type: 'task',
+          title: '📥 تسليم جديد في مختبر الويب',
+          body: `قام عضو بتسليم حل تحدي "${active.title}" وهو بانتظار مراجعتك ورصد النقاط له.`,
+          targetTab: 'submissions',
+        });
+      });
+
+    this.notify();
   }
 
   // --- Notifications ---

@@ -25,9 +25,11 @@ export interface MemberSkillItem {
   name: string;
   progressPercent: number; // 0 - 100
   status: 'approved' | 'in_progress' | 'upcoming';
-  source: 'self' | 'approved_by_leader';
+  source: 'self' | 'approved_by_leader' | 'survey_registration' | 'git_submission';
   category?: 'frontend' | 'tools' | 'languages' | 'design' | 'other';
   awardedAt?: string;
+  gitUrl?: string;
+  verificationNotes?: string;
 }
 
 export interface BadgeItem {
@@ -357,6 +359,9 @@ export interface LabChallenge {
   defaultCss: string;
   defaultJs: string;
   solutionHint?: string;
+  solutionHtml?: string;
+  solutionCss?: string;
+  solutionJs?: string;
   badgeColor?: string;
 }
 

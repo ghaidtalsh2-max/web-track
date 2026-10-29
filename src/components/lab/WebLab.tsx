@@ -23,6 +23,9 @@ import {
   Award,
   BookOpen,
   Settings,
+  Lightbulb,
+  Send,
+  HelpCircle,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { UserProfile, LabChallenge } from '../../types';
@@ -32,79 +35,60 @@ interface WebLabProps {
   currentUser: UserProfile;
 }
 
-const DEFAULT_HTML = `<!-- مرحباً بك في مختبر الويب 🚀 -->
-<div class="card">
-  <h1>Hello Taif</h1>
-  <p>منصة مسار الويب · بيئة التطوير التفاعلية</p>
-  <button id="celebrateBtn">اضغط للاحتفال 🎉</button>
-</div>`;
+const DEFAULT_HTML = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8">
+    <title>مختبر الويب</title>
+  </head>
+  <body>
+    <!-- ابدأ كتابة كودك هنا 🚀 -->
+    <div class="card">
+      <h1>Hello Taif</h1>
+      <button id="actionBtn">انقر للتفاعل</button>
+    </div>
+  </body>
+</html>`;
 
-const DEFAULT_CSS = `/* نسّق صفحتك وألوان الهوية */
+const DEFAULT_CSS = `/* تنسيقات CSS الأساسية */
+* {
+  box-sizing: border-box;
+}
+
 body {
-  background: linear-gradient(135deg, #F8FAFC 0%, #EEF2FF 100%);
   margin: 0;
+  padding: 24px;
+  font-family: system-ui, -apple-system, sans-serif;
+  direction: rtl;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  font-family: system-ui, -apple-system, sans-serif;
+  background-color: #F8FAFC;
 }
 
 .card {
   background: #FFFFFF;
-  padding: 32px 40px;
-  border-radius: 24px;
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+  padding: 32px;
+  border-radius: 20px;
   border: 2px solid #0F1729;
   text-align: center;
-  max-width: 360px;
-}
-
-h1 {
-  color: #EA4335; /* غير اللون هنا لإكمال التحدي */
-  font-size: 28px;
-  font-weight: 900;
-  margin: 0 0 8px 0;
-}
-
-p {
-  color: #64748B;
-  font-size: 13px;
-  margin: 0 0 20px 0;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
 }
 
 button {
   background-color: #4285F4;
   color: #FFFFFF;
   border: 2px solid #0F1729;
-  border-bottom: 4px solid #0F1729;
-  padding: 12px 24px;
+  padding: 10px 20px;
   border-radius: 9999px;
-  font-weight: 800;
-  font-size: 14px;
+  font-weight: bold;
   cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-button:hover {
-  transform: translateY(-2px);
-  border-bottom-width: 5px;
-}
-
-button:active {
-  transform: translateY(2px);
-  border-bottom-width: 2px;
 }`;
 
-const DEFAULT_JS = `// التفاعل البرمجي
-const btn = document.getElementById('celebrateBtn');
-btn.onclick = () => {
-  btn.innerText = 'احتفال مبهج! 🎊';
-  window.parent.postMessage('trigger-confetti', '*');
-  setTimeout(() => {
-    btn.innerText = 'اضغط للاحتفال 🎉';
-  }, 2000);
-};`;
+const DEFAULT_JS = `// البرمجة التفاعلية JavaScript
+console.log("مختبر مسار الويب جاهز للتنفيذ 🚀");
+`;
 
 export const WebLab: React.FC<WebLabProps> = ({ currentUser }) => {
   const isLeader = currentUser.role === 'track_leader' || currentUser.role === 'supervisor';
@@ -113,6 +97,20 @@ export const WebLab: React.FC<WebLabProps> = ({ currentUser }) => {
   const [labChallenges, setLabChallenges] = useState<LabChallenge[]>(() => store.getLabChallenges());
   const [showChallengeModal, setShowChallengeModal] = useState(false);
   const [modalTab, setModalTab] = useState<'browse' | 'create'>('browse');
+
+  // نافذة عرض الحل المشروط ببيان السبب
+  const [showSolutionModal, setShowSolutionModal] = useState(false);
+  const [solutionReason, setSolutionReason] = useState<string>('');
+  const [isSolutionRevealed, setIsSolutionRevealed] = useState(false);
+  const [solutionTab, setSolutionTab] = useState<'html' | 'css' | 'js'>('html');
+  const [solutionCopied, setSolutionCopied] = useState(false);
+
+  // نافذة تسليم التحدي للقائدة
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [submissionNotes, setSubmissionNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [submitToast, setSubmitToast] = useState('');
 
   // حالة نموذج إنشاء تحدٍ جديد للقادة
   const [customTitle, setCustomTitle] = useState('');
@@ -227,20 +225,6 @@ export const WebLab: React.FC<WebLabProps> = ({ currentUser }) => {
     `;
 
     iframeRef.current.srcdoc = sourceDoc;
-
-    // التحقق من إكمال التحدي
-    if (cssCode.includes('color:') && !cssCode.includes('#EA4335') && !challengeCompleted) {
-      setChallengeCompleted(true);
-      store.addPoints(currentUser.id, activeChallenge.points, `إكمال تحدي المختبر: ${activeChallenge.title}`);
-      if (currentUser.settings?.celebrations) {
-        confetti({
-          particleCount: 60,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#4285F4', '#EA4335', '#34A853', '#F9AB00'],
-        });
-      }
-    }
   };
 
   const resetCode = () => {
@@ -342,15 +326,31 @@ export const WebLab: React.FC<WebLabProps> = ({ currentUser }) => {
             </button>
           </div>
 
-          {/* زر تغيير أو تصفح تحديات المختبر */}
+          {/* زر عرض الحل النموذجي المشروط ببيان السبب */}
           <button
-            onClick={() => setShowChallengeModal(true)}
+            onClick={() => {
+              setShowSolutionModal(true);
+              setIsSolutionRevealed(false);
+              setSolutionReason('');
+            }}
             className="btn-3d btn-3d-yellow px-4 py-2 text-xs font-black cursor-pointer flex items-center gap-1.5 shadow-sm"
-            title={isLeader ? "تغيير التحدي النشط للمسار" : "تصفح تحديات المختبر"}
+            title="طلب استعراض الحل النموذجي"
           >
-            <Sparkles size={14} />
-            <span>{isLeader ? 'تغيير تحدي المختبر ⚙️' : 'تحديات المختبر 🎯'}</span>
+            <Lightbulb size={14} className="text-amber-800" />
+            <span>عرض الحل 💡</span>
           </button>
+
+          {/* زر تغيير تحدي المختبر مخصص للقادة فقط */}
+          {isLeader && (
+            <button
+              onClick={() => setShowChallengeModal(true)}
+              className="btn-3d btn-3d-white px-4 py-2 text-xs font-black cursor-pointer flex items-center gap-1.5 shadow-sm"
+              title="تغيير التحدي النشط للمسار"
+            >
+              <Settings size={14} />
+              <span>تغيير التحدي ⚙️</span>
+            </button>
+          )}
 
           {/* زر إعادة تعيين */}
           <button
@@ -731,15 +731,21 @@ export const WebLab: React.FC<WebLabProps> = ({ currentUser }) => {
             </button>
           )}
 
-          {challengeCompleted ? (
-            <span className="btn-3d btn-3d-green text-xs font-black">
-              <CheckCircle2 size={16} />
-              <span>أحسنت! أُضيفت {activeChallenge.points} نقطة لحسابك</span>
+          {/* زر تسليم التحدي بدلاً من زر المكافأة التلقائي */}
+          {hasSubmitted ? (
+            <span className="btn-3d btn-3d-green text-xs font-black flex items-center gap-1.5 shadow-sm">
+              <CheckCircle2 size={15} />
+              <span>تم تسليم التحدي (بانتظار مراجعة القائدة) ✓</span>
             </span>
           ) : (
-            <span className="btn-3d btn-3d-yellow text-xs font-black">
-              + {activeChallenge.points} نقطة مكافأة
-            </span>
+            <button
+              onClick={() => setShowSubmitModal(true)}
+              className="btn-3d btn-3d-yellow px-5 py-2.5 text-xs font-black cursor-pointer flex items-center gap-1.5 shadow-sm"
+              title="تسليم كود التحدي لقائدة المسار لرصد النقاط"
+            >
+              <Send size={14} />
+              <span>تسليم التحدي للقائدة 🚀</span>
+            </button>
           )}
         </div>
       </div>
@@ -1037,6 +1043,317 @@ export const WebLab: React.FC<WebLabProps> = ({ currentUser }) => {
                     </div>
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 2. نافذة عرض الحل المشروطة ببيان السبب */}
+      <AnimatePresence>
+        {showSolutionModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+            style={{
+              backgroundColor: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-xl rounded-3xl p-6 sm:p-8 shadow-2xl text-right overflow-y-auto my-auto"
+              style={{
+                backgroundColor: '#FFFFFF',
+                border: '2px solid #0F1729',
+                maxHeight: '85vh',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-black">
+                    💡
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-gray-900">
+                    الحل النموذجي · {activeChallenge.title}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowSolutionModal(false)}
+                  className="p-1 rounded-full hover:bg-gray-100 text-gray-400 cursor-pointer border-none bg-transparent"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {!isSolutionRevealed ? (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 text-right">
+                    <span className="text-xs font-black text-amber-900 block mb-1">
+                      قبل استعراض الحل:
+                    </span>
+                    <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                      التفكير والمحاولة المستقلة هي جوهر التعلم الحقيقي في مسار الويب. نود معرفة السبب الذي جعلك تبحث عن الحل اليوم لمساعدتك بشكل أفضل:
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-black text-gray-800 block mb-2.5">
+                      ما هو السبب الذي جعلك تبحث عن الحل؟ *
+                    </label>
+
+                    <div className="space-y-2">
+                      {[
+                        'حاولت عدة محاولات وواجهت صعوبة في منطق البرمجة',
+                        'أريد المقارنة مع الكود المعياري الأفضل (Best Practice)',
+                        'أرغب في استكشاف أسلوب برمجي بديل لاختصار وتنسيق الكود',
+                        'أواجه ضيق في الوقت وأود دراسة الحل وتطبيقه لاحقاً',
+                      ].map((reasonText) => (
+                        <label
+                          key={reasonText}
+                          className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
+                            solutionReason === reasonText
+                              ? 'border-[#4285F4] bg-blue-50/50 text-blue-950 font-bold'
+                              : 'border-gray-200 bg-gray-50/50 hover:bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="solutionReason"
+                            value={reasonText}
+                            checked={solutionReason === reasonText}
+                            onChange={() => setSolutionReason(reasonText)}
+                            className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-xs leading-normal">{reasonText}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowSolutionModal(false)}
+                      className="px-4 py-2 rounded-2xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 border-none cursor-pointer"
+                    >
+                      إلغاء والعودة للمحاولة
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!solutionReason}
+                      onClick={() => setIsSolutionRevealed(true)}
+                      className="btn-3d btn-3d-yellow px-5 py-2.5 text-xs font-black cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      تأكيد واستعراض الحل النموذجي 🔍
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+                    <CheckCircle2 size={16} />
+                    <span>تم فتح الحل النموذجي! تمعّن في طريقة كتابة الكود وبنائه.</span>
+                  </div>
+
+                  {/* ألسنة الملفات في الحل */}
+                  <div className="flex items-center gap-1.5 border-b border-gray-200 pb-2">
+                    <button
+                      onClick={() => setSolutionTab('html')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer border-none ${
+                        solutionTab === 'html'
+                          ? 'bg-[#EA4335] text-white'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      HTML الحل
+                    </button>
+                    <button
+                      onClick={() => setSolutionTab('css')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer border-none ${
+                        solutionTab === 'css'
+                          ? 'bg-[#4285F4] text-white'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      CSS الحل
+                    </button>
+                    <button
+                      onClick={() => setSolutionTab('js')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer border-none ${
+                        solutionTab === 'js'
+                          ? 'bg-[#F9AB00] text-gray-950'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      JS الحل
+                    </button>
+                  </div>
+
+                  {/* صندوق الكود النموذجي */}
+                  <div className="p-4 rounded-2xl bg-[#0D1117] text-left border border-[#30363D] overflow-x-auto max-h-60" dir="ltr">
+                    <pre className="text-xs font-mono text-gray-200 whitespace-pre">
+                      {solutionTab === 'html'
+                        ? activeChallenge.solutionHtml || activeChallenge.defaultHtml
+                        : solutionTab === 'css'
+                        ? activeChallenge.solutionCss || activeChallenge.defaultCss
+                        : activeChallenge.solutionJs || activeChallenge.defaultJs}
+                    </pre>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-100 flex items-center justify-between flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetText =
+                          solutionTab === 'html'
+                            ? activeChallenge.solutionHtml || activeChallenge.defaultHtml
+                            : solutionTab === 'css'
+                            ? activeChallenge.solutionCss || activeChallenge.defaultCss
+                            : activeChallenge.solutionJs || activeChallenge.defaultJs;
+                        navigator.clipboard?.writeText(targetText);
+                        setSolutionCopied(true);
+                        setTimeout(() => setSolutionCopied(false), 2000);
+                      }}
+                      className="px-4 py-2 rounded-2xl text-xs font-bold text-gray-800 bg-gray-100 hover:bg-gray-200 border-none cursor-pointer flex items-center gap-1.5"
+                    >
+                      {solutionCopied ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                      <span>{solutionCopied ? 'تم النسخ ✓' : 'نسخ كود التبويب'}</span>
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (activeChallenge.solutionHtml) setHtmlCode(activeChallenge.solutionHtml);
+                          if (activeChallenge.solutionCss) setCssCode(activeChallenge.solutionCss);
+                          if (activeChallenge.solutionJs) setJsCode(activeChallenge.solutionJs);
+                          setIframeKey((prev) => prev + 1);
+                          setShowSolutionModal(false);
+                        }}
+                        className="btn-3d btn-3d-green px-4 py-2 text-xs font-black cursor-pointer"
+                      >
+                        تطبيق الحل بالكامل في المحرر 🚀
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 3. نافذة تسليم التحدي لقائدة المسار */}
+      <AnimatePresence>
+        {showSubmitModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+            style={{
+              backgroundColor: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl text-right overflow-y-auto my-auto"
+              style={{
+                backgroundColor: '#FFFFFF',
+                border: '2px solid #0F1729',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-100 text-[#4285F4] flex items-center justify-center font-black">
+                    <Send size={16} />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-gray-900">
+                    تسليم كود التحدي للقائدة 🚀
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowSubmitModal(false)}
+                  className="p-1 rounded-full hover:bg-gray-100 text-gray-400 cursor-pointer border-none bg-transparent"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200">
+                  <span className="text-[11px] font-bold text-gray-500 block mb-0.5">
+                    التحدي المراد تسليمه:
+                  </span>
+                  <div className="text-sm font-black text-gray-900">
+                    {activeChallenge.title} ({activeChallenge.levelLabel})
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    عدد الأسطر المكتوبة: <strong>{lineCount}</strong> سطراً
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-black text-gray-800 block mb-1.5">
+                    ملاحظات أو تعليق موجه للقائدة (اختياري)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={submissionNotes}
+                    onChange={(e) => setSubmissionNotes(e.target.value)}
+                    placeholder="اكتب أي ملاحظة أو صعوبة واجهتها أثناء كتابة الكود..."
+                    className="w-full p-3 text-xs rounded-xl border border-gray-300 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-medium flex items-center gap-2">
+                  <HelpCircle size={16} className="text-blue-600 shrink-0" />
+                  <span>سيتم إرسال كودك بالكامل للقائدة لمراجعته واعتماد النقاط المستحقة لك في حسابك.</span>
+                </div>
+
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSubmitModal(false)}
+                    className="px-4 py-2 rounded-2xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 border-none cursor-pointer"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={async () => {
+                      setIsSubmitting(true);
+                      await store.submitLabChallenge(
+                        currentUser.id,
+                        activeChallenge.id,
+                        htmlCode,
+                        cssCode,
+                        jsCode,
+                        submissionNotes
+                      );
+                      setIsSubmitting(false);
+                      setHasSubmitted(true);
+                      setShowSubmitModal(false);
+                      if (currentUser.settings?.celebrations) {
+                        confetti({
+                          particleCount: 80,
+                          spread: 70,
+                          origin: { y: 0.6 },
+                          colors: ['#4285F4', '#34A853', '#F9AB00', '#EA4335'],
+                        });
+                      }
+                    }}
+                    className="btn-3d btn-3d-green px-5 py-2.5 text-xs font-black cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Send size={14} />
+                    <span>{isSubmitting ? 'جارٍ التسليم...' : 'تأكيد التسليم الرسمي للقائدة ✓'}</span>
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

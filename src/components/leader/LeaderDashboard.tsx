@@ -38,6 +38,8 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
   const [courses, setCourses] = useState<Course[]>(() => store.getCourses());
   const [inquiries, setInquiries] = useState(() => store.getInquiries());
   const [polls, setPolls] = useState(() => store.getPolls());
+  const [rankings, setRankings] = useState(() => store.getActiveRankings());
+  const [starSuccessMsg, setStarSuccessMsg] = useState('');
   const [, forceRender] = useState(0);
 
   // الأعضاء والأرقام تأتي من Supabase بشكل غير متزامن → نعيد القراءة عند كل تحديث للـ store
@@ -430,6 +432,100 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
 
             {/* الصندوق 2 (اليسار): موجة المسار الرسمية الديناميكية */}
             <PathWave percent={stats.completionRate !== undefined && stats.completionRate !== null ? stats.completionRate : null} />
+          </div>
+
+          {/* لوحة اعتماد نجوم الأسبوع وعضو الشهر (تحديث السبت الدوري) */}
+          <div className="mt-8 p-6 sm:p-7 rounded-3xl bg-white border-2 border-[#0F1729] shadow-xs">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-[#F9AB00] flex items-center justify-center border border-amber-300 font-black">
+                  👑
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-gray-900 leading-tight">
+                    اعتماد نجوم الأسبوع وعضو الشهر (تحديث السبت) ⭐
+                  </h3>
+                  <p className="text-xs text-gray-500 font-medium mt-0.5">
+                    الترتيب يُحتسب تلقائياً بالنقاط، ولا يظهر للأعضاء كمعتمد نهائي إلا بعد اعتمادك الدوري كل سبت
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {rankings.isApproved ? (
+                  <button
+                    onClick={() => {
+                      store.resetStarsApproval();
+                      setRankings(store.getActiveRankings());
+                      setStarSuccessMsg('تمت إعادة اللوحة إلى الترتيب التراكمي الأولي.');
+                      setTimeout(() => setStarSuccessMsg(''), 3000);
+                    }}
+                    className="px-4 py-2 rounded-2xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 cursor-pointer border-none"
+                  >
+                    إلغاء الاعتماد المؤقت
+                  </button>
+                ) : null}
+
+                <button
+                  onClick={() => {
+                    store.approveWeeklyAndMonthlyStars();
+                    setRankings(store.getActiveRankings());
+                    confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+                    setStarSuccessMsg('تم اعتماد وتكريم أعضاء الأسبوع وعضو الشهر وإرسال التنبيه الاحتفالي لجميع الأعضاء بنجاح! ✨');
+                    setTimeout(() => setStarSuccessMsg(''), 4000);
+                  }}
+                  className="px-5 py-2.5 rounded-2xl text-xs font-black text-gray-950 bg-[#F9AB00] hover:bg-amber-400 border-2 border-[#0F1729] shadow-xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <Star size={14} className="fill-[#0F1729]" />
+                  <span>{rankings.isApproved ? 'إعادة تأكيد الاعتماد والتكريم ✓' : 'اعتماد وتكريم نجوم الأسبوع وعضو الشهر 🎉'}</span>
+                </button>
+              </div>
+            </div>
+
+            {starSuccessMsg && (
+              <div className="mt-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-black text-center">
+                {starSuccessMsg}
+              </div>
+            )}
+
+            <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* عضو الشهر المرشح */}
+              <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase text-amber-800 block mb-0.5">
+                    عضو الشهر {rankings.isApproved ? '(معتمد رسميًا)' : '(المرشح الأول)'}
+                  </span>
+                  <div className="font-black text-sm text-gray-900">
+                    {rankings.memberOfTheMonth?.member.fullName || 'لا يوجد بعد'}
+                  </div>
+                  <div className="text-xs text-gray-500 font-medium">
+                    {rankings.memberOfTheMonth?.member.webLevelTitle} · @{rankings.memberOfTheMonth?.member.username}
+                  </div>
+                </div>
+                <div className="text-left font-black text-amber-600 text-xl">
+                  {rankings.memberOfTheMonth?.monthPoints || 0} نقطة
+                </div>
+              </div>
+
+              {/* نجوم الأسبوع الـ 5 */}
+              <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200">
+                <span className="text-[10px] font-black uppercase text-blue-800 block mb-1.5">
+                  نجوم الأسبوع الـ 5 {rankings.isApproved ? '(معتمدون رسميًا)' : '(حسب النقاط الحالية)'}
+                </span>
+                <div className="space-y-1">
+                  {rankings.topWeekly.slice(0, 5).map((w, idx) => (
+                    <div key={w.member.id} className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-gray-900">
+                        {idx + 1}. {w.member.fullName}
+                      </span>
+                      <span className="font-black text-emerald-600">
+                        +{w.weekPoints} نقطة
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </motion.div>
       )}

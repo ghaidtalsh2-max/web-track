@@ -74,6 +74,8 @@ export const App: React.FC = () => {
   const [showInquiriesModal, setShowInquiriesModal] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomePhraseText, setWelcomePhraseText] = useState('');
+  const [showStarsCelebrationAlert, setShowStarsCelebrationAlert] = useState(false);
+  const welcomeShownRef = React.useRef(false);
 
   const [showNotificationsModal, setShowNotificationsModal] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -113,6 +115,24 @@ export const App: React.FC = () => {
     document.documentElement.setAttribute('data-high-contrast', settings.highContrast ? 'true' : 'false');
   }, [currentUser]);
 
+  // تفعيل الترحيب الاحتفالي في كل مرة يفتح فيها العضو المنصة
+  useEffect(() => {
+    if (currentUser && currentUser.onboarded_at && !store.mustChangePassword() && !welcomeShownRef.current) {
+      welcomeShownRef.current = true;
+      const phrase = selectWelcomePhrase(currentUser);
+      setWelcomePhraseText(phrase.text);
+      setShowWelcomeModal(true);
+      store.updateUserLastPhrase(currentUser.id, phrase.phraseId);
+
+      // تنبيه عند اعتماد وإعلان نجوم الأسبوع أو عضو الشهر
+      if (store.isStarsApproved() && typeof sessionStorage !== 'undefined' && !sessionStorage.getItem('stars_alert_dismissed')) {
+        setTimeout(() => {
+          setShowStarsCelebrationAlert(true);
+        }, 3200);
+      }
+    }
+  }, [currentUser]);
+
   const handleIntroComplete = () => {
     store.setIntroSeenThisSession();
     setShowIntro(false);
@@ -127,11 +147,17 @@ export const App: React.FC = () => {
     setIsLoggedIn(true);
 
     if (user && user.onboarded_at && !store.mustChangePassword()) {
-      // مستخدم عائد: احتفال الدخول (نغمات Web Audio والشرائط والقصاصات وعبارة سعودية متجددة)
+      welcomeShownRef.current = true;
       const phrase = selectWelcomePhrase(user);
       setWelcomePhraseText(phrase.text);
       setShowWelcomeModal(true);
       store.updateUserLastPhrase(user.id, phrase.phraseId);
+
+      if (store.isStarsApproved() && typeof sessionStorage !== 'undefined' && !sessionStorage.getItem('stars_alert_dismissed')) {
+        setTimeout(() => {
+          setShowStarsCelebrationAlert(true);
+        }, 3200);
+      }
     }
 
     if (user && (user.role === 'track_leader' || user.role === 'supervisor')) {
@@ -207,6 +233,65 @@ export const App: React.FC = () => {
             if (targetTab) setCurrentTab(targetTab);
           }}
         />
+      )}
+
+      {/* نافذة تنبيه الاحتفال بإعلان نجوم الأسبوع وعضو الشهر المعتمدين */}
+      {showStarsCelebrationAlert && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(4px)' }}
+          onClick={() => {
+            setShowStarsCelebrationAlert(false);
+            if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('stars_alert_dismissed', 'true');
+          }}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full border-2 border-[#0F1729] shadow-2xl text-center relative card-3d-tactile"
+            dir="rtl"
+          >
+            <div className="w-16 h-16 rounded-3xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4 text-3xl shadow-sm border border-amber-200">
+              🏆
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-gray-950 mb-2">
+              لديناااا احتفال جديد ولفتة تكريمية لأعضاء رهيبين! 🎉✨
+            </h3>
+            <p className="text-xs sm:text-sm text-gray-600 font-medium leading-relaxed mb-6">
+              تم اعتماد وإعلان قائمة <strong>أعضاء الأسبوع الـ 5 الأكثر تفاعلاً</strong> و<strong>عضو الشهر المتميز</strong> رسميًا في لوحة الشرف! تفضل بالاطلاع على إنجازات زملائك والاحتفاء بهم.
+            </p>
+
+            <div className="flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStarsCelebrationAlert(false);
+                  if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('stars_alert_dismissed', 'true');
+                  setCurrentTab('home');
+                  setTimeout(() => {
+                    const el = document.getElementById('leaderboard-section');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }, 150);
+                }}
+                className="w-full py-3 rounded-2xl text-xs sm:text-sm font-black text-white bg-[#4285F4] hover:bg-blue-600 transition-all border-none cursor-pointer shadow-md flex items-center justify-center gap-2"
+              >
+                <span>مشاهدة لوحة الشرف والمكرمين 🌟</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStarsCelebrationAlert(false);
+                  if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('stars_alert_dismissed', 'true');
+                }}
+                className="w-full py-2.5 rounded-2xl text-xs font-bold text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 transition-colors border-none cursor-pointer"
+              >
+                إغلاق التنبيه
+              </button>
+            </div>
+          </motion.div>
+        </div>
       )}
 
       {/* لوحة تخصيص تجربتي كـ Popover أنيق تحت الترس */}
