@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserProfile, ChallengeGroup, ChallengeOption } from '../../types';
 import { store } from '../../services/store';
-import { Pinwheel } from '../leader/leaderVisuals';
 import confetti from 'canvas-confetti';
 import {
   Plus,
@@ -10,17 +9,37 @@ import {
   Clock,
   ExternalLink,
   Code2,
-  FolderGit2,
   Lock,
   Sparkles,
-  Link as LinkIcon,
   X,
-  AlertCircle,
   FileCode2,
+  Layers,
+  Layout,
+  Trophy,
 } from 'lucide-react';
 
 interface ChallengesViewProps {
   currentUser: UserProfile;
+}
+
+type FilterCategory = 'all' | 'workshop' | 'side_fun' | 'side_learn' | 'general';
+
+interface ChallengeCardModel {
+  groupId: string;
+  optionId: string;
+  title: string;
+  groupTitle: string;
+  category: 'workshop' | 'side_fun' | 'side_learn' | 'general';
+  workshopTitle?: string;
+  dueDate: string;
+  mode: 'mandatory' | 'choice';
+  points: number;
+  description: string;
+  requirements: string;
+  iconSymbol: string;
+  iconBg: string;
+  iconColor: string;
+  optionLabel: string;
 }
 
 export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) => {
@@ -28,8 +47,12 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
     store.getChallengeGroups()
   );
   const [workshops] = useState(() => store.getWorkshops());
+  const [activeCategory, setActiveCategory] = useState<FilterCategory>('all');
 
   const isLeader = currentUser.role === 'track_leader' || currentUser.role === 'supervisor';
+
+  // التحدي المفتوح حالياً في النافذة المنبثقة
+  const [selectedChallenge, setSelectedChallenge] = useState<ChallengeCardModel | null>(null);
 
   // حالة نموذج إنشاء تحدٍ جديد للقادة
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -51,83 +74,116 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
   const [createSuccessMsg, setCreateSuccessMsg] = useState('');
 
   // حالة التسليم للعضو
-  const [activeSubmittingGroupId, setActiveSubmittingGroupId] = useState<string | null>(null);
   const [repoUrl, setRepoUrl] = useState('');
   const [liveUrl, setLiveUrl] = useState('');
   const [submissionSuccessMsg, setSubmissionSuccessMsg] = useState('');
   const [actionErrorMsg, setActionErrorMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const refreshGroups = () => {
     setChallengeGroups(store.getChallengeGroups());
   };
 
-  const handleSelectOption = async (groupId: string, optionId: string) => {
+  // تفكيك مجموعات التحديات إلى بطاقات أيقونات فردية مثل الرحلة التعليمية تماماً
+  const allChallengeCards: ChallengeCardModel[] = challengeGroups.flatMap((group) => {
+    return group.options.map((opt, optIdx) => {
+      let iconSymbol = 'CSS';
+      let iconBg = '#34A853';
+      let iconColor = '#FFFFFF';
+
+      if (opt.name.includes('Grid') || opt.name.includes('متجر')) {
+        iconSymbol = 'GRID';
+        iconBg = '#34A853';
+      } else if (opt.name.includes('داشبورد') || opt.name.includes('Dashboard')) {
+        iconSymbol = 'UI';
+        iconBg = '#4285F4';
+      } else if (opt.name.includes('زر') || opt.name.includes('Micro')) {
+        iconSymbol = 'FX';
+        iconBg = '#F9AB00';
+        iconColor = '#0F1729';
+      } else if (opt.name.includes('HTML')) {
+        iconSymbol = 'HTML';
+        iconBg = '#EA4335';
+      } else if (opt.name.includes('JS') || opt.name.includes('JavaScript')) {
+        iconSymbol = 'JS';
+        iconBg = '#F9AB00';
+        iconColor = '#0F1729';
+      } else {
+        iconSymbol = `0${optIdx + 1}`;
+        iconBg = optIdx % 2 === 0 ? '#4285F4' : '#34A853';
+      }
+
+      return {
+        groupId: group.id,
+        optionId: opt.id,
+        title: opt.name,
+        groupTitle: group.title,
+        category: group.category,
+        workshopTitle: group.workshopTitle,
+        dueDate: group.dueDate,
+        mode: group.mode,
+        points: opt.points,
+        description: opt.description,
+        requirements: opt.requirements,
+        iconSymbol,
+        iconBg,
+        iconColor,
+        optionLabel: `خيار #${optIdx + 1}`,
+      };
+    });
+  });
+
+  const filteredCards = allChallengeCards.filter((c) => {
+    if (activeCategory === 'all') return true;
+    return c.category === activeCategory;
+  });
+
+  const handleOpenCard = (card: ChallengeCardModel) => {
+    setSelectedChallenge(card);
+    const choice = store.getMemberChallengeChoice(currentUser.id, card.groupId);
+    setRepoUrl(choice?.repoUrl || '');
+    setLiveUrl(choice?.liveUrl || '');
+    setSubmissionSuccessMsg(choice?.submitted ? 'تم تسليم هذا التحدي مسبقاً بنجاح ✓' : '');
     setActionErrorMsg('');
-    try {
-      await store.saveMemberChallengeChoice(currentUser.id, groupId, optionId);
-      refreshGroups();
-    } catch (err: any) {
-      setActionErrorMsg(err.message || 'فشل تسجيل اختيار التحدي في Supabase');
-    }
   };
 
-  const handleOpenSubmissionForm = (groupId: string) => {
-    const choice = store.getMemberChallengeChoice(currentUser.id, groupId);
-    if (!choice || !choice.optionId) return;
-    setActiveSubmittingGroupId(groupId);
-    setRepoUrl(choice.repoUrl || '');
-    setLiveUrl(choice.liveUrl || '');
-    setSubmissionSuccessMsg('');
-    setActionErrorMsg('');
-  };
-
-  const handleSubmitChallenge = async (groupId: string) => {
-    if (!repoUrl.trim()) return;
+  const handleSelectAndSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedChallenge || !repoUrl.trim()) return;
+    setIsSubmitting(true);
     setActionErrorMsg('');
 
     try {
+      // 1. حفظ الاختيار
+      await store.saveMemberChallengeChoice(currentUser.id, selectedChallenge.groupId, selectedChallenge.optionId);
+      // 2. رفع التسليم
       await store.submitMemberChallenge(
         currentUser.id,
-        groupId,
+        selectedChallenge.groupId,
         repoUrl.trim(),
         liveUrl.trim() || undefined
       );
 
       if (currentUser.settings?.celebrations) {
         confetti({
-          particleCount: 80,
+          particleCount: 75,
           spread: 70,
           origin: { y: 0.6 },
           colors: ['#4285F4', '#34A853', '#F9AB00', '#EA4335'],
         });
       }
-      setSubmissionSuccessMsg('تم رفع تسليم التحدي بنجاح وقفل الخيار المختار ✓');
+
+      setSubmissionSuccessMsg('تم رفع وتسليم التحدي للاعتماد بنجاح! 🚀');
       refreshGroups();
       setTimeout(() => {
-        setActiveSubmittingGroupId(null);
+        setSelectedChallenge(null);
         setSubmissionSuccessMsg('');
-        setActionErrorMsg('');
-      }, 1500);
+      }, 1400);
     } catch (err: any) {
-      setActionErrorMsg(err.message || 'فشل تسليم التحدي في Supabase');
+      setActionErrorMsg(err.message || 'فشل تسليم التحدي، يرجى المحاولة لاحقاً');
+    } finally {
+      setIsSubmitting(false);
     }
-  };
-
-  const handleAddOptionField = () => {
-    setNewOptions([
-      ...newOptions,
-      {
-        name: '',
-        description: '',
-        requirements: '',
-        points: 50,
-      },
-    ]);
-  };
-
-  const handleRemoveOptionField = (index: number) => {
-    if (newOptions.length <= 1) return;
-    setNewOptions(newOptions.filter((_, idx) => idx !== index));
   };
 
   const handleCreateChallengeGroup = async (e: React.FormEvent) => {
@@ -139,32 +195,35 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
     const formattedOptions: ChallengeOption[] = newOptions.map((opt, idx) => ({
       id: `opt-${Date.now()}-${idx}`,
       groupId: '',
-      name: opt.name.trim() || `خيار التحدي ${idx + 1}`,
-      description: opt.description.trim() || 'وصف ومجال تنفيذ التحدي البرمجي.',
-      requirements: opt.requirements.trim() || 'تطبيق عملي واستخدام أفضل ممارسات الويب.',
+      name: opt.name.trim() || `خيار التحدي #${idx + 1}`,
+      description: opt.description.trim() || 'وصف التحدي والمتطلبات التقنية.',
+      requirements: opt.requirements.trim() || 'المطلوب بالتحديد والتنفيذ البرمجي.',
       points: Number(opt.points) || 50,
     }));
 
-    await store.addChallengeGroup({
-      title: newTitle.trim(),
-      workshopId: selectedWorkshopId !== 'none' ? selectedWorkshopId : undefined,
-      workshopTitle: linkedWorkshop ? linkedWorkshop.title : undefined,
-      category: newCategory,
-      dueDate: newDueDate.trim(),
-      mode: newMode,
-      options: formattedOptions,
-    });
+    try {
+      await store.createChallengeGroup({
+        title: newTitle.trim(),
+        workshopId: selectedWorkshopId !== 'none' ? selectedWorkshopId : undefined,
+        workshopTitle: linkedWorkshop ? linkedWorkshop.title : undefined,
+        category: newCategory,
+        dueDate: newDueDate.trim(),
+        mode: newMode,
+        options: formattedOptions,
+      });
 
-    setCreateSuccessMsg('تم إنشاء مجموعة التحدي ونشرها لجميع الأعضاء بنجاح ✓');
-    setTimeout(() => {
-      setCreateModalOpen(false);
-      setNewTitle('');
-      setSelectedWorkshopId('none');
-      setNewDueDate('');
-      setNewOptions([{ name: '', description: '', requirements: '', points: 50 }]);
-      setCreateSuccessMsg('');
+      setCreateSuccessMsg('تم إنشاء مجموعة التحديات بنجاح!');
       refreshGroups();
-    }, 1200);
+      setTimeout(() => {
+        setCreateModalOpen(false);
+        setCreateSuccessMsg('');
+        setNewTitle('');
+        setNewDueDate('');
+        setNewOptions([{ name: '', description: '', requirements: '', points: 50 }]);
+      }, 1000);
+    } catch (err: any) {
+      console.error(err);
+    }
   };
 
   return (
@@ -176,48 +235,291 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
       className="container py-8 sm:py-12 text-right"
       dir="rtl"
     >
-      {/* رأس الصفحة مع زر الإنشاء للقادة */}
+      {/* رأس الصفحة مطابق للرحلة التعليمية */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 pb-4 border-b border-gray-200">
         <div>
-          <h1 className="text-3xl sm:text-5xl font-black text-[#0F172A] mb-2">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#F9AB00] animate-pulse" />
+            <span className="text-xs font-bold text-gray-500">مسار الويب · التحديات والمهام البرمجية الحصرية</span>
+          </div>
+          <h1 className="text-3xl sm:text-5xl font-black text-[#0F172A] tracking-tight">
             التحديات والمهام البرمجية
           </h1>
-          <p className="text-xs sm:text-sm text-gray-500 font-bold">
-            التاسكات تُنشأ وتدار هنا حصراً مع إمكانية ربطها بورش العمل والخيارات المتعددة
-          </p>
         </div>
 
         {isLeader && (
           <button
             type="button"
             onClick={() => setCreateModalOpen(true)}
-            className="pill"
-            style={{ backgroundColor: '#F9AB00', color: '#0F172A' }}
+            className="px-5 py-2.5 rounded-full text-xs font-black text-white bg-[#0F1729] hover:bg-gray-800 transition-all shadow-md inline-flex items-center gap-2 cursor-pointer border-none"
           >
-            <Plus size={18} className="stroke-[3]" />
-            <span>+ إنشاء تحدٍّ جديد</span>
+            <Plus size={16} />
+            <span>+ إنشاء تحدٍ جديد</span>
           </button>
         )}
       </div>
 
-      {/* نافذة إنشاء تحدٍ جديد للقائد */}
+      {/* شريط الفلاتر مطابق لتبويب المرحلة التعليمية */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-8">
+        {[
+          { id: 'all', label: 'الكل' },
+          { id: 'workshop', label: 'تحديات الورش' },
+          { id: 'side_fun', label: 'تحديات جانبية - متعة' },
+          { id: 'side_learn', label: 'تحديات جانبية - تعلّم' },
+          { id: 'general', label: 'تحديات عامة' },
+        ].map((cat) => (
+          <button
+            key={cat.id}
+            type="button"
+            onClick={() => setActiveCategory(cat.id as any)}
+            className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer border-2 ${
+              activeCategory === cat.id
+                ? 'bg-[#0F1729] text-white border-[#0F1729] shadow-md -translate-y-0.5'
+                : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {/* شبكة بطاقات الأيقونات المطابقة لتبويب المرحلة التعليمية (cards-grid-4) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
+        {filteredCards.map((c) => {
+          const userChoice = store.getMemberChallengeChoice(currentUser.id, c.groupId);
+          const isSelected = userChoice?.optionId === c.optionId;
+          const isSubmitted = isSelected && userChoice?.submitted;
+
+          return (
+            <button
+              key={`${c.groupId}-${c.optionId}`}
+              type="button"
+              onClick={() => handleOpenCard(c)}
+              className="card-3d-tactile p-5 sm:p-6 text-center transition-all cursor-pointer flex flex-col items-center justify-between gap-3 text-right w-full"
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: '24px',
+                border: isSelected ? '2.5px solid #34A853' : '2px solid #0F1729',
+                boxShadow: isSelected
+                  ? '0 8px 0 0 #34A853'
+                  : '0 6px 0 0 #0F1729',
+              }}
+            >
+              {/* صندوق الأيقونة الملونة الكبيرة المطابق للرحلة التعليمية */}
+              <div
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: c.iconSymbol.length > 2 ? '0.95rem' : '1.25rem',
+                  fontWeight: 900,
+                  color: c.iconColor,
+                  backgroundColor: c.iconBg,
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+                  border: '2px solid #0F1729',
+                }}
+              >
+                {c.iconSymbol}
+              </div>
+
+              {/* عنوان التحدي ومعلومات النقاط */}
+              <div className="w-full text-center my-auto">
+                <span className="text-[10px] font-black uppercase tracking-wider block text-gray-400 mb-1">
+                  {c.category === 'workshop' ? 'تحدي ورشة 💻' : 'تحدي إبداعي ⚡'}
+                </span>
+                <h3 className="text-xs sm:text-sm font-black text-gray-900 leading-snug line-clamp-2">
+                  {c.title}
+                </h3>
+              </div>
+
+              {/* الشارات السفلية: النقاط والحالة */}
+              <div className="w-full pt-2 border-t border-gray-100 flex items-center justify-between gap-1 text-[11px] font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 font-black">
+                  +{c.points} نقطة
+                </span>
+
+                {isSubmitted ? (
+                  <span className="text-emerald-700 font-black flex items-center gap-1">
+                    <Check size={12} />
+                    <span>تم التسليم</span>
+                  </span>
+                ) : isSelected ? (
+                  <span className="text-blue-700 font-black">مختار 📌</span>
+                ) : (
+                  <span className="text-gray-400 font-medium">عرض التحدي</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* نافذة تفاصيل التحدي والتسليم عند النقر على أيقونة التحدي */}
+      <AnimatePresence>
+        {selectedChallenge && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+            onClick={() => setSelectedChallenge(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl p-6 sm:p-8 max-w-xl w-full border-2 border-[#0F1729] shadow-2xl text-right max-h-[90vh] overflow-y-auto"
+            >
+              {/* الرأس */}
+              <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 900,
+                      color: selectedChallenge.iconColor,
+                      backgroundColor: selectedChallenge.iconBg,
+                      border: '2px solid #0F1729',
+                    }}
+                  >
+                    {selectedChallenge.iconSymbol}
+                  </div>
+                  <div>
+                    <h3 className="font-black text-lg text-gray-950">
+                      {selectedChallenge.title}
+                    </h3>
+                    <span className="text-xs font-bold text-gray-500">
+                      {selectedChallenge.groupTitle} · موعد التسليم: {selectedChallenge.dueDate}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedChallenge(null)}
+                  className="p-1 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer border-none bg-transparent"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* تفاصيل التحدي والمتطلبات */}
+              <div className="space-y-4 mb-6 text-right">
+                <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200">
+                  <span className="text-xs font-black text-gray-800 block mb-1">
+                    وصف التحدي:
+                  </span>
+                  <p className="text-xs sm:text-sm text-gray-700 leading-relaxed font-medium">
+                    {selectedChallenge.description}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200">
+                  <span className="text-xs font-black text-amber-950 block mb-1">
+                    المطلوب بالتحديد:
+                  </span>
+                  <p className="text-xs sm:text-sm text-amber-900 leading-relaxed font-medium">
+                    {selectedChallenge.requirements}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs font-bold text-blue-950">
+                  <span>المكافأة عند الاعتماد:</span>
+                  <span className="font-black text-blue-700">+{selectedChallenge.points} نقطة لرصيدك</span>
+                </div>
+              </div>
+
+              {/* نموذج التسليم */}
+              <form onSubmit={handleSelectAndSubmit} className="space-y-3 pt-3 border-t border-gray-100">
+                <div>
+                  <label className="text-xs font-black text-gray-800 block mb-1">
+                    رابط مستودع الكود (GitHub Repo URL) *
+                  </label>
+                  <input
+                    type="url"
+                    required
+                    value={repoUrl}
+                    onChange={(e) => setRepoUrl(e.target.value)}
+                    placeholder="https://github.com/username/project"
+                    dir="ltr"
+                    className="w-full p-2.5 rounded-xl border border-gray-300 text-xs text-left focus:outline-none focus:border-blue-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-black text-gray-800 block mb-1">
+                    رابط المعاينة المباشرة (Live Demo - Vercel / GitHub Pages) - اختياري
+                  </label>
+                  <input
+                    type="url"
+                    value={liveUrl}
+                    onChange={(e) => setLiveUrl(e.target.value)}
+                    placeholder="https://project.vercel.app"
+                    dir="ltr"
+                    className="w-full p-2.5 rounded-xl border border-gray-300 text-xs text-left focus:outline-none focus:border-blue-500 font-mono"
+                  />
+                </div>
+
+                {actionErrorMsg && (
+                  <div className="p-3 rounded-xl bg-red-50 text-red-700 text-xs font-bold border border-red-200 text-center">
+                    {actionErrorMsg}
+                  </div>
+                )}
+
+                {submissionSuccessMsg && (
+                  <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200 text-center">
+                    {submissionSuccessMsg}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedChallenge(null)}
+                    className="px-5 py-2.5 rounded-full text-xs font-bold text-gray-600 hover:bg-gray-100 cursor-pointer border-none bg-transparent"
+                  >
+                    إغلاق
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !repoUrl.trim()}
+                    className="px-7 py-2.5 rounded-full text-xs font-black text-white bg-[#0F1729] hover:bg-gray-800 disabled:opacity-50 transition-all shadow-md cursor-pointer border-none"
+                  >
+                    {isSubmitting ? 'جارِ التسليم...' : 'اختيار وتسليم التحدي ✓'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* نافذة إنشاء تحدٍ جديد للقادة */}
       <AnimatePresence>
         {createModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-2xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-[#0F172A] text-right max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-[#0F1729] text-right max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-6 sticky top-0 bg-white z-10">
-                <h3 className="text-lg font-black text-[#0F172A] flex items-center gap-2">
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-6">
+                <h3 className="text-lg font-black text-gray-950 flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#F9AB00]" />
-                  <span>إنشاء مجموعة تحدٍّ جديدة (التاسكات الحصرية)</span>
+                  <span>إنشاء مجموعة تحدٍ جديدة</span>
                 </h3>
                 <button
+                  type="button"
                   onClick={() => setCreateModalOpen(false)}
-                  className="p-1 rounded-full hover:bg-gray-100 text-gray-400 cursor-pointer"
+                  className="p-1 rounded-full hover:bg-gray-100 text-gray-400 cursor-pointer border-none bg-transparent"
                 >
                   <X size={18} />
                 </button>
@@ -238,25 +540,7 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">
-                      الربط بورشة عمل (اختياري)
-                    </label>
-                    <select
-                      value={selectedWorkshopId}
-                      onChange={(e) => setSelectedWorkshopId(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-900 focus:outline-none cursor-pointer"
-                    >
-                      <option value="none">مستقل لا علاقة له بورشة</option>
-                      {workshops.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          تابع لورشة: {w.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-bold text-gray-700 block mb-1">
                       التصنيف *
@@ -272,9 +556,7 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
                       <option value="general">عام للمسار</option>
                     </select>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-bold text-gray-700 block mb-1">
                       الموعد والتسليم النهائي *
@@ -288,122 +570,51 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
                       required
                     />
                   </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">
-                      نمط التحدي *
-                    </label>
-                    <select
-                      value={newMode}
-                      onChange={(e) => setNewMode(e.target.value as any)}
-                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-900 focus:outline-none cursor-pointer"
-                    >
-                      <option value="choice">اختيار من خيارات (يختار العضو مساراً واحداً)</option>
-                      <option value="mandatory">إلزامي (تاسك واحد يُطلب من الجميع)</option>
-                    </select>
-                  </div>
                 </div>
 
-                {/* خيارات المجموعة (خيارات التحدي) */}
                 <div className="pt-2 border-t border-gray-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-xs font-black text-gray-800">
-                      خيارات التحدي ({newOptions.length})
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleAddOptionField}
-                      className="text-xs font-bold text-[#4285F4] hover:underline cursor-pointer flex items-center gap-1"
-                    >
-                      <Plus size={14} />
-                      <span>+ إضافة خيار آخر</span>
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    {newOptions.map((opt, idx) => (
-                      <div
-                        key={idx}
-                        className="p-4 rounded-2xl bg-gray-50 border border-gray-200 relative text-right"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-bold text-[#4285F4]">
-                            الخيار {idx + 1}
-                          </span>
-                          {newOptions.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveOptionField(idx)}
-                              className="text-red-500 hover:text-red-700 p-1 cursor-pointer"
-                              title="حذف هذا الخيار"
-                            >
-                              <X size={14} />
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
-                          <div className="sm:col-span-2">
-                            <input
-                              type="text"
-                              value={opt.name}
-                              onChange={(e) => {
-                                const copy = [...newOptions];
-                                copy[idx].name = e.target.value;
-                                setNewOptions(copy);
-                              }}
-                              placeholder="اسم الخيار (مثال: بناء متجر متجاوب)"
-                              className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-gray-300 text-gray-900"
-                              required
-                            />
-                          </div>
-                          <div>
-                            <input
-                              type="number"
-                              value={opt.points}
-                              onChange={(e) => {
-                                const copy = [...newOptions];
-                                copy[idx].points = Number(e.target.value);
-                                setNewOptions(copy);
-                              }}
-                              placeholder="النقاط"
-                              className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-gray-300 text-gray-900"
-                              required
-                            />
-                          </div>
-                        </div>
-
-                        <textarea
-                          rows={2}
-                          value={opt.description}
-                          onChange={(e) => {
-                            const copy = [...newOptions];
-                            copy[idx].description = e.target.value;
-                            setNewOptions(copy);
-                          }}
-                          placeholder="وصف مختصر للخيار وما سيتم بناؤه..."
-                          className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-gray-300 text-gray-900 mb-2"
-                        />
-
-                        <input
-                          type="text"
-                          value={opt.requirements}
-                          onChange={(e) => {
-                            const copy = [...newOptions];
-                            copy[idx].requirements = e.target.value;
-                            setNewOptions(copy);
-                          }}
-                          placeholder="ما المطلوب بالتحديد (المتطلبات التقنية المفصلة)..."
-                          className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-gray-300 text-gray-900"
-                          required
-                        />
-                      </div>
-                    ))}
-                  </div>
+                  <label className="text-xs font-black text-gray-800 block mb-2">
+                    تفاصيل خيار التحدي
+                  </label>
+                  <input
+                    type="text"
+                    value={newOptions[0].name}
+                    onChange={(e) => {
+                      const copy = [...newOptions];
+                      copy[0].name = e.target.value;
+                      setNewOptions(copy);
+                    }}
+                    placeholder="اسم الخيار (مثال: بناء متجر متجاوب)"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-gray-50 border border-gray-300 mb-2"
+                    required
+                  />
+                  <input
+                    type="text"
+                    value={newOptions[0].description}
+                    onChange={(e) => {
+                      const copy = [...newOptions];
+                      copy[0].description = e.target.value;
+                      setNewOptions(copy);
+                    }}
+                    placeholder="وصف مختصر للخيار..."
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-gray-50 border border-gray-300 mb-2"
+                  />
+                  <input
+                    type="text"
+                    value={newOptions[0].requirements}
+                    onChange={(e) => {
+                      const copy = [...newOptions];
+                      copy[0].requirements = e.target.value;
+                      setNewOptions(copy);
+                    }}
+                    placeholder="المطلوب بالتحديد بالتفصيل..."
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-gray-50 border border-gray-300"
+                    required
+                  />
                 </div>
 
                 {createSuccessMsg && (
-                  <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs font-bold text-center">
+                  <div className="p-3 rounded-xl bg-green-50 text-green-700 text-xs font-bold text-center border border-green-200">
                     {createSuccessMsg}
                   </div>
                 )}
@@ -412,14 +623,13 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
                   <button
                     type="button"
                     onClick={() => setCreateModalOpen(false)}
-                    className="px-4 py-2 rounded-full text-xs font-bold bg-gray-100 text-gray-700 cursor-pointer"
+                    className="px-4 py-2 rounded-full text-xs font-bold bg-gray-100 text-gray-700 cursor-pointer border-none"
                   >
                     إلغاء
                   </button>
                   <button
                     type="submit"
-                    className="pill"
-                    style={{ backgroundColor: '#4285F4', color: '#0F172A' }}
+                    className="px-6 py-2 rounded-full text-xs font-black bg-[#4285F4] text-white cursor-pointer border-none shadow-sm"
                   >
                     اعتماد ونشر التحدي ✓
                   </button>
@@ -429,316 +639,6 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
           </div>
         )}
       </AnimatePresence>
-
-      {/* قائمة مجموعات التحديات */}
-      <div className="space-y-10">
-        {challengeGroups.map((group, gIdx) => {
-          const userChoice = store.getMemberChallengeChoice(currentUser.id, group.id);
-          const isSubmitted = userChoice?.submitted;
-
-          // ترجمة التصنيف
-          const categoryLabels: Record<string, { text: string; bg: string; color: string }> = {
-            workshop: { text: 'ورشة عمل', bg: '#E8F0FE', color: '#1A73E8' },
-            side_learn: { text: 'جانبي - تعلّم', bg: '#FEF7E0', color: '#B06000' },
-            side_fun: { text: 'جانبي - متعة', bg: '#CEEAD6', color: '#137333' },
-            general: { text: 'عام للمسار', bg: '#FCE8E6', color: '#C5221F' },
-          };
-
-          const catInfo = categoryLabels[group.category] || categoryLabels.general;
-
-          return (
-            <div
-              key={group.id}
-              className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm text-right border-2 border-[#0F172A] rise"
-              style={{ '--i': gIdx } as React.CSSProperties}
-            >
-              {/* الرأس: شارات التصنيف والورشة والموعد */}
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-100">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className="px-3 py-1 rounded-full text-xs font-black"
-                    style={{ backgroundColor: catInfo.bg, color: catInfo.color }}
-                  >
-                    {catInfo.text}
-                  </span>
-
-                  {group.workshopTitle && (
-                    <span className="px-3 py-1 rounded-full text-xs font-black bg-blue-50 text-[#4285F4] border border-blue-200 flex items-center gap-1">
-                      <LinkIcon size={12} />
-                      <span>تابع لورشة: {group.workshopTitle}</span>
-                    </span>
-                  )}
-
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
-                    {group.mode === 'choice' ? 'اختيار من خيارات' : 'تاسك إلزامي للجميع'}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500">
-                  <Clock size={14} className="text-[#EA4335]" />
-                  <span>الموعد: {group.dueDate}</span>
-                </div>
-              </div>
-
-              {/* عنوان المجموعة */}
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-600 to-amber-500 text-white flex items-center justify-center shadow-xs shrink-0 border-2 border-[#0F172A]">
-                  <Code2 size={24} />
-                </div>
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-[#0F172A]">
-                    {group.title}
-                  </h2>
-                </div>
-              </div>
-
-              <p className="text-xs sm:text-sm text-gray-600 font-medium mb-6">
-                {group.mode === 'choice'
-                  ? 'اختر خياراً واحداً فقط لتنفيذه. يمكنك تعديل اختيارك في أي وقت قبل التسليم، وسيتم قفل الخيار تلقائياً بعد رفع التسليم.'
-                  : 'هذا التحدي إلزامي ومطلوب من جميع أعضاء المسار.'}
-              </p>
-
-              {actionErrorMsg && (
-                <div className="p-3 mb-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold text-center">
-                  ⚠️ {actionErrorMsg}
-                </div>
-              )}
-
-              {/* شبكة خيارات التحدي كبطاقات تشبه التصويت */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {group.options.map((option, optIdx) => {
-                  const isSelected = userChoice?.optionId === option.id;
-
-                  const creativeIcon =
-                    optIdx === 0 ? (
-                      <div className="w-10 h-10 rounded-2xl bg-blue-50 border-2 border-blue-200 flex items-center justify-center text-[#4285F4] shadow-2xs shrink-0">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="16 18 22 12 16 6" />
-                          <polyline points="8 6 2 12 8 18" />
-                          <line x1="14" y1="4" x2="10" y2="20" stroke="#EA4335" />
-                        </svg>
-                      </div>
-                    ) : optIdx === 1 ? (
-                      <div className="w-10 h-10 rounded-2xl bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center text-[#34A853] shadow-2xs shrink-0">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="3" width="7" height="7" fill="#34A853" fillOpacity="0.25" stroke="#34A853" />
-                          <rect x="14" y="3" width="7" height="7" stroke="#F9AB00" />
-                          <rect x="14" y="14" width="7" height="7" fill="#F9AB00" fillOpacity="0.25" stroke="#F9AB00" />
-                          <rect x="3" y="14" width="7" height="7" stroke="#4285F4" />
-                        </svg>
-                      </div>
-                    ) : (
-                      <div className="w-10 h-10 rounded-2xl bg-amber-50 border-2 border-amber-200 flex items-center justify-center text-[#F9AB00] shadow-2xs shrink-0">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                          <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z" fill="#F9AB00" stroke="#0F1729" strokeWidth="1.5" />
-                        </svg>
-                      </div>
-                    );
-
-                  return (
-                    <div
-                      key={option.id}
-                      onClick={() => {
-                        if (!isSubmitted) {
-                          handleSelectOption(group.id, option.id);
-                        }
-                      }}
-                      className={`p-5 rounded-2xl border-2 transition-all text-right flex flex-col justify-between ${
-                        isSelected
-                          ? 'border-[#34A853] bg-emerald-50/40 shadow-sm'
-                          : 'border-gray-200 bg-gray-50/60 hover:border-gray-300'
-                      } ${!isSubmitted ? 'cursor-pointer hover:translate-y-[-2px]' : 'cursor-default'}`}
-                    >
-                      <div>
-                        <div className="flex items-start justify-between gap-3 mb-2.5">
-                          <div className="flex items-center gap-3 min-w-0">
-                            {creativeIcon}
-                            <div className="min-w-0">
-                              <h3 className="text-sm font-black text-[#0F172A] leading-tight truncate">
-                                {option.name}
-                              </h3>
-                              <span className="text-[11px] font-bold text-gray-500">
-                                خيار التحدي #{optIdx + 1}
-                              </span>
-                            </div>
-                          </div>
-                          <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs shrink-0">
-                            +{option.points} نقطة
-                          </span>
-                        </div>
-
-                        <p className="text-xs text-gray-600 font-medium mb-3 leading-relaxed">
-                          {option.description}
-                        </p>
-
-                        <div className="p-3 rounded-xl bg-white border border-gray-200 text-xs text-gray-800 mb-3">
-                          <b className="text-gray-900 block mb-1">المطلوب بالتحديد:</b>
-                          <span>{option.requirements}</span>
-                        </div>
-                      </div>
-
-                      {/* زر / مؤشر الاختيار */}
-                      <div className="pt-2 border-t border-gray-200/60 flex items-center justify-between">
-                        {isSelected ? (
-                          <div className="flex items-center gap-1.5 text-xs font-black text-[#34A853]">
-                            <Check size={16} className="stroke-[3]" />
-                            <span>
-                              {isSubmitted ? 'خيارك المعتمد (مقفل بعد التسليم)' : 'خيارك المختار حالياً'}
-                            </span>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={isSubmitted}
-                            className="text-xs font-bold text-gray-500 hover:text-[#4285F4] transition-colors disabled:opacity-40"
-                          >
-                            {isSubmitted ? 'مغلق' : 'اختر هذا المسار للتحدي ←'}
-                          </button>
-                        )}
-
-                        {isSubmitted && isSelected && (
-                          <span className="flex items-center gap-1 text-[11px] font-bold text-gray-400">
-                            <Lock size={12} />
-                            <span>مقفل</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* صندوق التسليم ورفع العمل */}
-              <div className="p-5 rounded-2xl bg-[#F7F7F4] border border-gray-200">
-                {isSubmitted ? (
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-bold">
-                    <div className="flex items-center gap-2 text-[#34A853]">
-                      <Check size={18} className="stroke-[3]" />
-                      <span>تم تسليم هذا التحدي بنجاح وهو قيد المراجعة والتدقيق بواسطة القادة ✓</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {userChoice?.repoUrl && (
-                        <a
-                          href={userChoice.repoUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1.5 rounded-full bg-white border border-gray-300 text-gray-800 flex items-center gap-1 hover:bg-gray-100"
-                        >
-                          <FolderGit2 size={13} />
-                          <span>الكود (GitHub)</span>
-                        </a>
-                      )}
-                      {userChoice?.liveUrl && (
-                        <a
-                          href={userChoice.liveUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1.5 rounded-full bg-white border border-gray-300 text-[#4285F4] flex items-center gap-1 hover:bg-gray-100"
-                        >
-                          <ExternalLink size={13} />
-                          <span>معاينة حية</span>
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ) : userChoice?.optionId ? (
-                  <div>
-                    {activeSubmittingGroupId === group.id ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <h4 className="text-xs font-black text-gray-900">
-                            رفع تسليم الخيار المختار:
-                          </h4>
-                          <button
-                            type="button"
-                            onClick={() => setActiveSubmittingGroupId(null)}
-                            className="text-xs text-gray-400 hover:text-gray-600"
-                          >
-                            إلغاء
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-[11px] font-bold text-gray-700 block mb-1">
-                              رابط مستودع الكود (GitHub Repo) *
-                            </label>
-                            <input
-                              type="url"
-                              value={repoUrl}
-                              onChange={(e) => setRepoUrl(e.target.value)}
-                              placeholder="https://github.com/..."
-                              className="w-full px-3 py-2 text-xs rounded-xl bg-white border border-gray-300 text-left"
-                              dir="ltr"
-                              required
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-[11px] font-bold text-gray-700 block mb-1">
-                              رابط المعاينة الحية (GitHub Pages / Vercel)
-                            </label>
-                            <input
-                              type="url"
-                              value={liveUrl}
-                              onChange={(e) => setLiveUrl(e.target.value)}
-                              placeholder="https://...github.io"
-                              className="w-full px-3 py-2 text-xs rounded-xl bg-white border border-gray-300 text-left"
-                              dir="ltr"
-                            />
-                          </div>
-                        </div>
-
-                        {actionErrorMsg && (
-                          <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold text-center">
-                            ⚠️ {actionErrorMsg}
-                          </div>
-                        )}
-
-                        {submissionSuccessMsg && (
-                          <div className="p-2.5 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs font-bold text-center">
-                            {submissionSuccessMsg}
-                          </div>
-                        )}
-
-                        <div className="flex justify-end gap-2 pt-2">
-                          <button
-                            type="button"
-                            onClick={() => handleSubmitChallenge(group.id)}
-                            className="pill"
-                            style={{ backgroundColor: '#4285F4', color: '#0F172A' }}
-                          >
-                            تأكيد التسليم وقفل الخيار المختار ✓
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                        <span className="text-xs font-bold text-gray-700">
-                          لقد اخترت مسار هذا التحدي. هل انتهيت من بناء مشروعك؟
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenSubmissionForm(group.id)}
-                          className="pill"
-                          style={{ backgroundColor: '#F9AB00', color: '#0F172A' }}
-                        >
-                          رفع تسليم المشروع للتحدي ←
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-500 font-bold text-center">
-                    الرجاء اختيار أحد الخيارات أعلاه للبدء بالتحدي وتفعيل استمارة التسليم.
-                  </p>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </motion.div>
   );
 };

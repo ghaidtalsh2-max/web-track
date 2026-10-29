@@ -135,19 +135,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>تنبيهات ٣</span>
             </button>
 
-            {/* زر ترس التخصيص الدائري المعتمد */}
+            {/* زر ترس التخصيص الدائري المعتمد والمريح */}
             <button
               type="button"
               onClick={onOpenSettings}
-              className="w-10 h-10 rounded-full flex items-center justify-center text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors shadow-sm cursor-pointer"
+              className="w-10 h-10 rounded-full flex items-center justify-center text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all shadow-xs cursor-pointer border border-gray-300 active:scale-90 group"
               style={{
-                border: 'none',
-                backgroundColor: '#EEF0F3',
                 borderRadius: '50%',
               }}
+              title="تخصيص تجربتي"
               aria-label="تخصيص تجربتي"
             >
-              <Settings size={18} />
+              <Settings size={18} className="text-gray-700 group-hover:rotate-45 transition-transform duration-300" />
             </button>
 
             {/* صورة وحساب المستخدم مع قائمة منسدلة للخروج فقط */}

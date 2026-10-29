@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
 import { UserProfile, MemberSkillItem, BadgeItem, UserStats } from '../../types';
 import { store } from '../../services/store';
 import { UserAvatar } from '../common/UserAvatar';
@@ -86,6 +87,52 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
   const [proofValue, setProofValue] = useState('');
   const [proofFeedback, setProofFeedback] = useState<string | null>(null);
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
+
+  // أسئلة كويز المهارات الأربعة متوسطة المستوى
+  const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
+  const [quizFeedback, setQuizFeedback] = useState<string | null>(null);
+
+  const SKILL_QUIZ_QUESTIONS = [
+    {
+      id: 1,
+      question: 'في CSS Flexbox، ما الخاصية المسؤولة عن محاذاة العناصر على المحور الثانوي (Cross Axis)؟',
+      options: ['align-items', 'justify-content', 'flex-direction', 'align-self-all'],
+      correctIndex: 0,
+    },
+    {
+      id: 2,
+      question: 'ما هو الفرق الجوهري بين localStorage و sessionStorage في متصفح الويب؟',
+      options: [
+        'بيانات localStorage تدوم بعد إغلاق المتصفح، بينما sessionStorage تُمسح بإغلاق التبويب',
+        'sessionStorage يخزن بيانات مشفرة تلقائياً فقط',
+        'localStorage محدود بحجم 5 كيلوبايت فقط',
+        'لا يوجد أي فرق بينهما في آلية الصلاحية',
+      ],
+      correctIndex: 0,
+    },
+    {
+      id: 3,
+      question: 'في CSS Grid، كيف ننشئ شبكة متجاوبة تملأ السطر بأعمدة لا يقل عرضها عن 240px وتتوزع تلقائياً؟',
+      options: [
+        'grid-template-columns: repeat(auto-fit, minmax(240px, 1fr))',
+        'grid-columns: flex-auto(240px, 100%)',
+        'grid-template-rows: repeat(auto-fill, 240px)',
+        'display: flex-grid(minmax(240px))',
+      ],
+      correctIndex: 0,
+    },
+    {
+      id: 4,
+      question: 'عند كتابة JavaScript لمعالجة حدث إرسال النموذج onsubmit، ما فائدة استدعاء event.preventDefault()؟',
+      options: [
+        'منع إعادة تحميل الصفحة الافتراضية للتعامل مع البيانات بسلاسة عبر JS',
+        'حذف جميع البيانات المدخلة في حقول النموذج',
+        'إغلاق نافذة المتصفح فوراً',
+        'إرسال البيانات مباشرة إلى السيرفر دون تشفير',
+      ],
+      correctIndex: 0,
+    },
+  ];
 
   // جلب إحصائيات وشارات وتسليمات العضو المختار
   const userStats: UserStats = store.getUserStats(displayedMember.id);
@@ -202,6 +249,37 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
       setProofFeedback('حدث خطأ أثناء التسليم، يرجى المحاولة ثانية');
     } finally {
       setIsSubmittingProof(false);
+    }
+  };
+
+  // تصحيح كويز المهارات واعتماد المهارة تلقائياً ورصد النقاط
+  const handleGradeQuiz = async (e: React.FormEvent) => {
+    e.preventDefault();
+    let score = 0;
+    SKILL_QUIZ_QUESTIONS.forEach((q) => {
+      if (quizAnswers[q.id] === q.correctIndex) {
+        score++;
+      }
+    });
+
+    if (score >= 3) {
+      if (selectedSkillForProof) {
+        await store.approveSkillViaQuiz(displayedMember.id, selectedSkillForProof.name, score);
+      }
+      confetti({
+        particleCount: 90,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#34A853', '#4285F4', '#F9AB00', '#EA4335'],
+      });
+      setQuizFeedback(`🎉 كفو عليك! اجتزت الكويز بنجاح بدرجة (${score}/4). تم اعتماد مهارة "${selectedSkillForProof?.name}" فوراً ورصد +25 نقطة لرصيدك!`);
+      setTimeout(() => {
+        setSelectedSkillForProof(null);
+        setQuizFeedback(null);
+        setQuizAnswers({});
+      }, 2500);
+    } else {
+      setQuizFeedback(`حصلت على (${score}/4). يلزم 3 إجابات صحيحة على الأقل للاجتياز. راجع إجاباتك وأعد المحاولة! 💪`);
     }
   };
 
@@ -1118,17 +1196,62 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
                         />
                       </div>
                     ) : (
-                      <div>
-                        <label className="block font-bold text-gray-800 mb-1">
-                          ملاحظاتك أو التوقيت المناسب لحل الكويز:
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={proofValue}
-                          onChange={(e) => setProofValue(e.target.value)}
-                          placeholder="أنا جاهز لأداء كويز مهارة HTML/CSS في أي وقت..."
-                          className="w-full p-2.5 rounded-xl border border-gray-300 focus:outline-none focus:border-blue-500 text-xs"
-                        />
+                      <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-1">
+                        <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 font-bold text-xs leading-relaxed">
+                          📝 <strong>كويز المسار المعتمد:</strong> أجب على الأسئلة الأربعة التالية (متوسطة المستوى). يلزم 3 إجابات صحيحة للاجتياز واعتماد المهارة فوراً (+25 نقطة).
+                        </div>
+
+                        {SKILL_QUIZ_QUESTIONS.map((q, qIdx) => (
+                          <div key={q.id} className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200">
+                            <span className="font-black text-gray-900 block mb-2 text-xs">
+                              {qIdx + 1}. {q.question}
+                            </span>
+                            <div className="space-y-1.5">
+                              {q.options.map((opt, optIdx) => (
+                                <label
+                                  key={optIdx}
+                                  className={`p-2 rounded-xl border transition-all flex items-center gap-2 cursor-pointer text-xs ${
+                                    quizAnswers[q.id] === optIdx
+                                      ? 'bg-blue-50 border-blue-500 font-bold text-blue-900'
+                                      : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  <input
+                                    type="radio"
+                                    name={`quiz-q-${q.id}`}
+                                    checked={quizAnswers[q.id] === optIdx}
+                                    onChange={() =>
+                                      setQuizAnswers((prev) => ({ ...prev, [q.id]: optIdx }))
+                                    }
+                                    className="accent-blue-600 cursor-pointer"
+                                  />
+                                  <span>{opt}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+
+                        {quizFeedback && (
+                          <div className={`p-3 rounded-xl text-xs font-black text-center border ${
+                            quizFeedback.includes('🎉')
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : 'bg-amber-50 text-amber-900 border-amber-200'
+                          }`}>
+                            {quizFeedback}
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={handleGradeQuiz}
+                          disabled={Object.keys(quizAnswers).length < 4}
+                          className="w-full py-3 rounded-xl bg-[#34A853] hover:bg-green-700 disabled:opacity-50 text-white font-black text-xs cursor-pointer border-none shadow-sm transition-all"
+                        >
+                          {Object.keys(quizAnswers).length < 4
+                            ? `أجب على جميع الأسئلة (${Object.keys(quizAnswers).length}/4)`
+                            : 'تصحيح الكويز واعتماد المهارة الآن ✓'}
+                        </button>
                       </div>
                     )}
                   </>
@@ -1169,13 +1292,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
                   >
                     إلغاء
                   </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmittingProof || !proofValue.trim()}
-                    className="px-5 py-2 rounded-xl bg-[#4285F4] text-white font-bold hover:bg-blue-600 disabled:opacity-50 transition-colors border-none cursor-pointer flex items-center gap-1.5"
-                  >
-                    {isSubmittingProof ? 'جاري الإرسال...' : 'إرسال للقائدة للاعتماد ✨'}
-                  </button>
+                  {proofType !== 'quiz' && (
+                    <button
+                      type="submit"
+                      disabled={isSubmittingProof || !proofValue.trim()}
+                      className="px-5 py-2 rounded-xl bg-[#4285F4] text-white font-bold hover:bg-blue-600 disabled:opacity-50 transition-colors border-none cursor-pointer flex items-center gap-1.5"
+                    >
+                      {isSubmittingProof ? 'جاري الإرسال...' : 'إرسال للقائدة للاعتماد ✨'}
+                    </button>
+                  )}
                 </div>
               </form>
             </motion.div>

@@ -502,29 +502,8 @@ export const INITIAL_CHALLENGE_GROUPS: ChallengeGroup[] = [
 ];
 
 
-// الورش الرسمية المعتمدة
-export const INITIAL_WORKSHOPS: Workshop[] = [
-  {
-    id: 'ws-grid-flexbox',
-    title: 'تطبيق Flexbox و Grid عملياً في تصميم صفحات الويب',
-    description: 'ورشة عمل تطبيقية مكثفة يتعلم خلالها المطورون كيفية بناء وتصميم واجهات ويب عصرية متجاوبة ومتوافقة مع شاشات الجوال والحاسوب، مع كتابة الكود مباشرة والتطبيق العملي خطوة بخطوة.',
-    scheduledAt: 'الأحد القادم · ٨:٠٠ مساءً',
-    imageUrl: '',
-    registrationUrl: 'https://gdg.community.dev/events/details/developer-student-clubs-taif-university-presents-web-track-workshop-grid-flexbox/',
-    topics: [
-      'فهم معمارية الصندوق والـ Box Model وتوزيع العناصر بدقة',
-      'التحكم بالمحاور والاتجاهات عبر Flexbox (justify-content & align-items)',
-      'بناء الشبكات المتجاوبة ثنائية الأبعاد عبر CSS Grid (grid-template-columns)',
-    ],
-    tasks: [
-      'تاسك 1: تصميم شريط ملاحة متجاوب باستخدام Flexbox',
-      'تاسك 2: بناء شبكة بطاقات معارض مشاريع ثلاثية الأعمدة بـ CSS Grid',
-      'تاسك 3: تحدي دمج Grid و Flexbox في صفحة هبوط متكاملة',
-    ],
-    createdBy: 'leader-ghaidaa',
-    createdAt: '2026-10-23T02:00:00.000Z',
-  },
-];
+// الورش الرسمية المعتمدة (فارغة افتراضياً حتى يضيفها القادة)
+export const INITIAL_WORKSHOPS: Workshop[] = [];
 
 // التنبيهات الأولية (مطابقة لصفحة 9 في المرجع)
 export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
@@ -1596,7 +1575,10 @@ class StoreManager {
       return m;
     });
 
-    this.members = mappedMembers.length > 0 ? mappedMembers : [me];
+    const deletedPatterns = ['شذى بندر الحارثي', 'شهد سعد الحارثي', 'ليان غانم الحربي', 'شذى الحارثي', 'شهد الحارثي', 'ليان الحربي'];
+    const filteredMembers = mappedMembers.filter((m) => !deletedPatterns.some((p) => m.fullName.includes(p)));
+
+    this.members = filteredMembers.length > 0 ? filteredMembers : [me];
     const fresh = this.members.find((m) => m.id === me.id);
     if (fresh) this.profile = fresh;
 
@@ -1903,6 +1885,43 @@ class StoreManager {
     return true;
   }
 
+  public async approveSkillViaQuiz(
+    userId: string,
+    skillName: string,
+    score: number
+  ): Promise<boolean> {
+    const target = this.getMembers().find((m) => m.id === userId);
+    if (!target) return false;
+
+    const existing = target.detailedSkills || [];
+    const updated = existing.map((s) => {
+      if (s.name.toLowerCase() === skillName.toLowerCase()) {
+        return {
+          ...s,
+          progressPercent: 100,
+          status: 'approved' as const,
+          verificationNotes: `اجتياز كويز المسار بنجاح بنتيجة (${score}/4) ✓`,
+        };
+      }
+      return s;
+    });
+
+    this.patchMember(userId, {
+      detailedSkills: updated,
+      skills: Array.from(new Set([...(target.skills || []), skillName])),
+      points: (target.points || 0) + 25,
+    });
+
+    try {
+      await this.addPointsLedgerEntry(userId, 25, `اجتياز كويز اعتماد مهارة ${skillName} (${score}/4)`);
+    } catch (e) {
+      console.warn('Could not record in points_ledger:', e);
+    }
+
+    this.notify();
+    return true;
+  }
+
   // --- User KPI Metrics (Independent Indicators) ---
   public getUserStats(userId: string): UserStats {
     const subs = this.submissions.filter((s: any) => s.profile_id === userId || s.profileId === userId);
@@ -2017,8 +2036,12 @@ class StoreManager {
     memberOfTheMonth: ActiveMemberRanking | null;
     calculationFormula: string;
   } {
-    const onlyMembers = this.members.filter((m) => m.role === 'member');
-    const pool = onlyMembers.length > 0 ? onlyMembers : this.members;
+    const excludedLeaderNames = ['عامر', 'أثير', 'غيداء', 'ريتال'];
+    const pool = this.members.filter((m) => {
+      if (m.role === 'track_leader' || m.role === 'supervisor') return false;
+      if (excludedLeaderNames.some((name) => m.fullName.includes(name))) return false;
+      return true;
+    });
 
     const now = Date.now();
     const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
@@ -2426,12 +2449,13 @@ class StoreManager {
 
   public getPolls(): Poll[] {
     const raw = localStorage.getItem(STORAGE_KEYS.POLLS);
-    if (!raw) return [];
+    if (!raw) return [INITIAL_POLL];
     try {
       const list = JSON.parse(raw);
-      return Array.isArray(list) ? list.filter((p: Poll) => p.id !== 'poll-1') : [];
+      const filtered = Array.isArray(list) ? list.filter((p: Poll) => p.id !== 'poll-1') : [];
+      return filtered.length > 0 ? filtered : [INITIAL_POLL];
     } catch {
-      return [];
+      return [INITIAL_POLL];
     }
   }
 
@@ -2531,7 +2555,13 @@ class StoreManager {
   // --- Workshops Management ---
   public getWorkshops(): Workshop[] {
     const raw = localStorage.getItem(STORAGE_KEYS.WORKSHOPS);
-    return raw ? JSON.parse(raw) : INITIAL_WORKSHOPS;
+    if (!raw) return INITIAL_WORKSHOPS;
+    try {
+      const parsed: Workshop[] = JSON.parse(raw);
+      return parsed.filter((w) => w.id !== 'ws-grid-flexbox');
+    } catch {
+      return INITIAL_WORKSHOPS;
+    }
   }
 
   public async addWorkshop(

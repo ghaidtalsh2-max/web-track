@@ -220,194 +220,132 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
             </h3>
           </motion.div>
 
-          {/* بطاقات "ينتظرك" الثلاث (كاملة بالألوان الخاصة بها) */}
-          <div className="flex flex-col gap-4">
-            {/* 1. خانة الورشة التطبيقية (كاملة باللون الأخضر) */}
+          {/* بطاقات "ينتظرك" الثلاث (نفس حجم وكيفية ولون و 3D البطاقة الصفراء بالأعلى) */}
+          <div className="flex flex-col gap-5">
+            {/* 1. خانة الورشة التطبيقية - أخضر صلب 3D متطابق مع البطاقة بالأعلى */}
             <motion.div
               variants={itemVariants}
-              whileHover={{ y: -2 }}
-              className="p-5 sm:p-6 rounded-3xl"
+              className="next-mission-card"
               style={{
-                backgroundColor: '#E6F4EA', // خلفية خضراء كاملة
-                borderRadius: '26px',
-                border: '2.5px solid #34A853',
-                boxShadow: '0 4px 14px rgba(52, 168, 83, 0.12)',
+                backgroundColor: '#34A853',
+                color: '#FFFFFF',
               }}
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4 text-right flex-1">
-                  <div className="w-13 h-13 rounded-2xl bg-white border-2 border-[#34A853] flex items-center justify-center shrink-0 shadow-xs">
-                    <Layers size={26} className="text-[#34A853]" />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-[#34A853] text-white">
-                        ورشة تطبيقية
-                      </span>
-                      {currentWorkshop && (
-                        <span className="text-xs font-bold text-emerald-900">
-                          {currentWorkshop.scheduledAt}
-                        </span>
-                      )}
-                    </div>
-                    <h4 className="text-base sm:text-lg font-black text-gray-950 leading-tight">
-                      {currentWorkshop ? currentWorkshop.title : 'ورشة العمل القادمة 💻'}
-                    </h4>
-                    {!currentWorkshop && (
-                      <p className="text-xs text-emerald-800 font-medium mt-1">
-                        في انتظار إعلان وتحديد موعد الورشة القادمة من القائدة ⏳
-                      </p>
-                    )}
-                  </div>
+              <div className="flex-1 text-right">
+                <div className="text-xs sm:text-sm font-black text-emerald-950 mb-1 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-white shadow-xs" />
+                  <span>ورشة تطبيقية · {currentWorkshop ? currentWorkshop.scheduledAt : 'الأسبوع القادم'}</span>
                 </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  {currentWorkshop ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedWorkshop(currentWorkshop);
-                          setIsWorkshopModalOpen(true);
-                        }}
-                        className="btn-pill px-4 py-2 text-xs font-black cursor-pointer bg-white text-gray-950 border-2 border-[#0F1729]"
-                      >
-                        شوف التفاصيل
-                      </button>
-                      {currentWorkshop.registrationUrl && (
-                        <a
-                          href={currentWorkshop.registrationUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-pill btn-pill-green px-4 py-2 text-xs font-black inline-flex items-center gap-1.5 cursor-pointer no-underline"
-                        >
-                          <span>رابط الحضور</span>
-                          <ExternalLink size={12} />
-                        </a>
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-xs font-bold text-emerald-800 bg-white/70 px-3 py-1.5 rounded-xl border border-emerald-300">
-                      بانتظار الإعلان
-                    </span>
-                  )}
-                </div>
+                <h3 className="text-2xl sm:text-3xl font-black text-gray-950">
+                  {currentWorkshop ? currentWorkshop.title : 'ورشة العمل التطبيقية 💻'}
+                </h3>
+                <p className="text-xs sm:text-sm font-bold text-emerald-950 mt-1 opacity-90">
+                  {currentWorkshop
+                    ? currentWorkshop.description.slice(0, 85) + '...'
+                    : 'في انتظار إعلان وتحديد موعد وتفاصيل الورشة القادمة من القائدة ⏳'}
+                </p>
               </div>
+
+              {currentWorkshop ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedWorkshop(currentWorkshop);
+                    setIsWorkshopModalOpen(true);
+                  }}
+                  className="next-mission-btn"
+                >
+                  شوف التفاصيل
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="next-mission-btn opacity-95 cursor-default"
+                >
+                  قريباً
+                </button>
+              )}
             </motion.div>
 
-            {/* 2. خانة الاستبيان والتصويت (كاملة باللون الأزرق) */}
+            {/* 2. خانة استبيان الأسبوع والتصويت - أزرق صلب 3D متطابق مع البطاقة بالأعلى */}
             <motion.div
               variants={itemVariants}
-              whileHover={{ y: -2 }}
-              className="p-5 sm:p-6 rounded-3xl"
+              className="next-mission-card"
               style={{
-                backgroundColor: '#E8F0FE', // خلفية زرقاء كاملة
-                borderRadius: '26px',
-                border: '2.5px solid #4285F4',
-                boxShadow: '0 4px 14px rgba(66, 133, 244, 0.12)',
+                backgroundColor: '#4285F4',
+                color: '#FFFFFF',
               }}
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4 text-right flex-1">
-                  <div className="w-13 h-13 rounded-2xl bg-white border-2 border-[#4285F4] flex items-center justify-center shrink-0 shadow-xs">
-                    <Sparkles size={26} className="text-[#4285F4]" />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-[#4285F4] text-white">
-                        استبيان الأسبوع
-                      </span>
-                      {poll && (
-                        <span className="text-xs font-bold text-blue-900">
-                          ينتهي قريباً · اكسب نقاط
-                        </span>
-                      )}
-                    </div>
-                    <h4 className="text-base sm:text-lg font-black text-gray-950 leading-tight">
-                      {poll ? poll.title : 'استبيان الأسبوع والتصويت 📊'}
-                    </h4>
-                    {!poll && (
-                      <p className="text-xs text-blue-800 font-medium mt-1">
-                        في انتظار طرح الاستبيان والمشاركة القادمة من القائدة ⏳
-                      </p>
-                    )}
-                  </div>
+              <div className="flex-1 text-right">
+                <div className="text-xs sm:text-sm font-black text-blue-950 mb-1 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-white shadow-xs" />
+                  <span>استبيان وتصويت · {poll ? 'تصويت مفتوح الآن' : 'في انتظار الطرح'}</span>
                 </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  {poll ? (
-                    <button
-                      type="button"
-                      onClick={() => onNavigateTab('community')}
-                      className="btn-pill px-4 py-2 text-xs font-black cursor-pointer bg-[#4285F4] text-white border-none shadow-xs"
-                    >
-                      شارك وصوّت
-                    </button>
-                  ) : (
-                    <span className="text-xs font-bold text-blue-800 bg-white/70 px-3 py-1.5 rounded-xl border border-blue-300">
-                      بانتظار الطرح
-                    </span>
-                  )}
-                </div>
+                <h3 className="text-2xl sm:text-3xl font-black text-white">
+                  {poll ? poll.title : 'استبيان الأسبوع والتصويت 📊'}
+                </h3>
+                <p className="text-xs sm:text-sm font-bold text-blue-100 mt-1 opacity-95">
+                  {poll
+                    ? 'شارك بصوتك لاختيار موضوع الورشة والتحدي واكسب نقاط المشاركة (+10 نقاط) 🎯'
+                    : 'في انتظار طرح الاستبيان والمشاركة القادمة من القائدة ⏳'}
+                </p>
               </div>
+
+              {poll ? (
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('community')}
+                  className="next-mission-btn"
+                >
+                  شارك وصوّت
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="next-mission-btn opacity-95 cursor-default"
+                >
+                  بانتظار الطرح
+                </button>
+              )}
             </motion.div>
 
-            {/* 3. خانة التحدي والتاسك البرمجي (كاملة باللون الكهرماني/الأصفر) */}
+            {/* 3. خانة التحديات والمهام البرمجية - أصفر/عنبر صلب 3D متطابق مع البطاقة بالأعلى */}
             <motion.div
               variants={itemVariants}
-              whileHover={{ y: -2 }}
-              className="p-5 sm:p-6 rounded-3xl"
+              className="next-mission-card"
               style={{
-                backgroundColor: '#FEF7E0', // خلفية صفراء كاملة
-                borderRadius: '26px',
-                border: '2.5px solid #F9AB00',
-                boxShadow: '0 4px 14px rgba(249, 171, 0, 0.15)',
+                backgroundColor: '#F9AB00',
+                color: '#0F1729',
               }}
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4 text-right flex-1">
-                  <div className="w-13 h-13 rounded-2xl bg-white border-2 border-[#F9AB00] flex items-center justify-center shrink-0 shadow-xs">
-                    <Trophy size={26} className="text-[#F9AB00]" />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-[#F9AB00] text-gray-950">
-                        التحدي البرمجي
-                      </span>
-                      {tasks && tasks.length > 0 && (
-                        <span className="text-xs font-bold text-amber-950">
-                          +{tasks[0].pointsReward || 50} نقطة
-                        </span>
-                      )}
-                    </div>
-                    <h4 className="text-base sm:text-lg font-black text-gray-950 leading-tight">
-                      {tasks && tasks.length > 0 ? tasks[0].title : 'التحدي والتاسك البرمجي ⚡'}
-                    </h4>
-                    {(!tasks || tasks.length === 0) && (
-                      <p className="text-xs text-amber-900 font-medium mt-1">
-                        في انتظار إطلاق التحدي الأسبوعي الجديد من القائدة ⏳
-                      </p>
-                    )}
-                  </div>
+              <div className="flex-1 text-right">
+                <div className="text-xs sm:text-sm font-black text-amber-950 mb-1 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-gray-950 shadow-xs" />
+                  <span>تحدي وتاسك · {tasks && tasks.length > 0 ? `+${tasks[0].pointsReward || 50} نقطة` : 'حصري للمسار'}</span>
                 </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => onNavigateTab('challenges')}
-                    className="btn-pill px-4 py-2 text-xs font-black cursor-pointer bg-gray-950 text-white border-none shadow-xs"
-                  >
-                    {tasks && tasks.length > 0 ? 'حل التحدي الآن' : 'عرض التحديات'}
-                  </button>
-                </div>
+                <h3 className="text-2xl sm:text-3xl font-black text-gray-950">
+                  {tasks && tasks.length > 0 ? tasks[0].title : 'التحديات والمهام البرمجية ⚡'}
+                </h3>
+                <p className="text-xs sm:text-sm font-bold text-amber-950 mt-1 opacity-90">
+                  {tasks && tasks.length > 0
+                    ? 'نفّذ الخيار البرمجي المفضل وارفعه للاعتماد لتصدّر لوحة التفاعل! 🚀'
+                    : 'في انتظار إطلاق التحديات والمهام التابعة للورش من القائدة ⏳'}
+                </p>
               </div>
+
+              <button
+                type="button"
+                onClick={() => onNavigateTab('challenges')}
+                className="next-mission-btn"
+              >
+                {tasks && tasks.length > 0 ? 'ابدأ التحدي' : 'عرض التحديات'}
+              </button>
             </motion.div>
           </div>
 
-          {/* ================= لوحة تفاعل الأعضاء ================= */}
+          {/* ================= لوحة تفاعل الأعضاء (شاشتان متقابلتان: الجهة الأولى العنوان والتحفيز، والجهة الثانية قائمة الأعضاء قابلة للتمرير Scroll) ================= */}
           <motion.div
             variants={itemVariants}
             id="leaderboard-section"
@@ -419,195 +357,172 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
             {/* شريط علوي ملون بهوية قوقل */}
             <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-[#4285F4] via-[#EA4335] to-[#F9AB00]" />
 
-            {/* ترويسة لوحة تفاعل الأعضاء الواضحة والمحفزة */}
-            <div className="flex items-center justify-between mb-6 flex-wrap gap-4 pb-4 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-md">
-                  <Trophy size={26} />
-                </div>
+            {/* تخطيط جانبي متقابل: جهة اليمين للنص والتحفيز، وجهة اليسار شاشة سكرول للأعضاء */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* الجهة الأولى (اليمين): لوحة تفاعل الأعضاء + الميدان للجميع + عضو الشهر */}
+              <div className="lg:col-span-5 text-right flex flex-col justify-between h-full">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xl sm:text-2xl font-black text-gray-950">
-                      لوحة تفاعل الأعضاء ⚡
-                    </h3>
-                    <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
-                      تفاعل الكل
-                    </span>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-950 text-xs font-black mb-3 border border-amber-300">
+                    <Trophy size={14} className="text-[#F9AB00]" />
+                    <span>تفاعل الكل</span>
                   </div>
-                  <p className="text-xs sm:text-sm font-bold text-gray-600 mt-1">
+
+                  <h3 className="text-2xl sm:text-3xl font-black text-gray-950 leading-tight">
+                    لوحة تفاعل الأعضاء ⚡
+                  </h3>
+
+                  <p className="text-sm sm:text-base font-black text-gray-800 mt-2 leading-relaxed">
                     الميدان للجميع.. ورينا كيف بتتغلّب وتتصدّر! 🔥
                   </p>
+
+                  <p className="text-xs text-gray-500 font-bold mt-2">
+                    الترتيب والتفاعل محسوب تلقائياً حسب النقاط والإنجاز الحقيقي، والقادة والإشراف خارج التقييم تماماً.
+                  </p>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-gray-700 bg-gray-100 px-3.5 py-1.5 rounded-full border border-gray-200">
-                  تنافس حي مباشر 🎯
-                </span>
-              </div>
-            </div>
-
-            {/* 1. تكريم عضو الشهر المتميز (Member of the Month) */}
-            {rankings.memberOfTheMonth && (
-              <div
-                className="mb-6 p-4 sm:p-5 rounded-2xl border-2 border-amber-300 relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #FFFDF5 0%, #FEF8E7 100%)',
-                }}
-              >
-                <div className="flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
-                  <div className="flex items-center gap-3.5">
-                    <div className="relative">
-                      <UserAvatar
-                        letter={rankings.memberOfTheMonth.member.avatarLetter}
-                        name={rankings.memberOfTheMonth.member.fullName}
-                        avatarUrl={rankings.memberOfTheMonth.member.avatarUrl}
-                        color={rankings.memberOfTheMonth.member.badgeColor || '#F9AB00'}
-                        size="lg"
-                        variant="flower"
-                        role={rankings.memberOfTheMonth.member.role}
-                      />
-                      <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-[#F9AB00] text-gray-950 flex items-center justify-center text-xs font-black shadow-md border-2 border-white">
-                        👑
-                      </span>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-black tracking-wide uppercase px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
-                          عضو الشهر ⭐ الأعلى تفاعلاً
-                        </span>
-                      </div>
-                      <h4 className="text-base sm:text-lg font-black text-gray-900 mt-1">
-                        {rankings.memberOfTheMonth.member.fullName}
-                      </h4>
-                      <div className="text-xs text-gray-600 font-medium mt-0.5">
-                        {rankings.memberOfTheMonth.member.webLevelTitle} · {rankings.memberOfTheMonth.member.major || 'علوم حاسب'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-left sm:text-left flex-shrink-0">
-                    <div className="text-2xl sm:text-3xl font-black text-amber-600">
-                      {rankings.memberOfTheMonth.monthPoints}
-                    </div>
-                    <div className="text-[11px] font-bold text-gray-500">
-                      نقطة تفاعل
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 2. قائمة أعضاء الأسبوع الخمسة الأوائل (Top 5 of the Week) */}
-            <div className="space-y-2.5 mb-5">
-              <div className="text-xs font-bold text-gray-700 mb-2 flex items-center justify-between">
-                <span>أعضاء الأسبوع الـ 5 الأوائل في التفاعل:</span>
-                <span className="text-[11px] text-gray-500 font-bold">تحديث أسبوعي 🏆</span>
-              </div>
-
-              {rankings.topWeekly.map((item, idx) => {
-                const rankIcons = ['🥇', '🥈', '🥉', '4', '5'];
-                const rankColors = [
-                  'bg-amber-100 text-amber-900 border-amber-300',
-                  'bg-slate-100 text-slate-800 border-slate-300',
-                  'bg-orange-100 text-orange-900 border-orange-300',
-                  'bg-gray-100 text-gray-700 border-gray-200',
-                  'bg-gray-100 text-gray-700 border-gray-200',
-                ];
-
-                return (
+                {/* بطاقة عضو الشهر المتميز */}
+                {rankings.memberOfTheMonth && (
                   <div
-                    key={item.member.id}
-                    className="p-3 sm:p-3.5 rounded-2xl bg-gray-50/90 hover:bg-gray-100/90 border border-gray-200 flex items-center justify-between gap-3 transition-colors"
+                    className="mt-5 p-4 rounded-2xl border-2 border-amber-300 relative overflow-hidden"
+                    style={{
+                      background: 'linear-gradient(135deg, #FFFDF5 0%, #FEF8E7 100%)',
+                    }}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {/* وسام الرتبة */}
-                      <div
-                        className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black border flex-shrink-0 ${
-                          rankColors[idx] || 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {rankIcons[idx] || idx + 1}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <UserAvatar
+                            letter={rankings.memberOfTheMonth.member.avatarLetter}
+                            name={rankings.memberOfTheMonth.member.fullName}
+                            avatarUrl={rankings.memberOfTheMonth.member.avatarUrl}
+                            color={rankings.memberOfTheMonth.member.badgeColor || '#F9AB00'}
+                            size="md"
+                            variant="flower"
+                            role={rankings.memberOfTheMonth.member.role}
+                          />
+                          <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#F9AB00] text-gray-950 flex items-center justify-center text-xs font-black shadow-xs border-2 border-white">
+                            👑
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] font-black tracking-wide uppercase px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
+                            عضو الشهر ⭐
+                          </span>
+                          <h4 className="text-sm font-black text-gray-900 mt-1">
+                            {rankings.memberOfTheMonth.member.fullName}
+                          </h4>
+                          <span className="text-[11px] text-gray-500 font-medium">
+                            {rankings.memberOfTheMonth.member.webLevelTitle}
+                          </span>
+                        </div>
                       </div>
 
-                      <UserAvatar
-                        letter={item.member.avatarLetter}
-                        name={item.member.fullName}
-                        avatarUrl={item.member.avatarUrl}
-                        color={item.member.badgeColor}
-                        size="xs"
-                        role={item.member.role}
-                      />
-
-                      <div className="min-w-0">
-                        <div className="font-black text-xs sm:text-sm text-gray-900 truncate">
-                          {item.member.fullName}
+                      <div className="text-left flex-shrink-0">
+                        <div className="text-xl font-black text-amber-600">
+                          {rankings.memberOfTheMonth.monthPoints}
                         </div>
-                        <div className="text-[11px] text-gray-500 font-medium truncate mt-0.5">
-                          المستوى {item.member.levelNumber} · @{item.member.username}
+                        <div className="text-[10px] font-bold text-gray-500">
+                          نقطة تفاعل
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="text-left">
-                        <span className="text-xs sm:text-sm font-black text-emerald-600 block">
-                          +{item.weekPoints}
-                        </span>
-                        <span className="text-[10px] text-gray-400 font-bold block">
-                          نقطة أسبوعية
-                        </span>
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                )}
+              </div>
 
-            {/* زر عرض تفاعل بقية الأعضاء (تفاعل الكل) */}
-            <div className="pt-3 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={() => setShowAllLeaderboard(!showAllLeaderboard)}
-                className="w-full py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-950 bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>{showAllLeaderboard ? 'إخفاء بقية الأعضاء' : `عرض تفاعل بقية الأعضاء (${allMembers.length} عضو) 👥`}</span>
-              </button>
-
-              {/* القائمة الكاملة لتفاعل جميع الأعضاء عند الفتح */}
-              {showAllLeaderboard && (
-                <div className="mt-3 space-y-2 max-h-72 overflow-y-auto pr-1">
-                  {[...allMembers]
-                    .sort((a, b) => (b.points || 0) - (a.points || 0))
-                    .map((m, mIdx) => (
-                      <div
-                        key={m.id}
-                        className="p-2.5 rounded-xl bg-white border border-gray-200 flex items-center justify-between text-xs"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="w-5 text-center font-bold text-gray-400 text-[11px]">
-                            {mIdx + 1}
-                          </span>
-                          <UserAvatar
-                            letter={m.avatarLetter}
-                            name={m.fullName}
-                            avatarUrl={m.avatarUrl}
-                            color={m.badgeColor}
-                            size="xs"
-                            role={m.role}
-                          />
-                          <span className="font-bold text-gray-900 truncate">
-                            {m.fullName}
-                          </span>
-                        </div>
-                        <span className="font-black text-emerald-600 shrink-0">
-                          {m.points || 0} نقطة
-                        </span>
-                      </div>
-                    ))}
+              {/* الجهة المقابلة (اليسار): شاشة الأعضاء وتفاعلهم مع إمكانية التمرير Scroll المباشر */}
+              <div className="lg:col-span-7">
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <span className="text-xs font-black text-gray-800">
+                    قائمة الأعضاء المتنافسين ({
+                      allMembers.filter(
+                        (m) =>
+                          m.role !== 'track_leader' &&
+                          m.role !== 'supervisor' &&
+                          !['عامر', 'أثير', 'غيداء', 'ريتال'].some((leadName) => m.fullName.includes(leadName))
+                      ).length
+                    } عضو) 👥
+                  </span>
+                  <span className="text-[11px] font-bold text-gray-400">
+                    مرر لتصفح تفاعل الجميع ↕
+                  </span>
                 </div>
-              )}
+
+                {/* الحاوية القابلة للتمرير scroll */}
+                <div
+                  className="space-y-2 max-h-[380px] overflow-y-auto pr-1 pl-1"
+                  style={{
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: '#CBD5E1 transparent',
+                  }}
+                >
+                  {[...allMembers]
+                    .filter(
+                      (m) =>
+                        m.role !== 'track_leader' &&
+                        m.role !== 'supervisor' &&
+                        !['عامر', 'أثير', 'غيداء', 'ريتال'].some((leadName) => m.fullName.includes(leadName))
+                    )
+                    .sort((a, b) => (b.points || 0) - (a.points || 0))
+                    .map((m, mIdx) => {
+                      const rankIcons = ['🥇', '🥈', '🥉'];
+                      const isTop3 = mIdx < 3;
+
+                      return (
+                        <div
+                          key={m.id}
+                          className={`p-3 rounded-2xl border transition-all flex items-center justify-between text-right ${
+                            isTop3
+                              ? 'bg-amber-50/50 border-amber-200 shadow-2xs'
+                              : 'bg-gray-50/80 border-gray-200 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            {/* رقم الرتبة أو الميدالية */}
+                            <span
+                              className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                                mIdx === 0
+                                  ? 'bg-amber-300 text-amber-950 border border-amber-400'
+                                  : mIdx === 1
+                                  ? 'bg-slate-200 text-slate-800 border border-slate-300'
+                                  : mIdx === 2
+                                  ? 'bg-orange-200 text-orange-950 border border-orange-300'
+                                  : 'bg-white text-gray-500 border border-gray-200'
+                              }`}
+                            >
+                              {rankIcons[mIdx] || mIdx + 1}
+                            </span>
+
+                            <UserAvatar
+                              letter={m.avatarLetter}
+                              name={m.fullName}
+                              avatarUrl={m.avatarUrl}
+                              color={m.badgeColor}
+                              size="xs"
+                              role={m.role}
+                            />
+
+                            <div className="min-w-0">
+                              <span className="font-black text-xs text-gray-900 block truncate">
+                                {m.fullName}
+                              </span>
+                              <span className="text-[10px] text-gray-500 font-medium block truncate">
+                                {m.webLevelTitle} · {m.academicLevel || 'جامعة الطائف'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                              {m.points || 0} نقطة
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
             </div>
           </motion.div>
         </div>
@@ -634,17 +549,18 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
 
                 if (count === 0) {
                   circleStyle = {
-                    backgroundColor: '#F8FAFC',
+                    backgroundColor: '#FFFFFF',
                     color: '#64748B',
-                    border: '2px solid #CBD5E1',
+                    border: d.isToday ? '2px solid #0F1729' : '2px solid #CBD5E1',
+                    boxShadow: d.isToday ? '0 2px 6px rgba(15, 23, 42, 0.12)' : 'none',
                   };
                 } else if (count === 1) {
                   const actColor = d.activities[0].color;
                   circleStyle = {
-                    backgroundColor: actColor, // كامل لون دائرة اليوم بالنشاط
+                    backgroundColor: actColor, // كامل لون دائرة اليوم بالنشاط صلب 100%
                     color: '#FFFFFF',
                     border: '2px solid #0F1729',
-                    boxShadow: '0 3px 8px rgba(0,0,0,0.18)',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.18)',
                   };
                 } else if (count === 2) {
                   isMulti = true;
@@ -652,8 +568,9 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                   const c2 = d.activities[1].color;
                   circleStyle = {
                     background: `conic-gradient(${c1} 0deg 180deg, ${c2} 180deg 360deg)`,
+                    color: '#FFFFFF',
                     border: '2px solid #0F1729',
-                    boxShadow: '0 3px 8px rgba(0,0,0,0.18)',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.18)',
                   };
                 } else {
                   isMulti = true;
@@ -662,8 +579,9 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                   const c3 = d.activities[2].color;
                   circleStyle = {
                     background: `conic-gradient(${c1} 0deg 120deg, ${c2} 120deg 240deg, ${c3} 240deg 360deg)`,
+                    color: '#FFFFFF',
                     border: '2px solid #0F1729',
-                    boxShadow: '0 3px 8px rgba(0,0,0,0.18)',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.18)',
                   };
                 }
 
@@ -682,19 +600,21 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                       className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-black transition-transform active:scale-90 relative overflow-hidden"
                       style={{
                         ...circleStyle,
-                        outline: d.isToday ? '3px solid #0F1729' : 'none',
+                        outline: d.isToday ? '2.5px solid #0F1729' : 'none',
                         outlineOffset: '2px',
                       }}
                     >
-                      {isMulti ? (
-                        <div className="w-6 h-6 rounded-full bg-white text-gray-950 flex items-center justify-center font-black text-[11px] shadow-sm">
-                          {d.dateNumber}
-                        </div>
-                      ) : (
-                        <span className={count > 0 ? 'text-white font-black drop-shadow-sm' : 'font-bold'}>
-                          {d.dateNumber}
-                        </span>
-                      )}
+                      <span
+                        className={
+                          count > 0
+                            ? 'text-white font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]'
+                            : d.isToday
+                            ? 'text-gray-950 font-black'
+                            : 'font-bold'
+                        }
+                      >
+                        {d.dateNumber}
+                      </span>
                     </div>
 
                     {/* النقاط الملونة تحت الرقم لكل نشاط */}
