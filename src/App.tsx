@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { store, CURRENT_MISSION } from './services/store';
 import { UserProfile, NavTab } from './types';
+import confetti from 'canvas-confetti';
 import { EntrySequence } from './components/intro/EntrySequence';
 import { LoginCard } from './components/auth/LoginCard';
 import { MandatoryBioModal } from './components/auth/MandatoryBioModal';
@@ -21,6 +22,7 @@ import { ShowcaseView } from './components/showcase/ShowcaseView';
 import { ProfileView } from './components/profile/ProfileView';
 import { ChallengesView } from './components/challenges/ChallengesView';
 import { LeaderDashboard } from './components/leader/LeaderDashboard';
+import { ResourcesView } from './components/resources/ResourcesView';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { WelcomeCelebrationModal } from './components/notifications/WelcomeCelebrationModal';
 import { selectWelcomePhrase } from './services/welcomePhrases';
@@ -121,12 +123,19 @@ export const App: React.FC = () => {
 
   // تفعيل الترحيب الاحتفالي في كل مرة يفتح فيها العضو المنصة
   useEffect(() => {
-    if (currentUser && currentUser.onboarded_at && !store.mustChangePassword() && !welcomeShownRef.current) {
+    if (currentUser && !store.mustChangePassword() && !welcomeShownRef.current) {
       welcomeShownRef.current = true;
       const phrase = selectWelcomePhrase(currentUser);
       setWelcomePhraseText(phrase.text);
       setShowWelcomeModal(true);
       store.updateUserLastPhrase(currentUser.id, phrase.phraseId);
+
+      confetti({
+        particleCount: 75,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#4285F4', '#EA4335', '#F9AB00', '#34A853'],
+      });
 
       // تنبيه عند اعتماد وإعلان نجوم الأسبوع أو عضو الشهر
       if (store.isStarsApproved() && typeof sessionStorage !== 'undefined' && !sessionStorage.getItem('stars_alert_dismissed')) {
@@ -150,12 +159,19 @@ export const App: React.FC = () => {
     setCurrentUser(user);
     setIsLoggedIn(true);
 
-    if (user && user.onboarded_at && !store.mustChangePassword()) {
+    if (user && !store.mustChangePassword()) {
       welcomeShownRef.current = true;
       const phrase = selectWelcomePhrase(user);
       setWelcomePhraseText(phrase.text);
       setShowWelcomeModal(true);
       store.updateUserLastPhrase(user.id, phrase.phraseId);
+
+      confetti({
+        particleCount: 85,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ['#4285F4', '#EA4335', '#F9AB00', '#34A853'],
+      });
 
       if (store.isStarsApproved() && typeof sessionStorage !== 'undefined' && !sessionStorage.getItem('stars_alert_dismissed')) {
         setTimeout(() => {
@@ -368,6 +384,11 @@ export const App: React.FC = () => {
             {/* التبويب 5: المعرض (صفحة 10 بالمرجع) */}
             {currentTab === 'showcase' && (
               <ShowcaseView currentUser={currentUser} />
+            )}
+
+            {/* التبويب الإثرائي: ملفات المسار والمكتبة */}
+            {currentTab === 'resources' && (
+              <ResourcesView currentUser={currentUser} />
             )}
 
             {/* التبويب 6: المجتمع (صفحة 4 بالمرجع) */}

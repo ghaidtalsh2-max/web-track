@@ -34,26 +34,29 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'challenges', label: 'التحديات' },
     { id: 'lab', label: 'المختبر' },
     { id: 'showcase', label: 'المعرض' },
+    { id: 'resources', label: 'الملفات الإثرائية' },
     { id: 'community', label: 'المجتمع' },
   ];
 
-  // تبويبات القادة المعتمدة (تشمل المعرض والمختبر)
+  // تبويبات القادة المعتمدة (تشمل المعرض والمختبر والملفات الإثرائية)
   const leaderTabs: { id: NavTab; label: string }[] = [
     { id: 'overview', label: 'نظرة عامة' },
     { id: 'members', label: 'الأعضاء' },
     { id: 'content', label: 'المحتوى' },
     { id: 'submissions', label: 'التسليمات' },
+    { id: 'resources', label: 'الملفات الإثرائية' },
     { id: 'polls_mgmt', label: 'الاستبيانات' },
     { id: 'points_mgmt', label: 'النقاط' },
     { id: 'showcase', label: 'المعرض' },
     { id: 'lab', label: 'المختبر' },
   ];
 
-  // تبويبات المشرفين المعتمدة (تشمل المعرض والمختبر)
+  // تبويبات المشرفين المعتمدة (تشمل المعرض والمختبر والملفات الإثرائية)
   const supervisorTabs: { id: NavTab; label: string }[] = [
     { id: 'overview', label: 'نظرة عامة' },
     { id: 'members', label: 'الأعضاء' },
     { id: 'content', label: 'المحتوى' },
+    { id: 'resources', label: 'الملفات الإثرائية' },
     { id: 'showcase', label: 'المعرض' },
     { id: 'lab', label: 'المختبر' },
     { id: 'evaluations', label: 'تقييم الأداء القيادي' },

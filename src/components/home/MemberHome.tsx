@@ -7,6 +7,7 @@ import { DualProgressMeters } from './DualProgressMeters';
 import { Calendar, Layers, ExternalLink, X, ChevronLeft, Trophy, Crown, Sparkles, TrendingUp, Info, ShieldCheck, Clock } from 'lucide-react';
 import { UserAvatar } from '../common/UserAvatar';
 import { PinwheelFlower } from '../brand/PinwheelFlower';
+import { GDGLogo } from '../brand/GDGLogo';
 
 interface MemberHomeProps {
   currentUser: UserProfile;
@@ -203,8 +204,8 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
             </h3>
           </motion.div>
 
-          {/* بطاقات "ينتظرك" الثلاث (نفس حجم وكيفية ولون و 3D البطاقة الصفراء بالأعلى) */}
-          <div className="flex flex-col gap-5">
+          {/* بطاقات "ينتظرك" الثلاث (فراغ واضح و 3D صلب لكل بطاقة) */}
+          <div className="home-mission-stack">
             {/* 1. خانة الورشة التطبيقية - أخضر صلب 3D متطابق مع البطاقة بالأعلى */}
             <motion.div
               variants={itemVariants}
@@ -306,10 +307,10 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
               <div className="flex-1 text-right">
                 <div className="text-xs sm:text-sm font-black text-amber-950 mb-1 flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-gray-950 shadow-xs" />
-                  <span>تحدي وتاسك · {tasks && tasks.length > 0 ? `+${tasks[0].pointsReward || 50} نقطة` : 'حصري للمسار'}</span>
+                  <span>تحدي وتاسك · {tasks && tasks.length > 0 ? `+${tasks[0].pointsReward || 50} نقطة` : 'في انتظار الطرح'}</span>
                 </div>
                 <h3 className="text-2xl sm:text-3xl font-black text-gray-950">
-                  {tasks && tasks.length > 0 ? tasks[0].title : 'التحديات والمهام البرمجية ⚡'}
+                  {tasks && tasks.length > 0 ? tasks[0].title : 'المهمة والتحدي القادم 🎯'}
                 </h3>
                 <p className="text-xs sm:text-sm font-bold text-amber-950 mt-1 opacity-90">
                   {tasks && tasks.length > 0
@@ -318,19 +319,46 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => onNavigateTab('challenges')}
-                className="next-mission-btn"
-              >
-                {tasks && tasks.length > 0 ? (isFemale ? 'ابدئي التحدي' : 'ابدأ التحدي') : (isFemale ? 'سلّمي تحدي' : 'سلّم تحدي')}
-              </button>
+              {tasks && tasks.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('challenges')}
+                  className="next-mission-btn"
+                >
+                  {isFemale ? 'ابدئي التحدي' : 'ابدأ التحدي'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="next-mission-btn opacity-95 cursor-default"
+                >
+                  قريباً
+                </button>
+              )}
             </motion.div>
           </div>
         </div>
 
-        {/* العمود الأيسر (الجانبي): شريط أسبوعك الديناميكي + المؤشران الإبداعيان + اكتب لنا */}
+        {/* العمود الأيسر (الجانبي): شعار قوقل حق النادي ومجال الويب + شريط أسبوعك + المؤشران + اكتب لنا */}
         <div className="flex flex-col gap-6 w-full lg:w-[380px] shrink-0">
+          {/* شعار قوقل حق النادي ومجال الويب بالجهة اليسرى بدال المساحة المهدرة */}
+          <motion.div
+            variants={itemVariants}
+            className="p-4 sm:p-5 rounded-3xl bg-white border-2 border-[#0F1729] shadow-[0_4px_0_0_#0F1729] flex items-center justify-between gap-3 text-right"
+          >
+            <div className="flex items-center gap-2">
+              <GDGLogo variant="full" size="sm" />
+            </div>
+            <div className="text-right border-r-2 border-gray-100 pr-3">
+              <span className="badge-pill bg-blue-50 text-blue-700 font-black text-xs border border-blue-200">
+                مسار تصميم وتطوير الويب 🌐
+              </span>
+              <p className="text-[11px] font-bold text-gray-500 mt-1">
+                نادي الطلبة المطورين · جامعة الطائف
+              </p>
+            </div>
+          </motion.div>
           {/* بطاقة أسبوعك التفاعلية مع دعم تقسيم الدائرة لأنصاف وأثلاث */}
           <motion.div variants={itemVariants} className="week-card">
             <div className="flex items-center justify-between mb-4">
@@ -430,8 +458,8 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
           {/* المؤشران الإبداعيان (مؤشر التفاعل بشكل الوردة + مؤشر التعلم بشكل النجمة) */}
           <motion.div variants={itemVariants}>
             <DualProgressMeters
-              engagementPercent={Math.min(100, Math.round(((currentUser.points || 0) / 200) * 100)) || 10}
-              learningPercent={Math.min(100, Math.round(((currentUser.points || 0) / ((currentUser.levelNumber || 1) * 500)) * 100)) || 15}
+              engagementPercent={currentUser.points ? Math.min(100, Math.round(((currentUser.points) / 200) * 100)) : 0}
+              learningPercent={currentUser.points ? Math.min(100, Math.round(((currentUser.points) / ((currentUser.levelNumber || 1) * 500)) * 100)) : 0}
               points={currentUser.points || 0}
               levelNumber={currentUser.levelNumber || 1}
               levelTitle={currentUser.webLevelTitle?.split(':')[1] || 'التطوير التفاعلي'}
@@ -538,11 +566,9 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
 
         {/* شاشة الأعضاء: بارتفاع محدد يكفي تماماً لـ 7 أعضاء فقط والتمرير بالداخل (Scroll) */}
         <div
-          className="flex flex-col gap-2 overflow-y-auto pr-1"
+          className="leaderboard-scroll flex flex-col gap-2"
           style={{
-            maxHeight: '430px',
-            scrollbarWidth: 'thin',
-            scrollbarColor: '#CBD5E1 #F8FAFC',
+            maxHeight: '400px',
           }}
         >
           {allMembers
@@ -600,6 +626,14 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                 </div>
               );
             })}
+        </div>
+
+        {/* شريط الملاحظة والتمرير الميداني */}
+        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-100 text-[11px] font-bold text-gray-500">
+          <span>يتم تحديث الترتيب تلقائياً فور اعتماد النقاط من القادة ✨</span>
+          <div className="flex items-center gap-1.5 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+            <span>مرر بالسحب داخل القائمة ↕️</span>
+          </div>
         </div>
       </motion.div>
 

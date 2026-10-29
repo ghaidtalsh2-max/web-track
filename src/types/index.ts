@@ -120,6 +120,7 @@ export type NavTab =
   | 'challenges'
   | 'lab'
   | 'showcase'
+  | 'resources'
   | 'community'
   | 'profile'
   // Leader specific tabs
@@ -130,6 +131,18 @@ export type NavTab =
   | 'polls_mgmt'
   | 'points_mgmt'
   | 'evaluations';
+
+export interface TrackResource {
+  id: string;
+  title: string;
+  description: string;
+  category: 'slides' | 'cheatsheet' | 'book' | 'code' | 'guide';
+  fileUrl: string;
+  fileType: 'pdf' | 'zip' | 'code' | 'doc' | 'link';
+  fileSize?: string;
+  uploadedBy: string;
+  uploadedAt: string;
+}
 
 export interface ActionItem {
   id: string;

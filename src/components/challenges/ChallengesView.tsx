@@ -284,8 +284,31 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
       </div>
 
       {/* شبكة بطاقات الأيقونات المطابقة لتبويب المرحلة التعليمية (cards-grid-4) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
-        {filteredCards.map((c) => {
+      {filteredCards.length === 0 ? (
+        <div className="p-10 sm:p-14 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-300 max-w-xl mx-auto my-6">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 border-2 border-amber-300 flex items-center justify-center text-3xl mx-auto mb-4 shadow-xs">
+            🎯
+          </div>
+          <h3 className="text-xl font-black text-gray-900 mb-2">
+            لا توجد تحديات معتمدة مطروحة حالياً ⏳
+          </h3>
+          <p className="text-xs sm:text-sm text-gray-500 font-medium leading-relaxed max-w-md mx-auto">
+            سيتم طرح التحديات والمهام البرمجية التطبيقية فور اعتمادها وتحديدها من قبل القائدة مع ورش العمل القادمة ✨
+          </p>
+          {isLeader && (
+            <button
+              type="button"
+              onClick={() => setCreateModalOpen(true)}
+              className="mt-6 btn-pill px-6 py-2.5 text-xs font-black text-white bg-[#0F1729] hover:bg-gray-800 transition-all cursor-pointer shadow-md inline-flex items-center gap-2"
+            >
+              <Plus size={16} />
+              <span>+ طرح أول تحدٍ للأعضاء</span>
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
+          {filteredCards.map((c) => {
           const userChoice = store.getMemberChallengeChoice(currentUser.id, c.groupId);
           const isSelected = userChoice?.optionId === c.optionId;
           const isSubmitted = isSelected && userChoice?.submitted;
@@ -356,6 +379,7 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
           );
         })}
       </div>
+      )}
 
       {/* نافذة تفاصيل التحدي والتسليم عند النقر على أيقونة التحدي */}
       <AnimatePresence>

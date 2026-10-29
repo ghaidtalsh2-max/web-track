@@ -962,11 +962,25 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
         >
           <div className="mb-8">
             <h1 className="text-3xl font-black text-gray-900 mb-1">
-              إدارة ومنح النقاط (Points Management)
+              إدارة مؤشرات التفاعل ومنح النقاط (Engagement & Points)
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 font-medium">
-              منح النقاط المباشرة للأعضاء وتدقيق قيود سجل التحفيز
+              التحكم الكامل بإضافة نقاط ومؤشر التفاعل للأعضاء، بينما مؤشر التعلم يُحسب تلقائياً حسب إنجاز العضو في مساره
             </p>
+          </div>
+
+          {/* تنبيه توضيحي بنظام المؤشرات */}
+          <div className="mb-6 p-4 rounded-2xl bg-blue-50 border border-blue-200 text-right flex items-start gap-3">
+            <span className="text-xl">💡</span>
+            <div>
+              <h4 className="text-xs font-black text-blue-900 mb-0.5">
+                نظام المؤشرات المعتمد للمسار
+              </h4>
+              <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
+                • <strong>مؤشر التفاعل</strong>: يتم التحكم به وإضافته من قبل القادة حصراً عبر منح النقاط وشيت التحضير ورصد المشاركات.<br />
+                • <strong>مؤشر التعلّم</strong>: مؤشر ذكي تلقائي 100% يرتبط بما ينجزه العضو بنفسه في المقررات والمسارات التعليمية دون تدخل يدوي.
+              </p>
+            </div>
           </div>
 
           {/* بطاقة إضافة ومنح النقاط */}
@@ -977,10 +991,10 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
               </div>
               <div>
                 <h2 className="text-xl font-black text-gray-900">
-                  منح نقاط للأعضاء
+                  إضافة نقاط التفاعل للأعضاء
                 </h2>
                 <p className="text-xs text-gray-500 font-medium">
-                  حدد عضواً معيناً بالاسم أو اختر "الكل" لمنح جميع الأعضاء دفعة واحدة
+                  حدد عضواً معيناً بالاسم أو اختر "الكل" لرفع مؤشر التفاعل لجميع الأعضاء دفعة واحدة
                 </p>
               </div>
             </div>

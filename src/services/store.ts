@@ -26,6 +26,7 @@ import {
   BadgeItem,
   UserStats,
   ActiveMemberRanking,
+  TrackResource,
 } from '../types';
 import { supabase } from './supabase';
 import type { Session } from '@supabase/supabase-js';
@@ -453,55 +454,12 @@ const STORAGE_KEYS = {
   CUSTOM_LAB_CHALLENGES: 'gdg_webtrack_custom_lab_challenges_v9',
   ADMIN_WORKSHOPS: 'gdg_webtrack_admin_workshops_plan_v1',
   ATTENDANCE: 'gdg_webtrack_attendance_v1',
+  RESOURCES: 'gdg_webtrack_resources_v1',
+  PROJECTS: 'gdg_webtrack_showcase_projects_v1',
 };
 
-// مجموعات التحديات والخيارات المعتمدة (المعمارية الرسمية للقسم 3)
-export const INITIAL_CHALLENGE_GROUPS: ChallengeGroup[] = [
-  {
-    id: 'grp-flexbox-grid',
-    title: 'تحدي ورشة Flexbox و CSS Grid التطبيقي',
-    workshopId: 'ws-grid-flexbox',
-    workshopTitle: 'تطبيق Flexbox و Grid عملياً في تصميم صفحات الويب',
-    category: 'workshop',
-    dueDate: 'الخميس القادم · ١١:٥٩ مساءً',
-    mode: 'choice',
-    options: [
-      {
-        id: 'opt-grid-store',
-        groupId: 'grp-flexbox-grid',
-        name: 'الخيار أ: بناء شبكة منتجات متجر متجاوبة (Product Grid)',
-        description: 'تصميم واجهة متجر تفاعلية تعرض بطاقات منتجات تتكيف تلقائياً مع حجم الشاشة.',
-        requirements: 'استخدام CSS Grid لتوزيع المنتجات (minmax & auto-fit)، وFlexbox داخل كل بطاقة لتنسيق السعر والعنوان، وزر شراء بتأثير تفاعلي.',
-        points: 50,
-      },
-      {
-        id: 'opt-dashboard-widgets',
-        groupId: 'grp-flexbox-grid',
-        name: 'الخيار ب: بناء لوحة إحصائيات تحكم (Dashboard Widgets)',
-        description: 'تصميم لوحة مؤشرات رقمية تحتوي ٤ ودجات ملونة بنظام البطاقات ثلاثية الأبعاد.',
-        requirements: 'توزيع البطاقات بنظام CSS Grid متناسق، استخدام ألوان الهوية الأربعة، خط Arimo للأرقام، وتأثير رفع لطيف عند المرور.',
-        points: 60,
-      },
-    ],
-  },
-  {
-    id: 'grp-side-button',
-    title: 'تحدي جانبي: زر الويب الساحر (CSS Micro-interactions)',
-    category: 'side_fun',
-    dueDate: 'الأحد القادم · ٨:٠٠ مساءً',
-    mode: 'mandatory',
-    options: [
-      {
-        id: 'opt-magic-button',
-        groupId: 'grp-side-button',
-        name: 'زر تفاعلي يطلق حركة مبهجة',
-        description: 'بناء زر أنيق بالهوية الرقمية يتفاعل بحركات ناعمة عند النقر والتحويم.',
-        requirements: 'تأثيرات Hover بنسبة تحول translateY(-4px)، إطار داكن 2px، وظل ثلاثي الأبعاد مع إطلاق تأثير بالضغط.',
-        points: 35,
-      },
-    ],
-  },
-];
+// مجموعات التحديات والخيارات المعتمدة (فارغة حتى تطرحها القائدة)
+export const INITIAL_CHALLENGE_GROUPS: ChallengeGroup[] = [];
 
 
 // الورش الرسمية المعتمدة (فارغة افتراضياً حتى يضيفها القادة)
@@ -3063,7 +3021,125 @@ class StoreManager {
   // --- Challenge Groups & Multi-Option Tasks (Architecture Section 3) ---
   public getChallengeGroups(): ChallengeGroup[] {
     const raw = localStorage.getItem(STORAGE_KEYS.CHALLENGE_GROUPS);
-    return raw ? JSON.parse(raw) : INITIAL_CHALLENGE_GROUPS;
+    if (!raw) return [];
+    try {
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list)) return [];
+      return list.filter(
+        (g: ChallengeGroup) =>
+          g.id !== 'grp-flexbox-grid' &&
+          g.id !== 'grp-side-button' &&
+          !g.title?.includes('Flexbox') &&
+          !g.title?.includes('شبكة منتجات')
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  // --- Resources & Enrichment Library (ملفات المسار والملفات الإثرائية) ---
+  public getResources(): TrackResource[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.RESOURCES);
+    if (!raw) {
+      const defaults: TrackResource[] = [
+        {
+          id: 'res-guide-1',
+          title: 'دليل التعلم المعتمد لمسار الويب 2026 📖',
+          description: 'خارطة طريق كاملة بمحاور الويب والتقنيات والمقررات والمصادر الموصى بها.',
+          category: 'guide',
+          fileUrl: 'https://gdsc.community.dev',
+          fileType: 'pdf',
+          fileSize: '2.4 MB',
+          uploadedBy: 'غيداء تركي الشريف · قائدة المسار',
+          uploadedAt: '2026-10-25',
+        },
+        {
+          id: 'res-cheatsheet-1',
+          title: 'مرجع الأكواد السريعة HTML5 & Modern CSS3 💻',
+          description: 'بطاقة مرجعية سريعة لأهم وسوم HTML5 وخواص Flexbox و CSS Grid الحديثة.',
+          category: 'cheatsheet',
+          fileUrl: 'https://developer.mozilla.org',
+          fileType: 'pdf',
+          fileSize: '1.1 MB',
+          uploadedBy: 'ريتال القثامي · قائدة المسار',
+          uploadedAt: '2026-10-26',
+        },
+        {
+          id: 'res-slides-1',
+          title: 'حقيبة أدوات المطور (Git, GitHub, VS Code Setup) 🛠️',
+          description: 'ملف يشرح تثبيت الأدوات وضبط بيئة العمل وأساسيات العمل الجماعي عبر GitHub.',
+          category: 'slides',
+          fileUrl: 'https://github.com',
+          fileType: 'pdf',
+          fileSize: '3.8 MB',
+          uploadedBy: 'سلمان الغامدي · نائب القادة',
+          uploadedAt: '2026-10-27',
+        },
+      ];
+      localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(defaults));
+      return defaults;
+    }
+    try {
+      return JSON.parse(raw) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  public addResource(resData: Omit<TrackResource, 'id' | 'uploadedAt'>): TrackResource {
+    const newRes: TrackResource = {
+      ...resData,
+      id: `res-${Date.now()}`,
+      uploadedAt: new Date().toISOString().split('T')[0],
+    };
+    const current = this.getResources();
+    const updated = [newRes, ...current];
+    localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(updated));
+    this.notify();
+    return newRes;
+  }
+
+  public deleteResource(id: string): void {
+    const current = this.getResources();
+    const updated = current.filter((r) => r.id !== id);
+    localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(updated));
+    this.notify();
+  }
+
+  // --- Showcase Projects Management (معرض مشاريع الأعضاء) ---
+  public getShowcaseProjects(): any[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.PROJECTS);
+    if (!raw) return [];
+    try {
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list)) return [];
+      return list.filter(
+        (p: any) =>
+          !p.memberName?.includes('[اسم العضو]') &&
+          p.id !== 'proj-1' &&
+          p.id !== 'proj-2' &&
+          p.id !== 'proj-3' &&
+          p.id !== 'proj-4' &&
+          p.id !== 'proj-5' &&
+          p.id !== 'proj-6'
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  public addShowcaseProject(projData: any): any {
+    const newProj = {
+      ...projData,
+      id: `proj-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      status: projData.status || 'in_review',
+    };
+    const current = this.getShowcaseProjects();
+    const updated = [newProj, ...current];
+    localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(updated));
+    this.notify();
+    return newProj;
   }
 
   public async addChallengeGroup(groupData: Omit<ChallengeGroup, 'id'>): Promise<ChallengeGroup> {
