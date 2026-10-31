@@ -456,42 +456,41 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
       {/* ================= لوحة التفاعل المعتمدة (Board Prototype) ================= */}
       {(() => {
         const [period, setPeriod] = [boardPeriod, setBoardPeriod];
-        // حساب النقاط بحسب الفترة
         const membersList = allMembers.filter((m) => m.role === 'member');
-        const sortedMembers = [...membersList].sort((a, b) => {
-          const ptsA = period === 'week' ? (a.points ? Math.round(a.points * 0.15) : 0) : period === 'month' ? (a.points ? Math.round(a.points * 0.45) : 0) : (a.points || 0);
-          const ptsB = period === 'week' ? (b.points ? Math.round(b.points * 0.15) : 0) : period === 'month' ? (b.points ? Math.round(b.points * 0.45) : 0) : (b.points || 0);
-          return ptsB - ptsA;
-        });
+        // ترتيب الأعضاء الحقيقيين تصاعدياً حسب نقاطهم المعتمدة
+        const sortedMembers = [...membersList].sort((a, b) => (b.points || 0) - (a.points || 0));
+        const hasRealPoints = sortedMembers.some((m) => (m.points || 0) > 0);
 
-        const getPts = (m: UserProfile) => {
-          if (period === 'week') return m.points ? Math.round(m.points * 0.15) : 0;
-          if (period === 'month') return m.points ? Math.round(m.points * 0.45) : 0;
-          return m.points || 0;
-        };
+        // حساب ترتيب المستخدم الحالي ونقاطه الفعلية
+        const userIndex = sortedMembers.findIndex((m) => m.id === currentUser.id);
+        const userRank = userIndex !== -1 ? userIndex + 1 : (membersList.length > 0 ? membersList.length : 1);
+        const userPoints = currentUser.points || 0;
 
-        // المتصدرون مع بيانات النموذج المرجعي الأصلي كقيم افتراضية في حال كانت النقاط صفر
-        const top1Name = sortedMembers[0]?.points ? sortedMembers[0].fullName : 'عبدالعزيز';
-        const top1Letter = sortedMembers[0]?.points ? (sortedMembers[0].avatarLetter || sortedMembers[0].fullName[0]) : 'ع';
-        const top1Points = sortedMembers[0]?.points ? getPts(sortedMembers[0]) : (period === 'week' ? 47 : period === 'month' ? 140 : 310);
+        // المتصدرون الحقيقيون (فقط إذا كانت لديهم نقاط معتمدة > 0)
+        const top1 = hasRealPoints && (sortedMembers[0]?.points || 0) > 0 ? sortedMembers[0] : null;
+        const top2 = hasRealPoints && (sortedMembers[1]?.points || 0) > 0 ? sortedMembers[1] : null;
+        const top3 = hasRealPoints && (sortedMembers[2]?.points || 0) > 0 ? sortedMembers[2] : null;
 
-        const top2Name = sortedMembers[1]?.points ? sortedMembers[1].fullName : 'نورة';
-        const top2Letter = sortedMembers[1]?.points ? (sortedMembers[1].avatarLetter || sortedMembers[1].fullName[0]) : 'ن';
-        const top2Points = sortedMembers[1]?.points ? getPts(sortedMembers[1]) : (period === 'week' ? 31 : period === 'month' ? 95 : 210);
+        const maxPoints = Math.max(top1?.points || 0, userPoints, 100);
+        const userPct = Math.min(100, Math.round((userPoints / maxPoints) * 100)) || (userPoints > 0 ? 10 : 0);
 
-        const top3Name = sortedMembers[2]?.points ? sortedMembers[2].fullName : 'مها';
-        const top3Letter = sortedMembers[2]?.points ? (sortedMembers[2].avatarLetter || sortedMembers[2].fullName[0]) : 'م';
-        const top3Points = sortedMembers[2]?.points ? getPts(sortedMembers[2]) : (period === 'week' ? 24 : period === 'month' ? 70 : 160);
+        // قائمة الأقرب لك: الأعضاء الحقيقيون أصحاب النقاط بعد المنصة
+        const rankedClosest = hasRealPoints
+          ? sortedMembers.slice(3, 6).filter((m) => (m.points || 0) > 0).map((m, idx) => ({
+              rank: idx + 4,
+              name: m.fullName,
+              letter: m.avatarLetter || m.fullName[0],
+              pts: m.points || 0,
+              pct: Math.min(100, Math.round(((m.points || 0) / maxPoints) * 100)),
+            }))
+          : [];
 
-        // قائمة الأقرب لك
-        const defaultClosest = [
-          { rank: 4, name: 'بشرى', letter: 'ب', pts: period === 'week' ? 20 : period === 'month' ? 58 : 130, pct: 42 },
-          { rank: 5, name: 'ريماس', letter: 'ر', pts: period === 'week' ? 18 : period === 'month' ? 52 : 115, pct: 38 },
-          { rank: 6, name: 'دانة', letter: 'د', pts: period === 'week' ? 15 : period === 'month' ? 44 : 95, pct: 30 },
-        ];
-
-        const userPts = getPts(currentUser) || (period === 'week' ? 10 : period === 'month' ? 30 : 65);
-        const userPct = Math.min(100, Math.round((userPts / (top1Points || 1)) * 100)) || 20;
+        // تسليمات المستخدم المعتمدة
+        const userApprovedSubs = store.getSubmissions().filter(
+          (s: any) =>
+            (s.profile_id === currentUser.id || s.profileId === currentUser.id || s.userId === currentUser.id) &&
+            s.status === 'approved'
+        );
 
         return (
           <motion.div
@@ -503,10 +502,10 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div>
                 <h2 className="text-3xl sm:text-5xl font-black text-[#0F172A] tracking-tight">
-                  تفاعل الأسبوع
+                  لوحة التفاعل والنشاط
                 </h2>
                 <p className="text-base sm:text-lg text-gray-600 font-bold mt-1">
-                  أول ٣ هذا الأسبوع، والباقي بحسب نشاطهم.
+                  المتصدرون بحسب النقاط المعتمدة من تسليم المهام والورش.
                 </p>
               </div>
 
@@ -540,7 +539,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
             <div className="flex flex-col lg:flex-row gap-6 items-start mt-6">
               {/* العمود الأيمن (flex: 3): المنصة وأسفلها "الأقرب لك" */}
               <div style={{ flex: 3 }} className="w-full">
-                {/* المنصة 3 أعمدة بجانب بعض بارتفاعات مختلفة (الأول في المنتصف وأطول)، عرضها الأقصى 760px */}
+                {/* المنصة 3 أعمدة بجانب بعض بارتفاعات مختلفة (الأول في المنتصف وأطول) */}
                 <div
                   style={{
                     display: 'flex',
@@ -596,18 +595,18 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontWeight: 700,
-                        fontSize: '28px',
+                        fontSize: top2 ? '28px' : '22px',
                         color: '#0F172A',
                         overflow: 'hidden',
                       }}
                     >
-                      {top2Letter}
+                      {top2 ? (top2.avatarLetter || top2.fullName[0]) : '🥈'}
                     </div>
-                    <b style={{ fontSize: '20px', color: '#0F172A' }}>
-                      {top2Name}
+                    <b style={{ fontSize: '18px', color: '#0F172A' }} className="truncate max-w-[140px]">
+                      {top2 ? top2.fullName : 'بانتظار المتصدر'}
                     </b>
-                    <span style={{ fontFamily: 'Arimo', fontSize: '17px', color: '#0F172A' }}>
-                      {top2Points} نقطة
+                    <span style={{ fontFamily: 'Arimo', fontSize: '16px', color: '#0F172A', fontWeight: 600 }}>
+                      {top2 ? `${top2.points} نقطة` : '٠ نقطة'}
                     </span>
                   </div>
 
@@ -657,18 +656,18 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontWeight: 700,
-                        fontSize: '28px',
+                        fontSize: top1 ? '28px' : '22px',
                         color: '#0F172A',
                         overflow: 'hidden',
                       }}
                     >
-                      {top1Letter}
+                      {top1 ? (top1.avatarLetter || top1.fullName[0]) : '👑'}
                     </div>
-                    <b style={{ fontSize: '20px', color: '#0F172A' }}>
-                      {top1Name}
+                    <b style={{ fontSize: '19px', color: '#0F172A' }} className="truncate max-w-[140px]">
+                      {top1 ? top1.fullName : 'بانتظار المتصدر'}
                     </b>
-                    <span style={{ fontFamily: 'Arimo', fontSize: '17px', color: '#0F172A' }}>
-                      {top1Points} نقطة
+                    <span style={{ fontFamily: 'Arimo', fontSize: '16px', color: '#0F172A', fontWeight: 700 }}>
+                      {top1 ? `${top1.points} نقطة` : '٠ نقطة'}
                     </span>
                   </div>
 
@@ -718,18 +717,18 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontWeight: 700,
-                        fontSize: '28px',
+                        fontSize: top3 ? '28px' : '22px',
                         color: '#0F172A',
                         overflow: 'hidden',
                       }}
                     >
-                      {top3Letter}
+                      {top3 ? (top3.avatarLetter || top3.fullName[0]) : '🥉'}
                     </div>
-                    <b style={{ fontSize: '20px', color: '#0F172A' }}>
-                      {top3Name}
+                    <b style={{ fontSize: '18px', color: '#0F172A' }} className="truncate max-w-[140px]">
+                      {top3 ? top3.fullName : 'بانتظار المتصدر'}
                     </b>
-                    <span style={{ fontFamily: 'Arimo', fontSize: '17px', color: '#0F172A' }}>
-                      {top3Points} نقطة
+                    <span style={{ fontFamily: 'Arimo', fontSize: '16px', color: '#0F172A', fontWeight: 600 }}>
+                      {top3 ? `${top3.points} نقطة` : '٠ نقطة'}
                     </span>
                   </div>
                 </div>
@@ -740,51 +739,58 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                     الأقرب لك
                   </b>
 
-                  {/* أعضاء الترتيب 4, 5, 6 */}
-                  {defaultClosest.map((m) => (
-                    <div
-                      key={m.rank}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '14px',
-                        padding: '10px 0',
-                        borderTop: '1px solid #E8EAED',
-                      }}
-                    >
-                      <b style={{ fontFamily: 'Arimo', width: '28px', fontSize: '18px', color: '#0F172A' }}>
-                        {m.rank}
-                      </b>
+                  {rankedClosest.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '16px 10px', color: '#5f6673' }}>
+                      <p style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>
+                        بانتظار رصد أولى نقاط التفاعل المعتمدة للمطورين 🚀
+                      </p>
+                    </div>
+                  ) : (
+                    rankedClosest.map((m) => (
                       <div
+                        key={m.rank}
                         style={{
-                          flex: 'none',
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '50%',
-                          background: '#4285F4',
-                          border: '4px solid #fff',
-                          boxShadow: '0 0 0 3px #4285F4',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 700,
-                          fontSize: '20px',
-                          color: '#fff',
+                          gap: '14px',
+                          padding: '10px 0',
+                          borderTop: '1px solid #E8EAED',
                         }}
                       >
-                        {m.letter}
+                        <b style={{ fontFamily: 'Arimo', width: '28px', fontSize: '18px', color: '#0F172A' }}>
+                          {m.rank}
+                        </b>
+                        <div
+                          style={{
+                            flex: 'none',
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '50%',
+                            background: '#4285F4',
+                            border: '4px solid #fff',
+                            boxShadow: '0 0 0 3px #4285F4',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 700,
+                            fontSize: '20px',
+                            color: '#fff',
+                          }}
+                        >
+                          {m.letter}
+                        </div>
+                        <span style={{ width: '110px', fontSize: '17px', color: '#0F172A' }} className="truncate">
+                          {m.name}
+                        </span>
+                        <div className="bar-proto" style={{ flex: 1, height: '12px' }}>
+                          <i style={{ width: `${m.pct}%`, height: '12px', background: '#4285F4' }} />
+                        </div>
+                        <span style={{ fontFamily: 'Arimo', width: '36px', textAlign: 'left', fontSize: '16px', color: '#0F172A' }}>
+                          {m.pts}
+                        </span>
                       </div>
-                      <span style={{ width: '110px', fontSize: '17px', color: '#0F172A' }} className="truncate">
-                        {m.name}
-                      </span>
-                      <div className="bar-proto" style={{ flex: 1, height: '12px' }}>
-                        <i style={{ width: `${m.pct}%`, height: '12px', background: '#4285F4' }} />
-                      </div>
-                      <span style={{ fontFamily: 'Arimo', width: '36px', textAlign: 'left', fontSize: '16px', color: '#0F172A' }}>
-                        {m.pts}
-                      </span>
-                    </div>
-                  ))}
+                    ))
+                  )}
 
                   {/* سطر المستخدم الحالي المميز باللون الأخضر #E6F4EA */}
                   <div
@@ -799,7 +805,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                     }}
                   >
                     <b style={{ fontFamily: 'Arimo', width: '28px', fontSize: '18px', color: '#0F172A' }}>
-                      14
+                      {userPoints > 0 ? userRank : '—'}
                     </b>
                     <div
                       style={{
@@ -818,7 +824,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                         color: '#fff',
                       }}
                     >
-                      {currentUser.avatarLetter || currentUser.fullName[0] || 'ف'}
+                      {currentUser.avatarLetter || currentUser.fullName[0] || 'م'}
                     </div>
                     <b style={{ width: '110px', fontSize: '17px', color: '#0F172A' }}>
                       {isFemale ? 'أنتِ' : 'أنت'}
@@ -833,7 +839,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                       />
                     </div>
                     <span style={{ fontFamily: 'Arimo', width: '36px', textAlign: 'left', fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
-                      {userPts}
+                      {userPoints}
                     </span>
                   </div>
                 </div>
@@ -841,7 +847,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
 
               {/* العمود الأيسر (flex: 2): البطاقات الجانبية (كيف يُحسب تفاعلك؟ + تفاعلك هذا الأسبوع) */}
               <div style={{ flex: 2 }} className="w-full flex flex-col gap-[18px]">
-                {/* بطاقة 1: كيف يُحسب تفاعلك؟ */}
+                {/* بطاقة 1: كيف يُحسب تفاعلك؟ (معايير واضحة وصريحة) */}
                 <div
                   className="k"
                   style={{
@@ -853,15 +859,43 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                     <b style={{ fontSize: '24px', color: '#0F172A' }}>
                       كيف يُحسب {gText(isFemale, 'تفاعلكِ؟', 'تفاعلكَ؟')}
                     </b>
-                    <span className="t-proto" style={{ background: '#E8F0FE', color: '#1A73E8' }}>
-                      يُحدَّث أسبوعيًا
+                    <span className="t-proto" style={{ background: '#E8F0FE', color: '#1A73E8', fontWeight: 700 }}>
+                      معايير معتمدة
                     </span>
                   </div>
-                  <p style={{ margin: '6px 0 4px', fontSize: '16px', color: '#3c4452' }}>
-                    التفاعل = نقاط {gText(isFemale, 'نشاطكِ المعتمدة', 'نشاطكَ المعتمد')} خلال الفترة. المشاهدة وحدها لا تُحتسب.
+                  <p style={{ margin: '8px 0 6px', fontSize: '15px', color: '#3c4452', lineHeight: 1.5 }}>
+                    النقاط تُمنح تلقائياً عند إنجاز الأنشطة المعتمدة في المسار وفق الآتي:
                   </p>
 
-                  {/* 1. تطبيق إثرائي */}
+                  {/* 1. تسليم مهمة أو مشروع معتمد */}
+                  <div style={{ display: 'flex', gap: '14px', alignItems: 'center', padding: '10px 0', borderTop: '1px solid #E8EAED' }}>
+                    <div
+                      style={{
+                        flex: 'none',
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '14px',
+                        background: '#34A853',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#fff',
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <b style={{ fontSize: '16px', color: '#0F172A' }}>تسليم مهمة أو مشروع معتمد</b>
+                        <span style={{ fontSize: '15px', fontWeight: 700, color: '#34A853' }}>+٢٥ نقطة</span>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#5f6673' }}>تُرصد فور اعتماد القادة للتسليم ورابط العمل</div>
+                    </div>
+                  </div>
+
+                  {/* 2. حضور ورشة عمل ومشاركة */}
                   <div style={{ display: 'flex', gap: '14px', alignItems: 'center', padding: '10px 0', borderTop: '1px solid #E8EAED' }}>
                     <div
                       style={{
@@ -877,41 +911,20 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                       }}
                     >
                       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"></path>
+                        <circle cx="9" cy="8" r="3.5"></circle>
+                        <path d="M2 21a7 7 0 0 1 14 0M17 4a3.5 3.5 0 0 1 0 7M22 21a7 7 0 0 0-4-6"></path>
                       </svg>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <b style={{ fontSize: '17px', color: '#0F172A', display: 'block' }}>تطبيق إثرائي</b>
-                      <div style={{ fontSize: '15px', color: '#3c4452' }}>اختيار تطبيقك ضمن التوب: +٣ نقاط ووسام</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <b style={{ fontSize: '16px', color: '#0F172A' }}>حضور الورش واللقاءات</b>
+                        <span style={{ fontSize: '15px', fontWeight: 700, color: '#4285F4' }}>+٢٠ نقطة</span>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#5f6673' }}>تُرصد للمشاركين في ورش ولقاءات المسار</div>
                     </div>
                   </div>
 
-                  {/* 2. تسليم معتمد */}
-                  <div style={{ display: 'flex', gap: '14px', alignItems: 'center', padding: '10px 0', borderTop: '1px solid #E8EAED' }}>
-                    <div
-                      style={{
-                        flex: 'none',
-                        width: '42px',
-                        height: '42px',
-                        borderRadius: '14px',
-                        background: '#34A853',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#fff',
-                      }}
-                    >
-                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M4 22V4M4 4h13l-2 4 2 4H4"></path>
-                      </svg>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <b style={{ fontSize: '17px', color: '#0F172A', display: 'block' }}>تسليم معتمد</b>
-                      <div style={{ fontSize: '15px', color: '#3c4452' }}>تأخذ نقاط المهمة نفسها بعد اعتماد القائدة</div>
-                    </div>
-                  </div>
-
-                  {/* 3. حضور الورش والمشاركة */}
+                  {/* 3. إثبات مهارة عملية */}
                   <div style={{ display: 'flex', gap: '14px', alignItems: 'center', padding: '10px 0', borderTop: '1px solid #E8EAED' }}>
                     <div
                       style={{
@@ -927,17 +940,51 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                       }}
                     >
                       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <circle cx="9" cy="8" r="3.5"></circle>
-                        <path d="M2 21a7 7 0 0 1 14 0M17 4a3.5 3.5 0 0 1 0 7M22 21a7 7 0 0 0-4-6"></path>
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                       </svg>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <b style={{ fontSize: '17px', color: '#0F172A', display: 'block' }}>حضور الورش والمشاركة</b>
-                      <div style={{ fontSize: '15px', color: '#3c4452' }}>نقاطها تحددها القائدة لكل ورشة</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <b style={{ fontSize: '16px', color: '#0F172A' }}>إثبات مهارة وتطبيق عملي</b>
+                        <span style={{ fontSize: '15px', fontWeight: 700, color: '#B06000' }}>+١٥ نقطة</span>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#5f6673' }}>بعد التحقق من إتقان المهارة المطلوبة برابط كود</div>
                     </div>
                   </div>
 
-                  {/* 4. لا يُحتسب */}
+                  {/* 4. استبيانات وتصويتات */}
+                  <div style={{ display: 'flex', gap: '14px', alignItems: 'center', padding: '10px 0', borderTop: '1px solid #E8EAED' }}>
+                    <div
+                      style={{
+                        flex: 'none',
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '14px',
+                        background: '#EA4335',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#fff',
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <b style={{ fontSize: '16px', color: '#0F172A' }}>استبيان أو تصويت</b>
+                        <span style={{ fontSize: '15px', fontWeight: 700, color: '#EA4335' }}>+١٠ نقاط</span>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#5f6673' }}>تُمنح للمشاركين في استبيانات وتصويتات المسار</div>
+                    </div>
+                  </div>
+
+                  {/* 5. لا يُحتسب */}
                   <div style={{ display: 'flex', gap: '14px', alignItems: 'center', padding: '10px 0', borderTop: '1px solid #E8EAED' }}>
                     <div
                       style={{
@@ -958,17 +1005,25 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                       </svg>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <b style={{ fontSize: '17px', color: '#0F172A', display: 'block' }}>لا يُحتسب</b>
-                      <div style={{ fontSize: '15px', color: '#3c4452' }}>المشاهدات، والتسليم غير المعتمد</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <b style={{ fontSize: '16px', color: '#0F172A' }}>لا يُحتسب</b>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#70757A' }}>٠ نقطة</span>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#5f6673' }}>المشاهدة العابرة أو التسليمات غير المعتمدة</div>
                     </div>
                   </div>
                 </div>
 
-                {/* بطاقة 2: تفاعلك هذا الأسبوع */}
+                {/* بطاقة 2: تفاعلك المعتمد */}
                 <div className="k">
-                  <b style={{ fontSize: '20px', color: '#0F172A', display: 'block' }}>
-                    {gText(isFemale, 'تفاعلكِ هذا الأسبوع', 'تفاعلكَ هذا الأسبوع')}
-                  </b>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <b style={{ fontSize: '20px', color: '#0F172A', display: 'block' }}>
+                      {gText(isFemale, 'تفاعلكِ المعتمد', 'تفاعلكَ المعتمد')}
+                    </b>
+                    <span style={{ fontSize: '16px', fontWeight: 700, color: '#34A853' }}>
+                      {userPoints} نقطة
+                    </span>
+                  </div>
                   <div
                     style={{
                       display: 'flex',
@@ -979,17 +1034,16 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                       background: '#E8EAED',
                     }}
                   >
-                    <i style={{ width: '50%', background: '#34A853', display: 'block' }}></i>
-                    <i style={{ width: '30%', background: '#4285F4', display: 'block' }}></i>
-                    <i style={{ width: '20%', background: '#F9AB00', display: 'block' }}></i>
+                    <i style={{ width: `${Math.min(100, (userPoints / 100) * 100)}%`, background: '#34A853', display: 'block' }}></i>
                   </div>
                   <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '15px', color: '#0F172A' }}>
-                    <span>● تسليمات ٥</span>
-                    <span>● تطبيقات ٣</span>
-                    <span>● ورش ٢</span>
+                    <span>● تسليمات معتمدة: {userApprovedSubs.length}</span>
+                    <span>● نقاط الرصيد: {userPoints}</span>
                   </div>
                   <p style={{ marginTop: '10px', fontSize: '14px', color: '#5f6673' }}>
-                    {isFemale ? 'أرقام تجريبية. تقدرين تخفين اسمك من الإعدادات.' : 'أرقام تجريبية. تقدر تخفي اسمك من الإعدادات.'}
+                    {userApprovedSubs.length > 0
+                      ? (isFemale ? 'رائع! نقاطكِ معتمدة ومسجلة في قاعدة البيانات.' : 'رائع! نقاطكَ معتمدة ومسجلة في قاعدة البيانات.')
+                      : (isFemale ? 'بانتظار تسليمكِ الأول للبدء برصد النقاط والتقدم في لوحة المتصدرين 🚀' : 'بانتظار تسليمكَ الأول للبدء برصد النقاط والتقدم في لوحة المتصدرين 🚀')}
                   </p>
                 </div>
               </div>

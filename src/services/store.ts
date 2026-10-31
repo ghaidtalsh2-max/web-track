@@ -3800,91 +3800,23 @@ class StoreManager {
 
   // --- Resources & Enrichment Library (ملفات المسار والملفات الإثرائية) ---
   public getResources(): TrackResource[] {
-    const defaultResources: TrackResource[] = [
-      {
-        id: 'res-proto-1',
-        title: 'سلايدات أساسيات الويب',
-        description: 'سلايدات ورشة مفاهيم الويب وهيكلة HTML5 المعتمدة للمسار',
-        category: 'slides',
-        workshopName: 'Web Fundamentals',
-        workshopId: 'ws-1',
-        fileType: 'pdf',
-        fileSize: '٢٫١ MB',
-        color: '#4285F4',
-        fileUrl: 'https://gdg.community.dev',
-        uploadedBy: 'غيداء الشريف',
-        uploadedAt: '2026-10-25',
-      },
-      {
-        id: 'res-proto-2',
-        title: 'مرجع HTML وCSS السريع',
-        description: 'ورقة مرجعية سريعة لخواص التنسيق ونماذج الصناديق وGrid',
-        category: 'cheatsheet',
-        workshopName: 'Web Fundamentals',
-        workshopId: 'ws-1',
-        fileType: 'pdf',
-        fileSize: '٠٫٨ MB',
-        color: '#F9AB00',
-        fileUrl: 'https://developer.mozilla.org',
-        uploadedBy: 'ريتال القثامي',
-        uploadedAt: '2026-10-25',
-      },
-      {
-        id: 'res-proto-3',
-        title: 'سلايدات Git وGitHub',
-        description: 'سلايدات ورشة نظام إدارة النسخ والتعاون البرمجي عبر فروع العمل',
-        category: 'slides',
-        workshopName: 'Git & GitHub',
-        workshopId: 'ws-2',
-        fileType: 'pdf',
-        fileSize: '١٫٧ MB',
-        color: '#EA4335',
-        fileUrl: 'https://github.com',
-        uploadedBy: 'غيداء الشريف',
-        uploadedAt: '2026-10-27',
-      },
-      {
-        id: 'res-proto-4',
-        title: 'تمرين الأوامر الأساسية',
-        description: 'مستودع تمارين عملية لتطبيق أوامر Git وتفادي التعارض',
-        category: 'cheatsheet',
-        workshopName: 'Git & GitHub',
-        workshopId: 'ws-2',
-        fileType: 'link',
-        fileSize: 'GitHub',
-        color: '#34A853',
-        fileUrl: 'https://github.com',
-        uploadedBy: 'ريتال القثامي',
-        uploadedAt: '2026-10-27',
-      },
-      {
-        id: 'res-proto-5',
-        title: 'دليل التعلم (المسارات وسطر)',
-        description: 'دليل شامل لمنهج المسار والربط مع مسارات منصة سطر التعليمية',
-        category: 'guide',
-        workshopName: 'عام',
-        workshopId: 'general',
-        fileType: 'pdf',
-        fileSize: '١٫٢ MB',
-        color: '#34A853',
-        fileUrl: 'https://satr.codes',
-        uploadedBy: 'غيداء الشريف',
-        uploadedAt: '2026-10-20',
-      },
-    ];
-
-    const raw = localStorage.getItem(STORAGE_KEYS.RESOURCES);
-    if (!raw) {
-      return defaultResources;
-    }
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.RESOURCES) : null;
+    if (!raw) return [];
     try {
-      const parsed: TrackResource[] = JSON.parse(raw) || [];
-      if (!Array.isArray(parsed) || parsed.length === 0) {
-        return defaultResources;
-      }
-      return parsed;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const mockResourceTitles = [
+        'دليل التعلم المعتمد',
+        'مرجع الأكواد السريعة',
+        'حقيبة أدوات المطور',
+      ];
+      return parsed.filter((r: any) => {
+        if (!r || r.id?.startsWith('res-guide-') || r.id?.startsWith('res-cheatsheet-') || r.id?.startsWith('res-slides-')) return false;
+        if (mockResourceTitles.some((t) => r.title?.includes(t))) return false;
+        return true;
+      });
     } catch {
-      return defaultResources;
+      return [];
     }
   }
 
@@ -3908,89 +3840,35 @@ class StoreManager {
     this.notify();
   }
 
-  // --- Showcase Projects Management (معرض مشاريع الأعضاء) ---
+  // --- Showcase Projects Management (معرض مشاريع الأعضاء الحقيقي المعتمد) ---
   public getShowcaseProjects(): any[] {
-    const isDemo = typeof window !== 'undefined' && window.location.search.includes('demo=');
-
-    const defaultDemoProjects = [
-      {
-        id: 'proj-demo-1',
-        title: 'صفحة تعريفية شخصية',
-        memberName: 'نورة العتيبي',
-        stageName: 'المرحلة 02',
-        status: 'approved',
-        color: '#F9AB00',
-        githubUrl: 'https://github.com/noura/portfolio',
-        category: 'المشاريع الحرة',
-        isWorkshopTask: false,
-      },
-      {
-        id: 'proj-demo-2',
-        title: 'بطاقة ملف عضو تفاعلية',
-        memberName: 'سارة الزهراني',
-        stageName: 'المرحلة 02',
-        status: 'approved',
-        color: '#4285F4',
-        githubUrl: 'https://github.com/sara/profile-card',
-        category: 'المشاريع الحرة',
-        isWorkshopTask: false,
-      },
-      {
-        id: 'proj-demo-3',
-        title: 'لعبة اختبار الذاكرة (Memory Game)',
-        memberName: 'ريم القحطاني',
-        stageName: 'المرحلة 02',
-        status: 'approved',
-        color: '#34A853',
-        githubUrl: 'https://github.com/reem/memory-game',
-        category: 'ورشة: أساسيات التصميم التفاعلي',
-        isWorkshopTask: true,
-      },
-      {
-        id: 'proj-demo-4',
-        title: 'تطبيق قائمة مهام بالـ LocalStorage',
-        memberName: 'لينا الحارثي',
-        stageName: 'المرحلة 02',
-        status: 'approved',
-        color: '#EA4335',
-        githubUrl: 'https://github.com/lina/todo-app',
-        category: 'مهمة: JavaScript DOM',
-        isWorkshopTask: true,
-      },
-      {
-        id: 'proj-demo-5',
-        title: 'صفحة هبوط تفاعلية لورشة برمجية',
-        memberName: 'هند الثقفي',
-        stageName: 'المرحلة 02',
-        status: 'approved',
-        color: '#4285F4',
-        githubUrl: 'https://github.com/hind/landing-page',
-        category: 'ورشة: Web Fundamentals',
-        isWorkshopTask: true,
-      },
-      {
-        id: 'proj-demo-6',
-        title: 'آلة حاسبة برمجية متجاوبة',
-        memberName: 'جود الغامدي',
-        stageName: 'المرحلة 02',
-        status: 'approved',
-        color: '#F9AB00',
-        githubUrl: 'https://github.com/joud/js-calculator',
-        category: 'المشاريع الحرة',
-        isWorkshopTask: false,
-      },
-    ];
-
     const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.PROJECTS) : null;
     let localList: any[] = [];
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) localList = parsed;
+        if (Array.isArray(parsed)) {
+          const mockTitles = [
+            'لعبة اختبار الذاكرة',
+            'بطاقة ملف عضو',
+            'صفحة تعريفية شخصية',
+            'آلة حاسبة برمجية',
+            'صفحة هبوط تفاعلية',
+            'تطبيق قائمة مهام',
+            'Memory Game',
+          ];
+          const mockNames = ['ريم القحطاني', 'سارة الزهراني', 'نورة العتيبي', 'جود الغامدي', 'هند الثقفي', 'لينا الحارثي'];
+          localList = parsed.filter((p: any) => {
+            if (!p || p.id?.startsWith('proj-demo-')) return false;
+            if (mockTitles.some((t) => p.title?.includes(t))) return false;
+            if (mockNames.some((n) => p.memberName?.includes(n))) return false;
+            return true;
+          });
+        }
       } catch {}
     }
 
-    // تصفية فقط التسليمات الحقيقية والمكتملة بروابط صالحة، مع استبعاد الكويزات والإثباتات التجريبية
+    // تصفية فقط التسليمات الحقيقية والمكتملة بروابط صالحة من قاعدة البيانات (Supabase)
     const approvedSubmissions = this.getSubmissions()
       .filter((s: any) => 
         s.status === 'approved' && 
@@ -4016,9 +3894,7 @@ class StoreManager {
         };
       });
 
-    // دمج المشاريع المعتمدة الأساسية الـ 6 مع أي مشاريع أضافها المستخدم محلياً
-    const userAdded = localList.filter((p: any) => p && !p.id?.startsWith('proj-demo-'));
-    return [...defaultDemoProjects, ...userAdded, ...approvedSubmissions];
+    return [...localList, ...approvedSubmissions];
   }
 
   public getWorkshopShowcaseItems(): any[] {

@@ -64,9 +64,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
   const isStaff = currentUser.role === 'track_leader' || currentUser.role === 'co_leader' || currentUser.role === 'supervisor';
   const isFemale = isFemaleUser(displayedMember);
 
-  // البحث والفلترة في دليل الأعضاء
+  // البحث في دليل الأعضاء
   const [searchTerm, setSearchTerm] = useState('');
-  const [levelFilter, setLevelFilter] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all');
 
   const excludedStaffNames = ['رنا', 'أثير', 'اثير', 'عامر', 'وجد', 'ثامر', 'ريتال', 'غيداء'];
 
@@ -79,8 +78,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
       m.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.major?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.username?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLevel = levelFilter === 'all' || m.webLevel === levelFilter;
-    return matchesSearch && matchesLevel;
+    return matchesSearch;
   });
 
   // حالة نافذة تعديل الملف الشخصي
@@ -433,17 +431,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
                 />
                 <Search size={14} className="absolute right-3 top-2.5 text-gray-400" />
               </div>
-
-              <select
-                value={levelFilter}
-                onChange={(e) => setLevelFilter(e.target.value as any)}
-                className="px-3 py-2 text-xs rounded-xl bg-white border border-gray-300 text-gray-800 focus:outline-none"
-              >
-                <option value="all">كل المستويات</option>
-                <option value="beginner">مبتدئ</option>
-                <option value="intermediate">متوسط</option>
-                <option value="advanced">متقدم</option>
-              </select>
             </div>
           </div>
 

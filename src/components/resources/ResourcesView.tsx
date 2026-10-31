@@ -427,8 +427,18 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
         }}
       >
         {Object.keys(groupedResources).length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 20px', color: '#5f6673' }}>
-            <p style={{ fontSize: '18px', fontWeight: 600 }}>لا توجد ملفات متطابقة مع البحث أو الفلتر المختار.</p>
+          <div style={{ textAlign: 'center', padding: '56px 20px', color: '#5f6673' }}>
+            <div style={{ fontSize: '36px', marginBottom: '12px' }}>📁</div>
+            <b style={{ fontSize: '20px', color: '#0F172A', display: 'block', marginBottom: '6px' }}>
+              {resources.length === 0
+                ? 'بانتظار إضافة الملفات الإثرائية من قادة المسار'
+                : 'لا توجد ملفات متطابقة مع البحث أو الفلتر المختار'}
+            </b>
+            <p style={{ margin: 0, fontSize: '15px', color: '#5f6673' }}>
+              {resources.length === 0
+                ? 'ستظهر هنا سلايدات الورش ومراجع الأكواد وأدلة التعلم فور رفعها من القادة.'
+                : 'جرّبي تغيير كلمات البحث أو اختيار فلتر مختلف.'}
+            </p>
           </div>
         ) : (
           Object.entries(groupedResources).map(([wsName, items], groupIdx) => {
