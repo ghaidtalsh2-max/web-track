@@ -17,12 +17,14 @@ import {
   Layout,
   Trophy,
 } from 'lucide-react';
+import { SpecializedChallengeSection } from './SpecializedChallengeSection';
+import { isFemaleUser, gText, genderVocab } from '../../utils/gender';
 
 interface ChallengesViewProps {
   currentUser: UserProfile;
 }
 
-type FilterCategory = 'all' | 'workshop' | 'side_fun' | 'side_learn' | 'general';
+type FilterCategory = 'specialized' | 'all' | 'workshop' | 'side_fun' | 'side_learn' | 'general';
 
 interface ChallengeCardModel {
   groupId: string;
@@ -43,13 +45,14 @@ interface ChallengeCardModel {
 }
 
 export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) => {
+  const isFemale = isFemaleUser(currentUser);
   const [challengeGroups, setChallengeGroups] = useState<ChallengeGroup[]>(() =>
     store.getChallengeGroups()
   );
   const [workshops] = useState(() => store.getWorkshops());
-  const [activeCategory, setActiveCategory] = useState<FilterCategory>('all');
+  const [activeCategory, setActiveCategory] = useState<FilterCategory>('specialized');
 
-  const isLeader = currentUser.role === 'track_leader' || currentUser.role === 'supervisor';
+  const isLeader = currentUser.role === 'track_leader' || currentUser.role === 'co_leader';
 
   // التحدي المفتوح حالياً في النافذة المنبثقة
   const [selectedChallenge, setSelectedChallenge] = useState<ChallengeCardModel | null>(null);
@@ -262,6 +265,7 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
       {/* شريط الفلاتر مطابق لتبويب المرحلة التعليمية */}
       <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-8">
         {[
+          { id: 'specialized', label: '🔥 التحدي التخصصي' },
           { id: 'all', label: 'الكل' },
           { id: 'workshop', label: 'تحديات الورش' },
           { id: 'side_fun', label: 'تحديات جانبية - متعة' },
@@ -283,8 +287,9 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
         ))}
       </div>
 
-      {/* شبكة بطاقات الأيقونات المطابقة لتبويب المرحلة التعليمية (cards-grid-4) */}
-      {filteredCards.length === 0 ? (
+      {activeCategory === 'specialized' ? (
+        <SpecializedChallengeSection currentUser={currentUser} />
+      ) : filteredCards.length === 0 ? (
         <div className="p-10 sm:p-14 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-300 max-w-xl mx-auto my-6">
           <div className="w-16 h-16 rounded-2xl bg-amber-50 border-2 border-amber-300 flex items-center justify-center text-3xl mx-auto mb-4 shadow-xs">
             🎯

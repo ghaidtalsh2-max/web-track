@@ -24,7 +24,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
 
-  const isLeader = currentUser.role === 'track_leader';
+  const isLeader = currentUser.role === 'track_leader' || currentUser.role === 'co_leader';
   const isSupervisor = currentUser.role === 'supervisor';
 
   // تبويبات الأعضاء المعتمدة
@@ -38,11 +38,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'community', label: 'المجتمع' },
   ];
 
-  // تبويبات القادة المعتمدة (تشمل المعرض والمختبر والملفات الإثرائية)
+  // تبويبات القادة والنائب المعتمدة
   const leaderTabs: { id: NavTab; label: string }[] = [
     { id: 'overview', label: 'نظرة عامة' },
+    { id: 'journey', label: 'الرحلة' },
     { id: 'members', label: 'الأعضاء' },
-    { id: 'content', label: 'المحتوى' },
+    { id: 'content', label: 'المحتوى والورش' },
     { id: 'submissions', label: 'التسليمات' },
     { id: 'resources', label: 'الملفات الإثرائية' },
     { id: 'polls_mgmt', label: 'الاستبيانات' },
@@ -51,11 +52,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'lab', label: 'المختبر' },
   ];
 
-  // تبويبات المشرفين المعتمدة (تشمل المعرض والمختبر والملفات الإثرائية)
+  // تبويبات المشرفين المعتمدة (الاطلاع على الخطط والمحتوى والمختبر والمعرض والرحلة)
   const supervisorTabs: { id: NavTab; label: string }[] = [
     { id: 'overview', label: 'نظرة عامة' },
+    { id: 'journey', label: 'الرحلة' },
     { id: 'members', label: 'الأعضاء' },
-    { id: 'content', label: 'المحتوى' },
+    { id: 'content', label: 'المحتوى والورش' },
     { id: 'resources', label: 'الملفات الإثرائية' },
     { id: 'showcase', label: 'المعرض' },
     { id: 'lab', label: 'المختبر' },

@@ -17,6 +17,7 @@ export const InquiriesModal: React.FC<InquiriesModalProps> = ({
   if (!isOpen) return null;
 
   const [type, setType] = useState<'inquiry' | 'suggestion'>('inquiry');
+  const [recipient, setRecipient] = useState<string>('all');
   const [content, setContent] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -25,9 +26,11 @@ export const InquiriesModal: React.FC<InquiriesModalProps> = ({
     if (!content.trim()) return;
 
     const titlePrefix = type === 'inquiry' ? 'استفسار من العضو: ' : 'اقتراح ورشة: ';
+    const targetLabel = recipient === 'all' ? 'عام للجميع' : `موجه إلى: ${recipient}`;
     store.addInquiry(
-      `${titlePrefix} ${content.trim().slice(0, 30)}...`,
-      content.trim()
+      `${titlePrefix} [${targetLabel}] ${content.trim().slice(0, 30)}...`,
+      content.trim(),
+      recipient
     );
 
     setIsSuccess(true);
@@ -73,7 +76,9 @@ export const InquiriesModal: React.FC<InquiriesModalProps> = ({
               <CheckCircle2 size={48} className="text-green-500" />
             </div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-              وصلت رسالتك للقائدة بنجاح!
+              {recipient === 'all'
+                ? 'وصلت رسالتك لجميع القادة والمشرفين بنجاح!'
+                : `وصلت رسالتك إلى ${recipient} بنجاح!`}
             </h3>
             <p className="text-sm text-gray-500 mt-1">
               سيتم الرد عليك في أقرب وقت وإشعارك في التنبيهات.
@@ -81,13 +86,13 @@ export const InquiriesModal: React.FC<InquiriesModalProps> = ({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* خيارات النوع: استفسار / اقتراح ورشة (مطابق لصفحة 4) */}
-            <div className="space-y-2">
+            {/* خيارات النوع: استفسار / اقتراح ورشة */}
+            <div className="grid grid-cols-2 gap-2">
               <label
-                className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                className={`flex items-center justify-center p-2.5 rounded-xl border cursor-pointer transition-all ${
                   type === 'inquiry'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 font-bold'
-                    : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'
+                    ? 'border-blue-500 bg-blue-50 text-blue-900 font-bold'
+                    : 'border-gray-200 text-gray-700'
                 }`}
               >
                 <input
@@ -96,16 +101,16 @@ export const InquiriesModal: React.FC<InquiriesModalProps> = ({
                   value="inquiry"
                   checked={type === 'inquiry'}
                   onChange={() => setType('inquiry')}
-                  className="accent-blue-600"
+                  className="hidden"
                 />
-                <span className="text-sm">استفسار</span>
+                <span className="text-sm">استفسار ❓</span>
               </label>
 
               <label
-                className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                className={`flex items-center justify-center p-2.5 rounded-xl border cursor-pointer transition-all ${
                   type === 'suggestion'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 font-bold'
-                    : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'
+                    ? 'border-blue-500 bg-blue-50 text-blue-900 font-bold'
+                    : 'border-gray-200 text-gray-700'
                 }`}
               >
                 <input
@@ -114,10 +119,35 @@ export const InquiriesModal: React.FC<InquiriesModalProps> = ({
                   value="suggestion"
                   checked={type === 'suggestion'}
                   onChange={() => setType('suggestion')}
-                  className="accent-blue-600"
+                  className="hidden"
                 />
-                <span className="text-sm">اقتراح ورشة</span>
+                <span className="text-sm">اقتراح ورشة 💡</span>
               </label>
+            </div>
+
+            {/* تحديد المستلم من القادة والمشرفين */}
+            <div>
+              <label className="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1.5">
+                توجيه الاستفسار إلى:
+              </label>
+              <select
+                value={recipient}
+                onChange={(e) => setRecipient(e.target.value)}
+                className="w-full p-3 rounded-xl border text-sm font-bold bg-white text-gray-900 focus:outline-none focus:border-blue-500 shadow-2xs"
+              >
+                <option value="all">عام للجميع (يصل لجميع القادة والمشرفين) 📢</option>
+                <option value="غيداء">غيداء (قائدة المسار)</option>
+                <option value="ريتال">ريتال (قائدة المسار)</option>
+                <option value="سلمان">سلمان (مشرف المسار)</option>
+                <option value="أثير">أثير (مشرفة)</option>
+                <option value="عامر">عامر (مشرف)</option>
+                <option value="رنا">رنا (مشرفة)</option>
+              </select>
+              <span className="text-[11px] text-gray-500 mt-1 block">
+                {recipient === 'all'
+                  ? '• سيصل استفسارك لجميع طاقم القيادة والإشراف معاً'
+                  : `• سيصل الاستفسار فقط إلى ${recipient}`}
+              </span>
             </div>
 
             {/* مربع النص (اكتب هنا...) */}
@@ -125,7 +155,7 @@ export const InquiriesModal: React.FC<InquiriesModalProps> = ({
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="اكتب هنا..."
+                placeholder="اكتب استفسارك أو اقتراحك بالتفصيل هنا..."
                 rows={4}
                 className="w-full p-4 rounded-2xl border text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 text-right resize-none"
                 style={{

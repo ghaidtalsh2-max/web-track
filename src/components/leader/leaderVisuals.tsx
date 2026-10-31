@@ -73,18 +73,34 @@ export function PathWave({ percent }: { percent: number | null }) {
 
 export function QuickCreate({
   onNew,
+  canManageWorkshops = true,
+  canTakeAttendance = true,
+  isFemale = true,
 }: {
-  onNew: (t: 'workshop' | 'task' | 'poll' | 'announcement') => void;
+  onNew: (t: 'workshop' | 'task' | 'poll' | 'announcement' | 'attendance') => void;
+  canManageWorkshops?: boolean;
+  canTakeAttendance?: boolean;
+  isFemale?: boolean;
 }) {
-  const items: [string, string, 'workshop' | 'task' | 'poll' | 'announcement'][] = [
+  const allItems: [string, string, 'workshop' | 'task' | 'poll' | 'announcement' | 'attendance'][] = [
     ['+ ورشة', '#4285F4', 'workshop'],
     ['+ مهمة', '#F9AB00', 'task'],
     ['+ استبيان', '#34A853', 'poll'],
     ['+ إعلان', '#EA4335', 'announcement'],
+    ['التحضير', '#10B981', 'attendance'],
   ];
+
+  const items = allItems.filter(([_, __, k]) => {
+    if (k === 'workshop' && !canManageWorkshops) return false;
+    if (k === 'attendance' && !canTakeAttendance) return false;
+    return true;
+  });
+
   return (
     <div className="quick rise" style={{ '--i': 4 } as React.CSSProperties}>
-      <b style={{ fontSize: '18px', color: '#0F172A' }}>أنشئي:</b>
+      <b style={{ fontSize: '18px', color: '#0F172A' }}>
+        {isFemale ? 'أنشئي:' : 'أنشئ:'}
+      </b>
       {items.map(([t, c, k]) => (
         <button
           key={k}

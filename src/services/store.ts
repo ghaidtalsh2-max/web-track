@@ -27,6 +27,9 @@ import {
   UserStats,
   ActiveMemberRanking,
   TrackResource,
+  AdminScheduledWorkshop,
+  WorkshopAttendanceRecord,
+  AttendanceEvent,
 } from '../types';
 import { supabase } from './supabase';
 import type { Session } from '@supabase/supabase-js';
@@ -454,9 +457,77 @@ const STORAGE_KEYS = {
   CUSTOM_LAB_CHALLENGES: 'gdg_webtrack_custom_lab_challenges_v9',
   ADMIN_WORKSHOPS: 'gdg_webtrack_admin_workshops_plan_v1',
   ATTENDANCE: 'gdg_webtrack_attendance_v1',
+  ATTENDANCE_EVENTS: 'gdg_webtrack_attendance_events_v2',
   RESOURCES: 'gdg_webtrack_resources_v1',
   PROJECTS: 'gdg_webtrack_showcase_projects_v1',
 };
+
+// قائمة فعاليات وورش التحضير الأساسية المعتمدة
+export const INITIAL_ATTENDANCE_EVENTS: AttendanceEvent[] = [
+  {
+    id: 'evt-intro',
+    title: 'لقاء المجال التعريفي (أمس)',
+    type: 'meeting',
+    dateStr: 'الخميس 29 أكتوبر 2026',
+    pointsReward: 20,
+  },
+  {
+    id: 'evt-ws-1',
+    title: 'الورشة 1: أساسيات الويب (Web Fundamentals)',
+    type: 'workshop',
+    dateStr: 'الثلاثاء 3 نوفمبر 2026',
+    pointsReward: 20,
+  },
+  {
+    id: 'evt-ws-2',
+    title: 'الورشة 2: إدارة المشاريع (Git & GitHub)',
+    type: 'workshop',
+    dateStr: 'السبت 7 نوفمبر 2026',
+    pointsReward: 20,
+  },
+  {
+    id: 'evt-ws-3',
+    title: 'الورشة 3: تصميم الواجهات (UI/UX Design)',
+    type: 'workshop',
+    dateStr: 'الثلاثاء 10 نوفمبر 2026',
+    pointsReward: 20,
+  },
+  {
+    id: 'evt-ws-4',
+    title: 'الورشة 4: البيانات وقواعد البيانات (Data & Databases)',
+    type: 'workshop',
+    dateStr: 'السبت 14 نوفمبر 2026',
+    pointsReward: 20,
+  },
+  {
+    id: 'evt-ws-5',
+    title: 'الورشة 5: تطوير الواجهات باستخدام React',
+    type: 'workshop',
+    dateStr: 'الثلاثاء 17 نوفمبر 2026',
+    pointsReward: 20,
+  },
+  {
+    id: 'evt-ws-6',
+    title: 'الورشة 6: بناء تطبيق ويب متكامل',
+    type: 'workshop',
+    dateStr: 'السبت 21 نوفمبر 2026',
+    pointsReward: 20,
+  },
+  {
+    id: 'evt-ws-7',
+    title: 'الورشة 7: نشر المواقع وتأمينها',
+    type: 'workshop',
+    dateStr: 'الثلاثاء 24 نوفمبر 2026',
+    pointsReward: 20,
+  },
+  {
+    id: 'evt-ws-8',
+    title: 'الورشة 8: المعرض الختامي والتخريج',
+    type: 'workshop',
+    dateStr: 'السبت 28 نوفمبر 2026',
+    pointsReward: 20,
+  },
+];
 
 // مجموعات التحديات والخيارات المعتمدة (فارغة حتى تطرحها القائدة)
 export const INITIAL_CHALLENGE_GROUPS: ChallengeGroup[] = [];
@@ -1534,9 +1605,140 @@ class StoreManager {
     return u.includes('@') ? u : `${u}@${AUTH_EMAIL_DOMAIN}`;
   }
 
+  // ===========================================================================
+  // Presentation Mode Dummy Data (بيانات وهمية للعرض التقديمي بدون أي أسماء حقيقية)
+  // ===========================================================================
+  private static getMockStudent(): UserProfile {
+    return {
+      id: 'demo-student-id-001',
+      fullName: 'أحمد خالد الشريف',
+      username: 'ahmed_dev',
+      gender: 'male',
+      role: 'member',
+      roleTitle: 'عضو مسار الويب',
+      webLevel: 'intermediate',
+      webLevelTitle: 'مستوى متوسط',
+      levelNumber: 2,
+      points: 340,
+      avatarLetter: 'أ',
+      badgeColor: '#3b82f6',
+      major: 'علوم الحاسب',
+      academicYear: 'السنة الثالثة',
+      bio: 'شغوف بتطوير واجهات الويب وتطبيقات React الحديثة.',
+      skills: ['HTML5', 'CSS3', 'JavaScript', 'React', 'Tailwind'],
+      detailedSkills: [
+        { id: '1', skill_name: 'HTML5 Semantic', progress_percent: 100, status: 'completed' },
+        { id: '2', skill_name: 'CSS Modern Layouts', progress_percent: 90, status: 'completed' },
+        { id: '3', skill_name: 'JavaScript ES6+', progress_percent: 85, status: 'completed' },
+        { id: '4', skill_name: 'React Components', progress_percent: 65, status: 'in_progress' }
+      ] as any,
+      badges: [
+        { id: 'b1', title: 'مبرمج نشط', icon: '⚡', description: 'إتمام 5 مهام متتالية' },
+        { id: 'b2', title: 'متقن الواجهات', icon: '🎨', description: 'إنهاء تحدي التصميم المتجاوب' },
+        { id: 'b3', title: 'مستكشف الكود', icon: '🚀', description: 'اجتياز اختبارات الأساسيات' }
+      ] as any,
+      completedStages: [1],
+      currentStage: 2,
+      onboarded_at: '2026-09-01T00:00:00Z',
+      settings: { emailNotifications: true, soundEnabled: true, theme: 'dark' }
+    };
+  }
+
+  private static getMockLeader(): UserProfile {
+    return {
+      id: 'demo-leader-id-999',
+      fullName: 'د. هدى فهد التميمي',
+      username: 'hoda_leader',
+      gender: 'female',
+      role: 'track_leader',
+      roleTitle: 'قائدة مسار الويب',
+      webLevel: 'advanced',
+      webLevelTitle: 'مستوى متقدم',
+      levelNumber: 3,
+      points: 950,
+      avatarLetter: 'هـ',
+      badgeColor: '#10b981',
+      major: 'هندسة البرمجيات',
+      academicYear: 'عضو هيئة تدريس / إشراف',
+      bio: 'الإشراف على رحلة تدريب وتطوير أعضاء مسار تقنيات الويب.',
+      skills: ['Frontend', 'Backend', 'System Architecture', 'Mentorship'],
+      completedStages: [1, 2, 3],
+      currentStage: 3,
+      onboarded_at: '2026-09-01T00:00:00Z',
+      settings: { emailNotifications: true, soundEnabled: true, theme: 'dark' }
+    };
+  }
+
+  private static getMockMembers(): any[] {
+    return [
+      { id: 'm1', fullName: 'سارة محمد المنصور', username: 'sarah_m', points: 390, webLevel: 'intermediate', webLevelTitle: 'مستوى متوسط', levelNumber: 2, major: 'نظم معلومات', avatarLetter: 'س', badgeColor: '#8b5cf6', role: 'member' },
+      { id: 'm2', fullName: 'أحمد خالد الشريف', username: 'ahmed_dev', points: 340, webLevel: 'intermediate', webLevelTitle: 'مستوى متوسط', levelNumber: 2, major: 'علوم الحاسب', avatarLetter: 'أ', badgeColor: '#3b82f6', role: 'member' },
+      { id: 'm3', fullName: 'ريم عبدالله القحطاني', username: 'reem_q', points: 310, webLevel: 'intermediate', webLevelTitle: 'مستوى متوسط', levelNumber: 2, major: 'تقنية معلومات', avatarLetter: 'ر', badgeColor: '#ec4899', role: 'member' },
+      { id: 'm4', fullName: 'سلطان فهد السالم', username: 'sultan_s', points: 280, webLevel: 'beginner', webLevelTitle: 'مستوى مبتدئ', levelNumber: 1, major: 'هندسة برمجيات', avatarLetter: 'س', badgeColor: '#10b981', role: 'member' },
+      { id: 'm5', fullName: 'مها إبراهيم الدوسري', username: 'maha_d', points: 260, webLevel: 'beginner', webLevelTitle: 'مستوى مبتدئ', levelNumber: 1, major: 'علوم الحاسب', avatarLetter: 'م', badgeColor: '#f59e0b', role: 'member' },
+      { id: 'm6', fullName: 'فيصل عبدالعزيز الزهراني', username: 'faisal_z', points: 240, webLevel: 'beginner', webLevelTitle: 'مستوى مبتدئ', levelNumber: 1, major: 'نظم معلومات', avatarLetter: 'ف', badgeColor: '#06b6d4', role: 'member' },
+      { id: 'm7', fullName: 'دانة صالح الغامدي', username: 'dana_g', points: 210, webLevel: 'beginner', webLevelTitle: 'مستوى مبتدئ', levelNumber: 1, major: 'تقنية معلومات', avatarLetter: 'د', badgeColor: '#6366f1', role: 'member' }
+    ];
+  }
+
+  private static getMockSubmissions(): any[] {
+    return [
+      {
+        id: 'sub-001',
+        task_id: 't-01',
+        profile_id: 'm1',
+        user_id: 'm1',
+        status: 'in_review',
+        submitted_at: '2026-10-29T14:30:00Z',
+        submission_text: 'تم تطبيق موقع متكامل متجاوب باستخدام CSS Grid و Flexbox مع دعم الوضع الداكن.\nرابط المعاينة:\nhttps://sarah-grid-demo.web.app',
+        profile: { fullName: 'سارة محمد المنصور', major: 'نظم معلومات' },
+        task: { title: 'تطبيق صفحة رئيسية متجاوبة بتقنية Flexbox و Grid', points: 50, track_level: 'intermediate' }
+      },
+      {
+        id: 'sub-002',
+        task_id: 't-02',
+        profile_id: 'm4',
+        user_id: 'm4',
+        status: 'in_review',
+        submitted_at: '2026-10-29T15:10:00Z',
+        submission_text: 'قمت بإنشاء تطبيق قائمة مهام كامل بلغة JavaScript مع حفظ البيانات محلياً.\nرابط المشروع المرفوع:\nhttps://sultan-todo-js.netlify.app',
+        profile: { fullName: 'سلطان فهد السالم', major: 'هندسة برمجيات' },
+        task: { title: 'بناء تطبيق قائمة مهام تفاعلي بلغة JavaScript', points: 40, track_level: 'beginner' }
+      },
+      {
+        id: 'sub-003',
+        task_id: 't-03',
+        profile_id: 'm5',
+        user_id: 'm5',
+        status: 'in_review',
+        submitted_at: '2026-10-29T16:00:00Z',
+        submission_text: 'اجتياز اختبار مفاهيم تطوير الويب الأساسية بنتيجة كاملة (4/4).',
+        profile: { fullName: 'مها إبراهيم الدوسري', major: 'علوم الحاسب' },
+        task: { title: 'اختبار المفاهيم التأسيسية لتطوير الويب', points: 30, track_level: 'beginner' }
+      }
+    ];
+  }
+
   private initAuth() {
     if (this.authInitStarted) return;
     this.authInitStarted = true;
+
+    // نمط العرض التقديمي الآمن (Presentation Mode) ببيانات وأسماء وهمية غير حقيقية
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      const demoMode = p.get('demo');
+      if (demoMode === 'leader' || demoMode === 'student') {
+        const isLeader = demoMode === 'leader';
+        this.profile = isLeader ? StoreManager.getMockLeader() : StoreManager.getMockStudent();
+        this.session = { user: { id: this.profile.id, email: 'demo@gdgtu.local' } } as any;
+        this.members = StoreManager.getMockMembers();
+        this.submissions = StoreManager.getMockSubmissions();
+        this.dataLoaded = true;
+        this.authReady = true;
+        this.notify();
+        return;
+      }
+    }
 
     // 1) الجلسة الحالية
     supabase.auth
@@ -1619,7 +1821,42 @@ class StoreManager {
   }
 
   public isStaff(): boolean {
-    return this.profile?.role === 'track_leader' || this.profile?.role === 'supervisor';
+    return this.profile?.role === 'track_leader' || this.profile?.role === 'co_leader' || this.profile?.role === 'supervisor';
+  }
+
+  /** قادة المجال: غيداء تركي الشريف وريتال القثامي (صلاحيات كاملة) */
+  public canManageAll(): boolean {
+    return this.profile?.role === 'track_leader';
+  }
+
+  /** إضافة وتعديل الورش: غيداء وريتال فقط (سلمان والإشراف ممنوعون) */
+  public canManageWorkshops(): boolean {
+    return this.profile?.role === 'track_leader';
+  }
+
+  /** تعديل وإدارة المحتوى: غيداء وريتال فقط (سلمان والإشراف ممنوعون) */
+  public canManageContent(): boolean {
+    return this.profile?.role === 'track_leader';
+  }
+
+  /** اعتماد ومنح النقاط: غيداء وريتال فقط */
+  public canAwardPoints(): boolean {
+    return this.profile?.role === 'track_leader';
+  }
+
+  /** اعتماد التسليمات: قادة المجال والنائب */
+  public canApproveSubmissions(): boolean {
+    return this.profile?.role === 'track_leader' || this.profile?.role === 'co_leader';
+  }
+
+  /** خانة التحضير (ورش + مناسبات وفعاليات): القادة والنائب والإشراف */
+  public canTakeAttendance(): boolean {
+    return this.profile?.role === 'track_leader' || this.profile?.role === 'co_leader' || this.profile?.role === 'supervisor';
+  }
+
+  /** الإشراف: أثير (قائدة المجالات)، عامر (نائب قائدة المجالات)، رنا (مستشارة النادي) */
+  public isSupervisorOnly(): boolean {
+    return this.profile?.role === 'supervisor';
   }
 
   /** تم تعطيل شاشة إجبار تغيير كلمة المرور بالكامل: يدخل العضو مباشرة بكلمة مروره الدائمة */
@@ -1671,8 +1908,75 @@ class StoreManager {
   }
 
   private mapProfile(p: any): UserProfile {
-    const role: UserProfile['role'] =
-      p.role === 'track_leader' || p.role === 'supervisor' ? p.role : 'member';
+    let role: UserProfile['role'] =
+      p.role === 'track_leader' || p.role === 'co_leader' || p.role === 'supervisor' ? p.role : 'member';
+
+    // تعيين تلقائي لرتبة نائب قائد المجال لسلمان الغامدي
+    if (
+      p.username === 'salman_m.web26' ||
+      p.username === 'salman.lead' ||
+      p.username === 'salman.deputy' ||
+      (p.full_name && p.full_name.includes('سلمان الغامدي') && p.role !== 'track_leader')
+    ) {
+      role = 'co_leader';
+    }
+
+    // تعيين تلقائي لحسابات الإشراف
+    if (
+      p.username === 'atheer.super' ||
+      p.username === 'amer.super' ||
+      p.username === 'rana.super' ||
+      p.username === 'wajd.lead' ||
+      p.username === 'wajd.club' ||
+      p.username === 'wajd.super' ||
+      p.username === 'thamer.lead' ||
+      p.username === 'thamer.club' ||
+      p.username === 'thamer.super' ||
+      (p.full_name && (p.full_name.includes('وجد العتيبي') || p.full_name.includes('ثامر الشنبري')))
+    ) {
+      role = 'supervisor';
+    }
+
+    // تحديد المسمى الدقيق للرتبة
+    let roleTitle = p.role_title;
+    if (!roleTitle || roleTitle === 'عضو مسار الويب 🚀' || roleTitle === 'عضو مسار') {
+      if (role === 'co_leader') {
+        roleTitle = 'نائب قائد المجال 🚀';
+      } else if (role === 'track_leader') {
+        roleTitle = 'قائدة مجال الويب 🌟';
+      } else if (p.username?.includes('wajd') || p.full_name?.includes('وجد العتيبي')) {
+        roleTitle = 'قائدة النادي 👑';
+      } else if (p.username?.includes('thamer') || p.full_name?.includes('ثامر الشنبري')) {
+        roleTitle = 'قائد النادي 👑';
+      } else if (p.username === 'atheer.super') {
+        roleTitle = 'قائدة المجالات 👑';
+      } else if (p.username === 'amer.super') {
+        roleTitle = 'نائب قائدة المجالات 🌟';
+      } else if (p.username === 'rana.super') {
+        roleTitle = 'مستشارة النادي 💎';
+      } else if (role === 'supervisor') {
+        roleTitle = 'إشراف النادي 🔍';
+      } else {
+        roleTitle = 'عضو مسار الويب 🚀';
+      }
+    }
+
+    // فحص وتحديد دقيق للجنس (ذكر / أنثى)
+    const maleNames = ['سلمان', 'فيصل', 'عبدالعزيز', 'عبد العزيز', 'عامر', 'ثامر', 'ثانر', 'رياد', 'أحمد', 'احمد', 'سلطان', 'محمد', 'طارق', 'خالد', 'فهد', 'عبدالله', 'سعود', 'علي', 'عمر'];
+    let gender: 'female' | 'male' = p.gender || 'female';
+    if (!p.gender && p.full_name) {
+      const first = p.full_name.trim().split(/\s+/)[0];
+      if (maleNames.some((m) => p.full_name.includes(m) || first.includes(m))) {
+        gender = 'male';
+      }
+    }
+    if (p.username?.includes('thamer') || p.full_name?.includes('ثامر')) {
+      gender = 'male';
+    }
+    if (p.username?.includes('wajd') || p.full_name?.includes('وجد')) {
+      gender = 'female';
+    }
+
     const settings: UserSettings = { ...DEFAULT_SETTINGS, ...(p.settings || {}) };
     const phone = p.phone || p.settings?.phone || '';
     const avatarUrl = p.avatar_url || p.settings?.avatarUrl || '';
@@ -1680,9 +1984,9 @@ class StoreManager {
       id: p.id,
       fullName: p.full_name || 'عضو مسار',
       username: p.username || '',
-      gender: p.gender || 'female',
+      gender,
       role,
-      roleTitle: p.role_title || 'عضو مسار الويب 🚀',
+      roleTitle,
       webLevel: p.web_level || 'beginner',
       webLevelTitle: p.web_level_title || 'المرحلة 1: التأسيس والتصميم البرمجي',
       levelNumber: p.level_number || 1,
@@ -1761,13 +2065,70 @@ class StoreManager {
       skillsByProfile.set(pid, list);
     }
 
+    // معالجة قيود النقاط: فلترة التكرارات الناتجة عن الضغط المزدوج واحتساب المجموع الحقيقي
+    const rawLedger: any[] = (ledgerRes as any)?.data || [];
+    const dedupedLedger: any[] = [];
+    const seenLedgerKeys = new Set<string>();
+    const duplicateIdsToDelete: any[] = [];
+
+    for (const row of rawLedger) {
+      const createdMinute = row.created_at ? String(row.created_at).slice(0, 16) : '';
+      const dupKey = row.activity_key?.startsWith('submission-') || row.activity_key?.startsWith('sub-')
+        ? `${row.profile_id}-${row.activity_key}`
+        : `${row.profile_id}-${row.reason}-${row.points_amount}-${createdMinute}`;
+
+      if (seenLedgerKeys.has(dupKey)) {
+        duplicateIdsToDelete.push(row.id);
+      } else {
+        seenLedgerKeys.add(dupKey);
+        dedupedLedger.push(row);
+      }
+    }
+
+    // تنظيف السجلات المكررة في قاعدة البيانات تلقائياً بهدوء
+    if (duplicateIdsToDelete.length > 0) {
+      supabase.from('points_ledger').delete().in('id', duplicateIdsToDelete).then(() => {
+        console.log(`Cleaned up ${duplicateIdsToDelete.length} duplicate points ledger entries.`);
+      }).catch((err) => console.warn('Could not clean up duplicate ledger rows:', err));
+    }
+
+    // احتساب إجمالي النقاط الفعلي من دفتر القيود (المصدر الوحيد للحقيقة)
+    const ledgerPointsByProfile = new Map<string, number>();
+    for (const row of dedupedLedger) {
+      const pid = row.profile_id;
+      const pts = Number(row.points_amount) || 0;
+      ledgerPointsByProfile.set(pid, (ledgerPointsByProfile.get(pid) || 0) + pts);
+    }
+
     const mappedMembers: UserProfile[] = (profilesRes.data || []).map((r: any) => {
       const m = this.mapProfile(r);
       const userSkills = skillsByProfile.get(r.id) || [];
       m.detailedSkills = userSkills;
       m.skills = userSkills.map((s) => s.name);
+
+      // مزامنة النقاط: دفتر القيود المعتمد يعكس الرصيد الحقيقي فوراً في كامل النظام
+      const ledgerTotal = ledgerPointsByProfile.get(r.id);
+      if (ledgerTotal !== undefined) {
+        m.points = ledgerTotal;
+      } else {
+        m.points = r.points ?? 0;
+      }
       return m;
     });
+
+    // مزامنة هادئة لجدول profiles في Supabase لضمان تطابق كامل بين الجداول
+    for (const m of mappedMembers) {
+      const dbProfile = (profilesRes.data || []).find((p: any) => p.id === m.id);
+      if (dbProfile && (dbProfile.points ?? 0) !== m.points) {
+        supabase
+          .from('profiles')
+          .update({ points: m.points })
+          .eq('id', m.id)
+          .then(({ error }) => {
+            if (error) console.warn(`Sync profiles.points error for ${m.fullName}:`, error.message);
+          });
+      }
+    }
 
     const deletedPatterns = ['شذى بندر الحارثي', 'شهد سعد الحارثي', 'ليان غانم الحربي', 'شذى الحارثي', 'شهد الحارثي', 'ليان الحربي'];
     const filteredMembers = mappedMembers.filter((m) => !deletedPatterns.some((p) => m.fullName.includes(p)));
@@ -1800,7 +2161,7 @@ class StoreManager {
       respondedAt: r.answered_at ? new Date(r.answered_at).toLocaleDateString('ar-SA') : undefined,
       createdAt: r.created_at ? new Date(r.created_at).toLocaleDateString('ar-SA') : '',
     }));
-    this.pointsLedger = ((ledgerRes as any)?.data || []).map((l: any) => ({
+    this.pointsLedger = dedupedLedger.map((l: any) => ({
       ...l,
       memberName: byId.get(l.profile_id)?.fullName || '—',
       approverName: byId.get(l.approved_by)?.fullName || '—',
@@ -1821,6 +2182,10 @@ class StoreManager {
 
   public getMembers(): UserProfile[] {
     return this.members;
+  }
+
+  public getMemberById(id: string): UserProfile | undefined {
+    return this.members.find((m) => m.id === id);
   }
 
   public getAllMembers(): UserProfile[] {
@@ -2029,6 +2394,7 @@ class StoreManager {
   }
 
   // --- Skill Proof & Verification Submission ---
+  // --- Skill Proof & Verification Submission ---
   public async submitSkillProof(
     userId: string,
     skillName: string,
@@ -2058,6 +2424,38 @@ class StoreManager {
       detailedSkills: updated,
     });
 
+    // مزامنة حالة المهارة مع قاعدة البيانات member_skills في Supabase
+    try {
+      const { data: existingSkill } = await supabase
+        .from('member_skills')
+        .select('id')
+        .eq('profile_id', userId)
+        .ilike('skill_name', skillName)
+        .maybeSingle();
+
+      if (existingSkill?.id) {
+        await supabase
+          .from('member_skills')
+          .update({
+            progress_percent: 80,
+            status: 'in_progress',
+          })
+          .eq('id', existingSkill.id);
+      } else {
+        await supabase
+          .from('member_skills')
+          .insert({
+            profile_id: userId,
+            skill_name: skillName,
+            progress_percent: 80,
+            status: 'in_progress',
+            source: 'survey_registration',
+          });
+      }
+    } catch (e) {
+      console.warn('member_skills sync warning:', e);
+    }
+
     const proofLabel =
       proofType === 'quiz'
         ? 'طلب كويز'
@@ -2065,16 +2463,38 @@ class StoreManager {
         ? 'رابط تطبيق عملي'
         : 'رابط Git للمشروع';
 
-    this.addInquiry({
-      id: `skill-proof-${Date.now()}`,
-      userId,
-      userName: target.fullName,
-      subject: `تسليم إثبات مهارة: ${skillName}`,
-      message: `العضو ${target.fullName} قدم إثبات لاعتماد المهارة (${proofLabel}): ${proofValue}`,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    });
+    // تسجيل التسليم كـ Submission رسمي للاعتماد وليس كاستفسار
+    const taskId = `skill-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+    try {
+      await supabase.from('tasks').upsert(
+        {
+          id: taskId,
+          title: `تسليم إثبات مهارة: ${skillName}`,
+          target_level: 'beginner',
+          due_date: new Date().toISOString(),
+          points: 25,
+          is_active: true,
+        },
+        { onConflict: 'id' }
+      );
 
+      await supabase.from('submissions').upsert(
+        {
+          id: `sub-skill-${userId}-${taskId}`,
+          task_id: taskId,
+          profile_id: userId,
+          repo_url: proofValue.startsWith('http') ? proofValue : 'https://gdg-taif.dev',
+          live_url: proofValue.startsWith('http') ? proofValue : null,
+          notes: `إثبات مهارة (${proofLabel}): ${proofValue}`,
+          status: 'in_review',
+        },
+        { onConflict: 'id' }
+      );
+    } catch (e) {
+      console.warn('Submissions insert warning:', e);
+    }
+
+    await this.refreshData();
     this.notify();
     return true;
   }
@@ -2100,18 +2520,97 @@ class StoreManager {
       return s;
     });
 
+    const newPoints = (target.points || 0) + 25;
     this.patchMember(userId, {
       detailedSkills: updated,
       skills: Array.from(new Set([...(target.skills || []), skillName])),
-      points: (target.points || 0) + 25,
+      points: newPoints,
     });
 
+    // 1. تحديث قاعدة بيانات member_skills في Supabase
     try {
-      await this.addPointsLedgerEntry(userId, 25, `اجتياز كويز اعتماد مهارة ${skillName} (${score}/4)`);
+      const { data: existingSkill } = await supabase
+        .from('member_skills')
+        .select('id')
+        .eq('profile_id', userId)
+        .ilike('skill_name', skillName)
+        .maybeSingle();
+
+      if (existingSkill?.id) {
+        await supabase
+          .from('member_skills')
+          .update({
+            progress_percent: 100,
+            status: 'approved',
+            awarded_at: new Date().toISOString(),
+            source: 'quiz_pass',
+          })
+          .eq('id', existingSkill.id);
+      } else {
+        await supabase
+          .from('member_skills')
+          .insert({
+            profile_id: userId,
+            skill_name: skillName,
+            progress_percent: 100,
+            status: 'approved',
+            awarded_at: new Date().toISOString(),
+            source: 'quiz_pass',
+          });
+      }
     } catch (e) {
-      console.warn('Could not record in points_ledger:', e);
+      console.warn('Could not update member_skills for quiz:', e);
     }
 
+    // 2. تحديث النقاط في Supabase بجدولي profiles و points_ledger
+    try {
+      await supabase
+        .from('profiles')
+        .update({ points: newPoints })
+        .eq('id', userId);
+
+      await supabase.from('points_ledger').insert({
+        profile_id: userId,
+        points_amount: 25,
+        reason: `اجتياز كويز اعتماد مهارة ${skillName} (${score}/4)`,
+        activity_key: `quiz-${Date.now()}-${userId.slice(0, 8)}-${Math.random().toString(36).slice(2, 7)}`,
+        approved_by: userId,
+      });
+    } catch (e) {
+      console.warn('Could not record quiz points in Supabase:', e);
+    }
+
+    // 3. تسجيل التسليم في قائمة التسليمات الرسمية لقائدة المسار
+    const taskId = `skill-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+    try {
+      await supabase.from('tasks').upsert(
+        {
+          id: taskId,
+          title: `اجتياز كويز مهارة: ${skillName}`,
+          target_level: 'beginner',
+          due_date: new Date().toISOString(),
+          points: 25,
+          is_active: true,
+        },
+        { onConflict: 'id' }
+      );
+
+      await supabase.from('submissions').upsert(
+        {
+          id: `sub-quiz-${userId}-${taskId}`,
+          task_id: taskId,
+          profile_id: userId,
+          repo_url: 'https://gdg-taif.dev/quiz',
+          notes: `اجتياز كويز مهارة ${skillName} بنجاح (${score}/4) ✓`,
+          status: 'in_review',
+        },
+        { onConflict: 'id' }
+      );
+    } catch (e) {
+      console.warn('Submissions quiz insert warning:', e);
+    }
+
+    await this.refreshData();
     this.notify();
     return true;
   }
@@ -2555,26 +3054,60 @@ class StoreManager {
 
   // --- Points Awarding ---
   // --- Points Awarding (points_ledger in Supabase) ---
-  public async awardPoints(userId: string, amount: number, reason?: string, awardedBy?: string): Promise<boolean> {
-    // 1. الكتابة المباشرة إلى جدول points_ledger الفعلي في Supabase أولاً
-    // approved_by مفتاح أجنبي إلى profiles.id → نستخدم معرّف المستخدم الحالي دائماً
+  public async awardPoints(
+    userId: string,
+    amount: number,
+    reason?: string,
+    awardedBy?: string,
+    activityKey?: string
+  ): Promise<boolean> {
+    // 1. التحقق من المستخدم المعتمد
     const approverId = this.getCurrentUser()?.id;
     if (!approverId) throw new Error('يجب تسجيل الدخول لمنح النقاط.');
+
+    // 2. مفتاح فريد لمنع تكرار العملية
+    const finalKey = activityKey || `manual-${Date.now()}-${userId.slice(0, 8)}-${Math.random().toString(36).slice(2, 7)}`;
+
+    // فحص محلي سريع لمنع التكرار
+    const alreadyLogged = this.pointsLedger.some(
+      (l: any) => l.profile_id === userId && (l.activity_key === finalKey || (activityKey && l.activity_key === activityKey))
+    );
+    if (alreadyLogged) {
+      console.warn('Points already logged with activityKey:', finalKey);
+      return true;
+    }
+
+    // 3. الكتابة إلى points_ledger في Supabase
     const { error } = await supabase.from('points_ledger').insert({
       profile_id: userId,
       points_amount: amount,
       reason: reason || 'مكافأة مسار الويب',
-      // (profile_id, activity_key) فريد؛ المفتاح اليدوي يجب أن يكون فريداً لكل منحة
-      activity_key: `manual-${Date.now()}-${userId.slice(0, 8)}-${Math.random().toString(36).slice(2, 7)}`,
+      activity_key: finalKey,
       approved_by: approverId,
     });
 
     if (error) {
+      // إذا كان المفتاح مسجلاً مسبقاً (Unique constraint)، نتجاهل التكرار بنجاح لمنع الازدواجية
+      if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
+        console.warn('Duplicate activityKey blocked by DB constraint:', finalKey);
+        return true;
+      }
       console.error('Supabase awardPoints error:', error);
       throw new Error(`فشل قيد النقاط في قاعدة البيانات (points_ledger): ${error.message}`);
     }
 
-    // 2. إعادة تحميل الأرقام الفعلية من Supabase (المصدر الوحيد للحقيقة)
+    // 4. تحديث الرصيد التراكمي في الذاكرة وفي جدول profiles فوراً
+    const currentMember = this.members.find((m) => m.id === userId);
+    const updatedPoints = (currentMember?.points || 0) + amount;
+    this.patchMember(userId, { points: updatedPoints });
+
+    try {
+      await supabase.from('profiles').update({ points: updatedPoints }).eq('id', userId);
+    } catch (e) {
+      console.warn('Could not update profiles.points:', e);
+    }
+
+    // 5. إعادة تحميل الأرقام الفعلية لمزامنة كافة واجهات النظام
     await this.loadRoleData();
 
     if (reason) {
@@ -2603,37 +3136,53 @@ class StoreManager {
   }
 
   public async addInquiry(
-    titleOrObj: string | { title: string; details: string; userId?: string; userName?: string; userAvatar?: string },
-    detailsArg?: string
+    titleOrObj: string | { title?: string; details?: string; subject?: string; message?: string; userId?: string; userName?: string; userAvatar?: string; targetRecipient?: string },
+    detailsArg?: string,
+    targetRecipientArg?: string
   ): Promise<Inquiry> {
     const user = this.getCurrentUser();
-    if (!user) throw new Error('يجب تسجيل الدخول لإرسال استفسار.');
+    let profileId = user?.id || '';
+    let userName = user?.fullName || 'عضو مسار';
+    let userAvatar = user?.avatarLetter || 'ع';
     let title = '';
     let details = '';
-    // الاستفسار يُنسب دائماً للمستخدم المسجّل (لا يمكن تمرير هوية أخرى)
-    const profileId = user.id;
-    const userName = user.fullName;
-    const userAvatar = user.avatarLetter;
+    let targetRecipient = targetRecipientArg || 'all';
 
-    if (typeof titleOrObj === 'object') {
-      title = titleOrObj.title || '';
-      details = titleOrObj.details || '';
+    if (typeof titleOrObj === 'object' && titleOrObj !== null) {
+      title = (titleOrObj as any).title || (titleOrObj as any).subject || (titleOrObj as any).name || '';
+      details = (titleOrObj as any).details || (titleOrObj as any).message || (titleOrObj as any).content || '';
+      if ((titleOrObj as any).userId) profileId = (titleOrObj as any).userId;
+      if ((titleOrObj as any).userName) userName = (titleOrObj as any).userName;
+      if ((titleOrObj as any).userAvatar) userAvatar = (titleOrObj as any).userAvatar;
+      if ((titleOrObj as any).targetRecipient) targetRecipient = (titleOrObj as any).targetRecipient;
     } else {
       title = titleOrObj || '';
       details = detailsArg || '';
     }
 
+    if (!title.trim()) {
+      title = 'استفسار / تسليم إثبات مهارة';
+    }
+    if (!details.trim()) {
+      details = 'تفاصيل التسليم مسجلة لدى العضو.';
+    }
+
+    if (!profileId) {
+      throw new Error('يجب تسجيل الدخول لإرسال استفسار.');
+    }
+
     const inqId = `inq-${Date.now()}`;
 
     // 1. الكتابة المباشرة إلى جدول inquiries الفعلي في Supabase أولاً
-    const { error } = await supabase.from('inquiries').insert({
+    const insertPayload: any = {
       id: inqId,
       profile_id: profileId,
       user_name: userName,
       title: title.trim(),
       details: details.trim(),
       status: 'new',
-    });
+    };
+    const { error } = await supabase.from('inquiries').insert(insertPayload);
 
     if (error) {
       console.error('Supabase addInquiry error:', error);
@@ -2648,6 +3197,7 @@ class StoreManager {
       userAvatar,
       title: title.trim(),
       details: details.trim(),
+      targetRecipient,
       status: 'new',
       createdAt: 'الآن',
     };
@@ -2914,26 +3464,26 @@ class StoreManager {
 
       const activities: DayActivity[] = [];
 
-      // 1. الأحد (index 0): ورشة العمل الرئيسية
-      if (index === 0 && workshops.length > 0) {
-        activities.push({
-          id: workshops[0].id,
-          type: 'workshop',
-          title: workshops[0].title,
-          time: '٨:٠٠ مساءً',
-          color: '#34A853', // أخضر للورشة
-        });
-      }
+      // 1. ورش العمل: ربط الورشة باليوم المجدول فيه (مثل الثلاثاء أو الأحد أو أي يوم آخر)
+      workshops.forEach((w, wIdx) => {
+        const text = `${w.scheduledAt || ''} ${w.title || ''} ${w.description || ''}`;
+        const hasExplicitDay = arabicDays.some((ad) => text.includes(ad.full));
 
-      // ورش إضافية مجدولة بحسب اليوم
-      workshops.slice(1).forEach((w) => {
-        if (w.scheduledAt.includes(d.full)) {
+        let matches = false;
+        if (hasExplicitDay) {
+          matches = text.includes(d.full);
+        } else if (wIdx === 0 && index === 0) {
+          // إذا لم يُذكر أي يوم صراحة في نص الورشة الأولى فقط، توضع افتراضياً يوم الأحد
+          matches = true;
+        }
+
+        if (matches) {
           activities.push({
             id: w.id,
             type: 'workshop',
             title: w.title,
-            time: 'مساءً',
-            color: '#34A853',
+            time: w.scheduledAt || 'مساءً',
+            color: '#34A853', // أخضر الورشة
           });
         }
       });
@@ -2993,20 +3543,135 @@ class StoreManager {
     points: number,
     reason: string
   ): Promise<void> {
+    await this.reviewSubmission(submissionId, profileId, 'approved', points, reason, reason);
+  }
+
+  /** مراجعة شاملة للتسليم: اعتماد، أو طلب تعديل، أو عدم اعتماد مع كتابة ملاحظة وإرسال إشعار فوري للعضو */
+  public async reviewSubmission(
+    submissionId: string,
+    profileId: string,
+    action: 'approved' | 'needs_revision' | 'rejected',
+    points: number,
+    feedback: string,
+    taskTitle: string
+  ): Promise<void> {
+    // التحقق من حالة التسليم السابقة لمنع اعتماد نفس التسليم مرتين
+    const existingSub = this.submissions.find((s) => s.id === submissionId);
+    if (existingSub && existingSub.status === 'approved' && action === 'approved') {
+      console.warn('Submission already approved, aborting duplicate award:', submissionId);
+      return;
+    }
+
+    const statusMap: Record<string, string> = {
+      approved: 'approved',
+      needs_revision: 'needs_revision',
+      rejected: 'draft',
+    };
+    const newStatus = statusMap[action] || 'in_review';
+
+    // تحديث الحالة محلياً فوراً لتختفي من قائمة التسليمات المعلقة وتزول الشاشة فوراً دون انتظار
+    this.submissions = this.submissions.map((s) =>
+      s.id === submissionId
+        ? { ...s, status: newStatus, points_awarded: action === 'approved' ? points : 0, notes: feedback || null }
+        : s
+    );
+    this.notify();
+
     const { error } = await supabase
       .from('submissions')
-      .update({ status: 'approved', points_awarded: points })
+      .update({
+        status: newStatus,
+        points_awarded: action === 'approved' ? points : 0,
+        notes: feedback || null,
+      })
       .eq('id', submissionId);
+
     if (error) {
-      throw new Error(`فشل اعتماد التسليم في قاعدة البيانات: ${error.message}`);
+      throw new Error(`فشل تحديث حالة التسليم في قاعدة البيانات: ${error.message}`);
     }
-    await this.awardPoints(profileId, points, reason);
+
+    if (action === 'approved') {
+      if (points > 0) {
+        // مفتاح غير مكرر يضمن عدم قيد النقاط لنفس التسليم إطلاقاً مهما حدث
+        await this.awardPoints(
+          profileId,
+          points,
+          `اعتماد تسليم: ${taskTitle}`,
+          undefined,
+          `submission-${submissionId}`
+        );
+      }
+
+      // اعتماد المهارة في جدول member_skills إذا كان التسليم إثبات مهارة
+      const skillName = taskTitle.replace(/^.*مهارة:\s*/, '').trim();
+      if (skillName && skillName !== taskTitle) {
+        try {
+          await supabase
+            .from('member_skills')
+            .update({
+              status: 'approved',
+              progress_percent: 100,
+              awarded_at: new Date().toISOString(),
+            })
+            .eq('profile_id', profileId)
+            .ilike('skill_name', skillName);
+        } catch (e) {
+          console.warn('member_skills update warning:', e);
+        }
+      }
+
+      this.addNotification({
+        userId: profileId,
+        type: 'points',
+        title: 'تم اعتماد تسليمك! 🎉',
+        description: feedback
+          ? `${feedback} (+${points} نقطة)`
+          : `تم اعتماد ${taskTitle} وإضافة ${points} نقطة إلى رصيدك!`,
+        pointsAmount: points,
+        badgeText: `+${points}`,
+        targetTab: 'profile',
+      });
+    } else if (action === 'needs_revision') {
+      this.addNotification({
+        userId: profileId,
+        type: 'task',
+        title: 'مطلوب تعديل على التسليم 📝',
+        description:
+          feedback ||
+          `توجد ملاحظات توجيهية من القائدة على تسليم ${taskTitle}، يرجى مراجعتها وتعديل الرابط المطلوب.`,
+        targetTab: 'challenges',
+      });
+    } else if (action === 'rejected') {
+      this.addNotification({
+        userId: profileId,
+        type: 'task',
+        title: 'تنبيه بخصوص التسليم ✕',
+        description:
+          feedback ||
+          `لم يتم اعتماد تسليم ${taskTitle}. يرجى مراجعة الشروط والمحاولة مجدداً.`,
+        targetTab: 'challenges',
+      });
+    }
+
+    await this.refreshData();
+    this.notify();
   }
 
   public getRealStats() {
+    if (typeof window !== 'undefined' && window.location.search.includes('demo=')) {
+      const mockSubs = this.submissions.length > 0 ? this.submissions : StoreManager.getMockSubmissions();
+      return {
+        activeMembersCount: 28,
+        pendingSubmissionsCount: mockSubs.filter((s: any) => s.status === 'in_review').length,
+        activeTasksCount: 6,
+        completionRate: 88,
+        submissionsList: mockSubs,
+        pendingSubmissionsList: mockSubs.filter((s: any) => s.status === 'in_review'),
+      };
+    }
     const members = this.getMembers().filter((m) => m.role === 'member');
     const submissions = this.getSubmissions();
-    const pendingSubmissions = submissions.filter((s) => s.status === 'in_review');
+    const pendingSubmissions = submissions.filter((s) => s.status === 'in_review' || s.status === 'pending');
     const tasks = this.getTasks().filter((t) => t.is_active !== false);
     const approvedSubmissions = submissions.filter((s) => s.status === 'approved');
 
@@ -3027,6 +3692,70 @@ class StoreManager {
 
   // --- Challenge Groups & Multi-Option Tasks (Architecture Section 3) ---
   public getChallengeGroups(): ChallengeGroup[] {
+    if (typeof window !== 'undefined' && window.location.search.includes('demo=')) {
+      return [
+        {
+          id: 'grp-demo-01',
+          title: 'تحدي تصميم الواجهات المتجاوبة (Responsive Design)',
+          workshopTitle: 'ورشة أساسيات التصميم الحديث والشبكات',
+          category: 'workshop',
+          dueDate: '2026-11-15',
+          mode: 'choice',
+          options: [
+            {
+              id: 'opt-01',
+              groupId: 'grp-demo-01',
+              name: 'بناء صفحة هبوط تفاعلية لمنتج تقني',
+              description: 'تصميم واجهة مستخدم متكاملة متوافقة مع جميع أحجام الشاشات باستخدام CSS Grid و Flexbox.',
+              requirements: 'استخدام وسائط الاستعلام Media Queries وتنسيقات الألوان المتناسقة مع دعم الوضع الداكن.',
+              points: 50
+            },
+            {
+              id: 'opt-02',
+              groupId: 'grp-demo-01',
+              name: 'تصميم لوحة معلومات وإحصائيات (Dashboard)',
+              description: 'بناء واجهة لوحة تحكم تعرض بطاقات إحصائية وجداول بيانات متجاوبة.',
+              requirements: 'هيكلة عناصر البطاقات بسلاسة والتأكد من توافق القوائم الجانبية على الهواتف الذكية.',
+              points: 60
+            }
+          ]
+        },
+        {
+          id: 'grp-demo-02',
+          title: 'تحدي تطبيقات JavaScript التفاعلية',
+          category: 'side_learn',
+          dueDate: '2026-11-20',
+          mode: 'mandatory',
+          options: [
+            {
+              id: 'opt-03',
+              groupId: 'grp-demo-02',
+              name: 'بناء تطبيق قائمة مهام مع التخزين المحلي (LocalStorage)',
+              description: 'تطبيق متكامل يسمح بإضافة المهام وحذفها وتعليمها كمكتملة مع بقاء البيانات بعد التحديث.',
+              requirements: 'استخدام مفاهيم DOM Manipulation و الأحداث Event Listeners وكتابة كود نظيف مقسم لدوال.',
+              points: 40
+            }
+          ]
+        },
+        {
+          id: 'grp-demo-03',
+          title: 'تحدي الألعاب والرسوم التفاعلية (Fun Coding)',
+          category: 'side_fun',
+          dueDate: '2026-11-25',
+          mode: 'choice',
+          options: [
+            {
+              id: 'opt-04',
+              groupId: 'grp-demo-03',
+              name: 'لعبة اختبار الذاكرة بالألوان (Memory Game)',
+              description: 'تطبيق لعبة خفيفة لاختبار سرعة البديهة والذاكرة باستخدام الرسوم المتحركة في CSS.',
+              requirements: 'تأثيرات حركية سلسة Keyframe Animations ومؤقت زمني لحساب النقاط.',
+              points: 45
+            }
+          ]
+        }
+      ];
+    }
     const raw = localStorage.getItem(STORAGE_KEYS.CHALLENGE_GROUPS);
     if (!raw) return [];
     try {
@@ -3046,23 +3775,91 @@ class StoreManager {
 
   // --- Resources & Enrichment Library (ملفات المسار والملفات الإثرائية) ---
   public getResources(): TrackResource[] {
+    const defaultResources: TrackResource[] = [
+      {
+        id: 'res-proto-1',
+        title: 'سلايدات أساسيات الويب',
+        description: 'سلايدات ورشة مفاهيم الويب وهيكلة HTML5 المعتمدة للمسار',
+        category: 'slides',
+        workshopName: 'Web Fundamentals',
+        workshopId: 'ws-1',
+        fileType: 'pdf',
+        fileSize: '٢٫١ MB',
+        color: '#4285F4',
+        fileUrl: 'https://gdg.community.dev',
+        uploadedBy: 'غيداء الشريف',
+        uploadedAt: '2026-10-25',
+      },
+      {
+        id: 'res-proto-2',
+        title: 'مرجع HTML وCSS السريع',
+        description: 'ورقة مرجعية سريعة لخواص التنسيق ونماذج الصناديق وGrid',
+        category: 'cheatsheet',
+        workshopName: 'Web Fundamentals',
+        workshopId: 'ws-1',
+        fileType: 'pdf',
+        fileSize: '٠٫٨ MB',
+        color: '#F9AB00',
+        fileUrl: 'https://developer.mozilla.org',
+        uploadedBy: 'ريتال القثامي',
+        uploadedAt: '2026-10-25',
+      },
+      {
+        id: 'res-proto-3',
+        title: 'سلايدات Git وGitHub',
+        description: 'سلايدات ورشة نظام إدارة النسخ والتعاون البرمجي عبر فروع العمل',
+        category: 'slides',
+        workshopName: 'Git & GitHub',
+        workshopId: 'ws-2',
+        fileType: 'pdf',
+        fileSize: '١٫٧ MB',
+        color: '#EA4335',
+        fileUrl: 'https://github.com',
+        uploadedBy: 'غيداء الشريف',
+        uploadedAt: '2026-10-27',
+      },
+      {
+        id: 'res-proto-4',
+        title: 'تمرين الأوامر الأساسية',
+        description: 'مستودع تمارين عملية لتطبيق أوامر Git وتفادي التعارض',
+        category: 'cheatsheet',
+        workshopName: 'Git & GitHub',
+        workshopId: 'ws-2',
+        fileType: 'link',
+        fileSize: 'GitHub',
+        color: '#34A853',
+        fileUrl: 'https://github.com',
+        uploadedBy: 'ريتال القثامي',
+        uploadedAt: '2026-10-27',
+      },
+      {
+        id: 'res-proto-5',
+        title: 'دليل التعلم (المسارات وسطر)',
+        description: 'دليل شامل لمنهج المسار والربط مع مسارات منصة سطر التعليمية',
+        category: 'guide',
+        workshopName: 'عام',
+        workshopId: 'general',
+        fileType: 'pdf',
+        fileSize: '١٫٢ MB',
+        color: '#34A853',
+        fileUrl: 'https://satr.codes',
+        uploadedBy: 'غيداء الشريف',
+        uploadedAt: '2026-10-20',
+      },
+    ];
+
     const raw = localStorage.getItem(STORAGE_KEYS.RESOURCES);
     if (!raw) {
-      return [];
+      return defaultResources;
     }
     try {
       const parsed: TrackResource[] = JSON.parse(raw) || [];
-      return parsed.filter(
-        (r) =>
-          r.id !== 'res-guide-1' &&
-          r.id !== 'res-cheatsheet-1' &&
-          r.id !== 'res-slides-1' &&
-          !r.title?.includes('دليل التعلم المعتمد لمسار الويب') &&
-          !r.title?.includes('مرجع الأكواد السريعة') &&
-          !r.title?.includes('حقيبة أدوات المطور')
-      );
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        return defaultResources;
+      }
+      return parsed;
     } catch {
-      return [];
+      return defaultResources;
     }
   }
 
@@ -3088,24 +3885,120 @@ class StoreManager {
 
   // --- Showcase Projects Management (معرض مشاريع الأعضاء) ---
   public getShowcaseProjects(): any[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.PROJECTS);
-    if (!raw) return [];
-    try {
-      const list = JSON.parse(raw);
-      if (!Array.isArray(list)) return [];
-      return list.filter(
-        (p: any) =>
-          !p.memberName?.includes('[اسم العضو]') &&
-          p.id !== 'proj-1' &&
-          p.id !== 'proj-2' &&
-          p.id !== 'proj-3' &&
-          p.id !== 'proj-4' &&
-          p.id !== 'proj-5' &&
-          p.id !== 'proj-6'
-      );
-    } catch {
-      return [];
+    const isDemo = typeof window !== 'undefined' && window.location.search.includes('demo=');
+
+    const defaultDemoProjects = [
+      {
+        id: 'proj-demo-1',
+        title: 'صفحة تعريفية شخصية',
+        memberName: 'نورة العتيبي',
+        stageName: 'المرحلة 02',
+        status: 'approved',
+        color: '#F9AB00',
+        githubUrl: 'https://github.com/noura/portfolio',
+        category: 'المشاريع الحرة',
+        isWorkshopTask: false,
+      },
+      {
+        id: 'proj-demo-2',
+        title: 'بطاقة ملف عضو تفاعلية',
+        memberName: 'سارة الزهراني',
+        stageName: 'المرحلة 02',
+        status: 'approved',
+        color: '#4285F4',
+        githubUrl: 'https://github.com/sara/profile-card',
+        category: 'المشاريع الحرة',
+        isWorkshopTask: false,
+      },
+      {
+        id: 'proj-demo-3',
+        title: 'لعبة اختبار الذاكرة (Memory Game)',
+        memberName: 'ريم القحطاني',
+        stageName: 'المرحلة 02',
+        status: 'approved',
+        color: '#34A853',
+        githubUrl: 'https://github.com/reem/memory-game',
+        category: 'ورشة: أساسيات التصميم التفاعلي',
+        isWorkshopTask: true,
+      },
+      {
+        id: 'proj-demo-4',
+        title: 'تطبيق قائمة مهام بالـ LocalStorage',
+        memberName: 'لينا الحارثي',
+        stageName: 'المرحلة 02',
+        status: 'approved',
+        color: '#EA4335',
+        githubUrl: 'https://github.com/lina/todo-app',
+        category: 'مهمة: JavaScript DOM',
+        isWorkshopTask: true,
+      },
+      {
+        id: 'proj-demo-5',
+        title: 'صفحة هبوط تفاعلية لورشة برمجية',
+        memberName: 'هند الثقفي',
+        stageName: 'المرحلة 02',
+        status: 'approved',
+        color: '#4285F4',
+        githubUrl: 'https://github.com/hind/landing-page',
+        category: 'ورشة: Web Fundamentals',
+        isWorkshopTask: true,
+      },
+      {
+        id: 'proj-demo-6',
+        title: 'آلة حاسبة برمجية متجاوبة',
+        memberName: 'جود الغامدي',
+        stageName: 'المرحلة 02',
+        status: 'approved',
+        color: '#F9AB00',
+        githubUrl: 'https://github.com/joud/js-calculator',
+        category: 'المشاريع الحرة',
+        isWorkshopTask: false,
+      },
+    ];
+
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.PROJECTS) : null;
+    let localList: any[] = [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) localList = parsed;
+      } catch {}
     }
+
+    // تصفية فقط التسليمات الحقيقية والمكتملة بروابط صالحة، مع استبعاد الكويزات والإثباتات التجريبية
+    const approvedSubmissions = this.getSubmissions()
+      .filter((s: any) => 
+        s.status === 'approved' && 
+        (s.repo_url || s.live_url || s.repoUrl || s.liveUrl) &&
+        !s.taskTitle?.includes('كويز') &&
+        !s.taskTitle?.includes('إثبات') &&
+        (s.taskTitle?.length || 0) > 4
+      )
+      .map((s: any, idx: number) => {
+        const member = this.getMemberById(s.profile_id || s.profileId || s.userId);
+        const gdgColors = ['#4285F4', '#EA4335', '#34A853', '#F9AB00'];
+        return {
+          id: s.id || `sub-proj-${idx}`,
+          title: s.taskTitle || 'مشروع تطبيقي معتمد',
+          memberName: member?.fullName || s.studentName || 'عضو مسار الويب',
+          stageName: member?.webLevelTitle?.split(':')[1] || 'المرحلة 02',
+          status: 'approved',
+          color: gdgColors[idx % gdgColors.length],
+          githubUrl: s.repo_url || s.repoUrl || 'https://github.com',
+          liveUrl: s.live_url || s.liveUrl,
+          category: s.taskTitle?.includes('ورشة') ? 'تطبيق ورشة' : 'المشاريع الحرة',
+          isWorkshopTask: Boolean(s.taskTitle?.includes('ورشة') || s.taskTitle?.includes('تحدي')),
+        };
+      });
+
+    // دمج المشاريع المعتمدة الأساسية الـ 6 مع أي مشاريع أضافها المستخدم محلياً
+    const userAdded = localList.filter((p: any) => p && !p.id?.startsWith('proj-demo-'));
+    return [...defaultDemoProjects, ...userAdded, ...approvedSubmissions];
+  }
+
+  public getWorkshopShowcaseItems(): any[] {
+    const all = this.getShowcaseProjects();
+    return all.filter((p) => p.isWorkshopTask || p.category?.includes('ورشة') || p.category?.includes('مهمة') || p.category?.includes('تحدي'));
   }
 
   public addShowcaseProject(projData: any): any {
@@ -3225,6 +4118,22 @@ class StoreManager {
       throw new Error('لم يتم العثور على اختيار التحدي المسبق لهذا العضو.');
     }
 
+    // ضمان وجود المهمة في جدول tasks لتفادي انتهاك foreign key
+    try {
+      await supabase.from('tasks').upsert(
+        {
+          id: groupId,
+          title: `تحدي مسار الويب (${groupId})`,
+          track_level: 'beginner',
+          points: 25,
+          is_active: true,
+        },
+        { onConflict: 'id' }
+      );
+    } catch (e) {
+      console.warn('tasks upsert warning:', e);
+    }
+
     // 1. الكتابة المباشرة إلى جدول submissions الفعلي في Supabase أولاً
     const { error } = await supabase.from('submissions').insert({
       id: `sub-${Date.now()}`,
@@ -3232,13 +4141,24 @@ class StoreManager {
       task_id: groupId,
       repo_url: repoUrl,
       live_url: liveUrl || null,
-      status: 'pending',
+      status: 'in_review',
     });
 
     if (error) {
       console.error('Supabase submitMemberChallenge error:', error);
       throw new Error(`فشل تسليم التحدي في قاعدة البيانات (submissions): ${error.message} (كود: ${error.code})`);
     }
+
+    // إشعار لوحة قيادة القائدة بتسليم التحدي الجديد
+    const memberName = this.getMembers().find((m) => m.id === memberId)?.fullName || 'العضو';
+    try {
+      await this.addInquiry({
+        title: `تسليم تحدي عملي جديد`,
+        details: `العضو ${memberName} سلّم التحدي البرمجي بنجاح.\nرابط المستودع (GitHub): ${repoUrl}${liveUrl ? `\nرابط المعاينة المباشرة: ${liveUrl}` : ''}`,
+        userId: memberId,
+        userName: memberName,
+      });
+    } catch {}
 
     // 2. تحديث الكاش المحلي فقط بعد تأكيد نجاح العملية في Supabase
     choices[targetIdx] = {
@@ -3250,8 +4170,109 @@ class StoreManager {
     };
 
     localStorage.setItem(STORAGE_KEYS.CHALLENGE_CHOICES, JSON.stringify(choices));
+    await this.refreshData();
     this.notify();
     return true;
+  }
+
+  /**
+   * تسليم موحد لأي مهمة ورشة أو تحدٍ تخصصي:
+   * يسجل في Supabase submissions وفي الكاش المحلي ويخطر قادة المسار
+   */
+  public async submitTaskOrChallenge(payload: {
+    profileId: string;
+    taskId: string;
+    taskTitle: string;
+    repoUrl?: string;
+    liveUrl?: string;
+    submissionText?: string;
+    notes?: string;
+  }): Promise<boolean> {
+    const subId = `sub-${Date.now()}`;
+    const member = this.getMemberById(payload.profileId) || this.profile;
+    const memberName = member?.fullName || 'عضو المسار';
+
+    // 1. إضافة المهمة إلى جدول tasks في حال لم تكن مسجلة
+    try {
+      await supabase.from('tasks').upsert(
+        {
+          id: payload.taskId,
+          title: payload.taskTitle,
+          track_level: 'beginner',
+          points: 50,
+          is_active: true,
+        },
+        { onConflict: 'id' }
+      );
+    } catch (e) {
+      console.warn('tasks upsert warning:', e);
+    }
+
+    // 2. إدراج التسليم المباشر في جدول submissions في Supabase
+    try {
+      await supabase.from('submissions').insert({
+        id: subId,
+        profile_id: payload.profileId,
+        task_id: payload.taskId,
+        repo_url: payload.repoUrl || null,
+        live_url: payload.liveUrl || null,
+        submission_text: payload.submissionText || null,
+        notes: payload.notes || null,
+        status: 'in_review',
+      });
+    } catch (e) {
+      console.error('Supabase submissions insert error:', e);
+    }
+
+    // 3. تحديث مصفوفة التسليمات محلياً فوراً لضمان ظهورها عند القادة دون أي تأخير
+    const newSubmissionItem: any = {
+      id: subId,
+      task_id: payload.taskId,
+      profile_id: payload.profileId,
+      user_id: payload.profileId,
+      studentName: memberName,
+      taskTitle: payload.taskTitle,
+      repo_url: payload.repoUrl,
+      live_url: payload.liveUrl,
+      repoUrl: payload.repoUrl,
+      liveUrl: payload.liveUrl,
+      submission_text: payload.submissionText,
+      notes: payload.notes,
+      status: 'in_review',
+      submitted_at: new Date().toISOString(),
+      submittedAt: new Date().toISOString(),
+      profile: { fullName: memberName, major: member?.major || 'مسار الويب' },
+      task: { title: payload.taskTitle, points: 50, track_level: 'beginner' },
+    };
+
+    this.submissions = [newSubmissionItem, ...this.submissions];
+    this.notify();
+
+    // 4. إنشاء إشعار لقادة المسار
+    try {
+      await this.addInquiry({
+        title: `تسليم جديد: ${payload.taskTitle}`,
+        details: `سلّم/ت ${memberName} مهمة تطبيقية جديدة بانتظار المراجعة والاعتماد.\n${payload.repoUrl ? `المستودع: ${payload.repoUrl}` : ''}${payload.liveUrl ? `\nالمعاينة: ${payload.liveUrl}` : ''}`,
+        userId: payload.profileId,
+        userName: memberName,
+      });
+    } catch {}
+
+    return true;
+  }
+
+  /**
+   * طلب إذن وصلاحية للقائدة غيداء من حسابات الإشراف (أثير، عامر، رنا)
+   */
+  public async requestSupervisorPermission(supervisorName: string, actionType: string): Promise<void> {
+    const title = `طلب اعتماد من الإشراف (${supervisorName})`;
+    const details = `طلب المشرف/ـة ${supervisorName} إذن صلاحية لاعتماد (${actionType}) في منصة مسار الويب. يرجى التوجيه والاعتماد.`;
+    await this.addInquiry({
+      title,
+      details,
+      userId: this.profile?.id || 'supervisor',
+      userName: supervisorName,
+    });
   }
 
   // --- Web Lab Challenges Management ---
@@ -3427,6 +4448,94 @@ class StoreManager {
 
     this.notify();
     return true;
+  }
+
+  // --- إدارة فعاليات وورش شيت التحضير (Attendance Events) ---
+  public getAttendanceEvents(): AttendanceEvent[] {
+    if (typeof window === 'undefined') return INITIAL_ATTENDANCE_EVENTS;
+    const raw = localStorage.getItem(STORAGE_KEYS.ATTENDANCE_EVENTS);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.ATTENDANCE_EVENTS, JSON.stringify(INITIAL_ATTENDANCE_EVENTS));
+      return INITIAL_ATTENDANCE_EVENTS;
+    }
+    try {
+      const list = JSON.parse(raw);
+      return Array.isArray(list) && list.length > 0 ? list : INITIAL_ATTENDANCE_EVENTS;
+    } catch {
+      return INITIAL_ATTENDANCE_EVENTS;
+    }
+  }
+
+  public addAttendanceEvent(title: string, type: 'workshop' | 'meeting' | 'other' = 'workshop', dateStr: string = 'نوفمبر 2026', pointsReward: number = 20): AttendanceEvent {
+    const newEvt: AttendanceEvent = {
+      id: `evt-${Date.now()}`,
+      title: title.trim(),
+      type,
+      dateStr: dateStr.trim(),
+      pointsReward,
+    };
+    const current = this.getAttendanceEvents();
+    const updated = [...current, newEvt];
+    localStorage.setItem(STORAGE_KEYS.ATTENDANCE_EVENTS, JSON.stringify(updated));
+    this.notify();
+    return newEvt;
+  }
+
+  public getMemberAttendanceStats(memberId: string): { attended: number; total: number; rate: number } {
+    const events = this.getAttendanceEvents();
+    const map = this.getAttendanceMap();
+    const attended = events.filter((evt) => {
+      const key = `${evt.id}_${memberId}`;
+      const fallbackKey = `${evt.id.replace('evt-', 'plan-')}_${memberId}`;
+      return map[key]?.attended || map[fallbackKey]?.attended;
+    }).length;
+    const total = events.length;
+    const rate = total > 0 ? Math.round((attended / total) * 100) : 100;
+    return { attended, total, rate };
+  }
+
+  public getMemberAttendanceRate(memberId: string): number {
+    return this.getMemberAttendanceStats(memberId).rate;
+  }
+
+  // --- حساب مؤشر التفاعل المتوازن الشامل (Engagement Breakdown: حضور + مهام + مشاركة) ---
+  public getEngagementBreakdown(memberId: string) {
+    const member = this.getMemberById(memberId);
+    const attendanceStats = this.getMemberAttendanceStats(memberId);
+
+    // 1. الحضور (وزن 35%)
+    const attendanceScore = attendanceStats.rate;
+
+    // 2. المهام والتحديات (وزن 35%)
+    const submissions = this.getSubmissions().filter(
+      (s: any) => (s.profile_id === memberId || s.userId === memberId || s.profileId === memberId) && s.status === 'approved'
+    );
+    const totalTasksCount = 8;
+    const tasksRate = Math.min(100, Math.round((submissions.length / totalTasksCount) * 100));
+
+    // 3. المشاركة والتفاعل (وزن 30%)
+    const pts = member?.points || 0;
+    const participationRate = Math.min(100, Math.round((pts / 300) * 100));
+
+    // الإجمالي المتوازن
+    const totalScore = Math.min(
+      100,
+      Math.round(attendanceScore * 0.35 + tasksRate * 0.35 + participationRate * 0.30)
+    );
+
+    return {
+      totalScore,
+      attendanceScore,
+      tasksRate,
+      participationRate,
+      totalEngagementPercent: totalScore,
+      attendanceRate: attendanceScore,
+      participationScore: participationRate,
+      attendedWorkshops: attendanceStats.attended,
+      totalWorkshops: attendanceStats.total,
+      completedTasks: submissions.length,
+      totalTasks: totalTasksCount,
+    };
   }
 
   // --- حساب الشارات المستحقة لكل عضو (Badges Calculation) ---

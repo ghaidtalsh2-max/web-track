@@ -3,7 +3,7 @@
 // Model & Types Definitions — Phase 1 & Foundation
 // =============================================================================
 
-export type UserRole = 'track_leader' | 'supervisor' | 'member';
+export type UserRole = 'track_leader' | 'co_leader' | 'supervisor' | 'member';
 
 export type WebLevel = 'beginner' | 'intermediate' | 'advanced' | 'track_leader';
 
@@ -140,6 +140,9 @@ export interface TrackResource {
   fileUrl: string;
   fileType: 'pdf' | 'zip' | 'code' | 'doc' | 'link';
   fileSize?: string;
+  workshopName?: string;
+  workshopId?: string;
+  color?: string;
   uploadedBy: string;
   uploadedAt: string;
 }
@@ -286,11 +289,20 @@ export interface Inquiry {
   userAvatar: string;
   title: string;
   details: string;
+  targetRecipient?: string;
   status: InquiryStatus;
   responseText?: string;
   respondedBy?: string;
   respondedAt?: string;
   createdAt: string;
+}
+
+export interface AttendanceEvent {
+  id: string;
+  title: string;
+  type: 'workshop' | 'meeting' | 'other';
+  dateStr: string;
+  pointsReward: number;
 }
 
 export interface PollOption {
@@ -401,6 +413,38 @@ export interface LabChallenge {
   solutionCss?: string;
   solutionJs?: string;
   badgeColor?: string;
+}
+
+export interface EvaluationRecommendation {
+  id: string;
+  text: string;
+  priority: 'high' | 'medium' | 'low';
+  followupDate: string;
+  status: 'in_progress' | 'completed';
+}
+
+export interface EvaluationAuditEntry {
+  id: string;
+  action: string;
+  performedBy: string;
+  timestamp: string;
+  details?: string;
+}
+
+export interface LeadershipEvaluation {
+  id: string;
+  leaderId: string; // 'ghaidaa' | 'retal'
+  leaderName: string;
+  period: 'q1' | 'q2';
+  status: 'draft' | 'approved';
+  scores: Record<string, number | null>; // null if not rated yet
+  strengths: string;
+  improvements: string;
+  evidence: string;
+  recommendations: EvaluationRecommendation[];
+  approvedBy?: string;
+  approvedAt?: string;
+  auditLog: EvaluationAuditEntry[];
 }
 
 

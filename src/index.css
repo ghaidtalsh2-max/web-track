@@ -62,7 +62,7 @@
   --font-latin: 'Arimo', sans-serif;
   --base-font-size: 17px;
 
-  --bg-canvas: #F8F9FB;
+  --bg-canvas: #F7F7F4;
   --bg-card: #FFFFFF;
   --bg-subtle: #F1F3F5;
   --bg-input: #FFFFFF;
@@ -80,6 +80,157 @@
   --radius-2xl: 24px;
   --radius-3xl: 28px;
   --radius-full: 9999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ================= Prototype Exact Classes ================= */
+.k {
+  border: 2px solid #0F172A !important;
+  border-radius: 28px !important;
+  padding: 28px;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  transition: transform 0.25s ease;
+}
+.k:hover {
+  transform: translateY(-4px);
+}
+.k-no-pad {
+  border: 2px solid #0F172A !important;
+  border-radius: 28px !important;
+  padding: 0 !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+.b-proto {
+  border: 0 !important;
+  border-radius: 99px !important;
+  padding: 12px 30px !important;
+  font-family: inherit !important;
+  font-weight: 700 !important;
+  font-size: 18px !important;
+  min-height: 48px !important;
+  cursor: pointer !important;
+  color: #0F172A !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  transition: all 0.2s ease !important;
+}
+.b-proto:hover {
+  filter: brightness(0.95);
+  transform: scale(0.99);
+}
+.b-proto.y { background: #F9AB00 !important; color: #0F172A !important; }
+.b-proto.bl { background: #4285F4 !important; color: #ffffff !important; }
+.b-proto.r { background: #EA4335 !important; color: #ffffff !important; }
+.b-proto.gr { background: #34A853 !important; color: #ffffff !important; }
+.b-proto.gray { background: #F1F3F4 !important; color: #0F172A !important; }
+
+.t-proto {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  border-radius: 99px !important;
+  padding: 4px 14px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  background: #F1F3F4 !important;
+  color: #0F172A !important;
+}
+
+@keyframes waveFluidRoll {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes waveFluidRollReverse {
+  0% {
+    transform: translate3d(-50%, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animated-waves-layer1 {
+  animation: waveFluidRoll 12s linear infinite;
+  will-change: transform;
+}
+
+.animated-waves-layer2 {
+  animation: waveFluidRollReverse 18s linear infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated-waves-layer1, .animated-waves-layer2 {
+    animation: none !important;
+  }
+}
+
+.tabs-proto {
+  display: inline-flex !important;
+  gap: 4px !important;
+  background: #F1F3F4 !important;
+  border-radius: 99px !important;
+  padding: 5px !important;
+}
+.tabs-proto a, .tabs-proto button {
+  padding: 10px 22px !important;
+  border-radius: 99px !important;
+  font-weight: 600 !important;
+  font-size: 17px !important;
+  color: #3C4043 !important;
+  cursor: pointer !important;
+  border: none !important;
+  background: transparent !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  transition: all 0.2s ease !important;
+}
+.tabs-proto a:hover, .tabs-proto button:hover {
+  background: #E8EAED !important;
+}
+.tabs-proto a.on, .tabs-proto button.on {
+  background: #0F172A !important;
+  color: #ffffff !important;
+}
+.tabs-proto a.on::before, .tabs-proto button.on::before {
+  content: '' !important;
+  display: inline-block !important;
+  width: 9px !important;
+  height: 9px !important;
+  border-radius: 50% !important;
+  background: #F9AB00 !important;
+  margin-inline-end: 4px !important;
+}
+
+.bar-proto {
+  height: 16px !important;
+  background: #E8EAED !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+.bar-proto i {
+  display: block !important;
+  height: 16px !important;
+  border-radius: 8px !important;
 }
 
 /* نمط راحة العين */
@@ -297,8 +448,37 @@ body {
 .week-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: 6px;
   text-align: center;
+}
+
+.week-day-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  min-height: 58px;
+  border-radius: 18px;
+  padding: 6px 2px;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.week-day-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(0.96);
+}
+
+.week-day-btn:active {
+  transform: scale(0.93);
 }
 
 .progress-card {

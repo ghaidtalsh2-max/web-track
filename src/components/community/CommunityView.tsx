@@ -22,6 +22,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({ currentUser }) => 
 
   // نموذج استفسار أو اقتراح ورشة (الصندوق الأيسر)
   const [inquiryType, setInquiryType] = useState<'inquiry' | 'suggestion'>('inquiry');
+  const [targetRecipient, setTargetRecipient] = useState('all');
   const [inquiryText, setInquiryText] = useState('');
   const [inquirySuccessMsg, setInquirySuccessMsg] = useState('');
   const [isSendingInquiry, setIsSendingInquiry] = useState(false);
@@ -60,18 +61,24 @@ export const CommunityView: React.FC<CommunityViewProps> = ({ currentUser }) => 
     if (!inquiryText.trim()) return;
 
     setIsSendingInquiry(true);
+    const label = targetRecipient === 'all' ? 'عام للجميع' : `موجه إلى: ${targetRecipient}`;
     store.addInquiry({
       userId: currentUser.id,
       userName: currentUser.fullName,
       userAvatar: currentUser.avatarLetter,
-      title: inquiryType === 'inquiry' ? 'استفسار من العضو' : 'اقتراح ورشة عمل جديدة',
+      title: `${inquiryType === 'inquiry' ? 'استفسار من العضو' : 'اقتراح ورشة عمل جديدة'} [${label}]`,
       details: inquiryText.trim(),
+      targetRecipient,
     });
 
     setTimeout(() => {
       setIsSendingInquiry(false);
       setInquiryText('');
-      setInquirySuccessMsg('وصلت رسالتك للقائدتين وستصلك الملاحظة قريباً ✓');
+      setInquirySuccessMsg(
+        targetRecipient === 'all'
+          ? 'وصلت رسالتك لجميع القادة والمشرفين بنجاح ✓'
+          : `وصلت رسالتك إلى ${targetRecipient} بنجاح ✓`
+      );
     }, 450);
   };
 
@@ -270,14 +277,38 @@ export const CommunityView: React.FC<CommunityViewProps> = ({ currentUser }) => 
               </label>
             </div>
 
-            {/* مساحة الكتابة الحرة المطابقة لصفحة 4 */}
-            <form onSubmit={handleSendInquiry} className="flex flex-col gap-4">
+            {/* مساحة الكتابة وتحديد المستلم */}
+            <form onSubmit={handleSendInquiry} className="flex flex-col gap-3">
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">
+                  توجيه إلى:
+                </label>
+                <select
+                  value={targetRecipient}
+                  onChange={(e) => setTargetRecipient(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-gray-300 text-xs font-bold bg-gray-50 text-gray-900 focus:outline-none"
+                >
+                  <option value="all">عام للجميع (يصل لجميع القادة والمشرفين) 📢</option>
+                  <option value="غيداء">غيداء (قائدة المسار)</option>
+                  <option value="ريتال">ريتال (قائدة المسار)</option>
+                  <option value="سلمان">سلمان (مشرف المسار)</option>
+                  <option value="أثير">أثير (مشرفة)</option>
+                  <option value="عامر">عامر (مشرف)</option>
+                  <option value="رنا">رنا (مشرفة)</option>
+                </select>
+                <span className="text-[11px] text-gray-500 mt-1 block">
+                  {targetRecipient === 'all'
+                    ? '• يصل إلى طاقم القيادة والإشراف معاً'
+                    : `• موجه ومحصور فقط لـ ${targetRecipient}`}
+                </span>
+              </div>
+
               <textarea
-                rows={5}
+                rows={4}
                 value={inquiryText}
                 onChange={(e) => setInquiryText(e.target.value)}
-                placeholder="اكتب هنا..."
-                className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 text-sm focus:outline-none focus:border-yellow-500 resize-none font-medium"
+                placeholder="اكتب استفسارك أو اقتراحك هنا..."
+                className="w-full p-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 text-sm focus:outline-none focus:border-yellow-500 resize-none font-medium"
                 required
               />
 

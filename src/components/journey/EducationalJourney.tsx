@@ -4,6 +4,7 @@ import { UserProfile, Course } from '../../types';
 import { store } from '../../services/store';
 import confetti from 'canvas-confetti';
 import { Check, ExternalLink, X, ArrowUpRight, Sparkles, Layers } from 'lucide-react';
+import { isFemaleUser, gText, genderVocab } from '../../utils/gender';
 
 interface EducationalJourneyProps {
   currentUser: UserProfile;
@@ -208,12 +209,14 @@ export const EducationalJourney: React.FC<EducationalJourneyProps> = ({ currentU
       {/* 1. العنوان الرئيسي للصفحة مطابق لصفحة 7 */}
       <motion.div variants={itemVariants} className="mb-6 text-right">
         <h1 className="text-3xl sm:text-5xl font-black text-gray-900 leading-tight">
-          رحلتك التعليمية
+          {gText(isFemaleUser(currentUser), 'رحلتكِ التعليمية 🚀', 'رحلتكَ التعليمية 🚀')}
         </h1>
         <p className="text-sm sm:text-base text-gray-600 font-medium mt-1">
-          مسارات ودورات معتمدة متكاملة لصقل مهاراتك من الأساسيات حتى احتراف الويب.
+          مسارات ودورات معتمدة متكاملة لصقل {gText(isFemaleUser(currentUser), 'مهاراتكِ', 'مهاراتكَ')} من الأساسيات حتى احتراف الويب.
         </p>
       </motion.div>
+
+
 
       {/* 2. تايم لاين المراحل الثلاثة المطابق لصفحة 7 بالمرجع */}
       <motion.section variants={itemVariants} className="journey-timeline" dir="rtl">
