@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ExternalLink, Plus, X, Laptop, Rocket, Zap, Sparkles, FolderCode } from 'lucide-react';
+import { ExternalLink, Plus, X, FolderCode } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { store } from '../../services/store';
-import { isFemaleUser, gText } from '../../utils/gender';
 import confetti from 'canvas-confetti';
 
 interface ShowcaseViewProps {
@@ -24,26 +23,57 @@ interface ShowcaseCardItem {
   isWorkshopTask?: boolean;
 }
 
-const GDG_COLORS = ['#4285F4', '#EA4335', '#34A853', '#F9AB00'];
+const GDG_COLORS = ['#34A853', '#4285F4', '#F9AB00', '#EA4335'];
+
+// زهرة قوقل الهندسية المعتمدة في التصميم الأصلي
+const GooglePinwheelIcon: React.FC<{ size?: number }> = ({ size = 90 }) => (
+  <svg
+    viewBox="-50 -50 100 100"
+    aria-hidden="true"
+    style={{
+      position: 'absolute',
+      width: `${size}px`,
+      height: `${size}px`,
+      left: '20px',
+      top: '20px',
+      opacity: 0.95,
+    }}
+  >
+    <g fill="#ffffff">
+      <path d="M0 0L0 -46A46 46 0 0 1 46 0Q20 -26 0 0Z" />
+      <path transform="rotate(90)" d="M0 0L0 -46A46 46 0 0 1 46 0Q20 -26 0 0Z" />
+      <path transform="rotate(180)" d="M0 0L0 -46A46 46 0 0 1 46 0Q20 -26 0 0Z" />
+      <path transform="rotate(270)" d="M0 0L0 -46A46 46 0 0 1 46 0Q20 -26 0 0Z" />
+    </g>
+  </svg>
+);
 
 export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
-  const isFemale = isFemaleUser(currentUser);
+  // صلاحية الإضافة مخصصة حصرياً للقادة والمشرفين
+  const isLeader =
+    currentUser.role === 'track_leader' ||
+    currentUser.role === 'co_leader' ||
+    currentUser.role === 'supervisor';
+
   const [projects, setProjects] = useState<ShowcaseCardItem[]>(() => store.getShowcaseProjects());
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'in_review'>('all');
 
-  // نافذة إضافة مشروع جديد
+  // نافذة الإضافة الخاصة بالقادة
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [projTitle, setProjTitle] = useState('');
+  const [developerName, setDeveloperName] = useState('');
   const [projGithub, setProjGithub] = useState('');
   const [projLive, setProjLive] = useState('');
   const [projCategory, setProjCategory] = useState<'workshop' | 'free'>('workshop');
   const [workshopName, setWorkshopName] = useState('ورشة 01: بناء الهيكل بالـ HTML');
   const [customTaskName, setCustomTaskName] = useState('');
-  const [projStage, setProjStage] = useState('المرحلة 02');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
+  const trackMembers = store.getMembers().filter((m) => m.role === 'member');
+
   const openAddModal = (category: 'workshop' | 'free') => {
+    if (!isLeader) return;
     setProjCategory(category);
     setIsAddModalOpen(true);
   };
@@ -63,9 +93,9 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
     const newProject: ShowcaseCardItem = {
       id: `proj-${Date.now()}`,
       title: projTitle.trim(),
-      memberName: currentUser.fullName,
-      stageName: projStage,
-      status: currentUser.role === 'track_leader' || currentUser.role === 'co_leader' ? 'approved' : 'in_review',
+      memberName: developerName.trim() || 'مطور في مسار الويب',
+      stageName: 'المرحلة 02',
+      status: 'approved',
       color,
       githubUrl: projGithub.trim(),
       liveUrl: projLive.trim() || undefined,
@@ -85,19 +115,20 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
       });
     }
 
-    setSuccessMsg(gText(isFemale, 'تمت إضافة عملكِ بنجاح إلى المعرض! ✨', 'تمت إضافة عملكَ بنجاح إلى المعرض! ✨'));
+    setSuccessMsg('تم نشر المشروع بنجاح في المعرض! ✨');
     setTimeout(() => {
       setIsSubmitting(false);
       setIsAddModalOpen(false);
       setSuccessMsg('');
       setProjTitle('');
+      setDeveloperName('');
       setProjGithub('');
       setProjLive('');
       setCustomTaskName('');
-    }, 1200);
+    }, 1100);
   };
 
-  // تقسيم المشاريع إلى: أعمال الورش والتاسكات، والمعرض العام
+  // تقسيم المشاريع
   const workshopProjects = projects.filter(
     (p) => p.isWorkshopTask || p.category?.includes('ورشة') || p.category?.includes('تاسك')
   );
@@ -107,9 +138,17 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
     return matchesStatus;
   });
 
+  // بطاقات الحجز الافتراضية بنفس الأيقونات والألوان الأربعة الأصلية (بدون أسماء وبدون تحديد مهام)
+  const placeholderCards = [
+    { color: '#34A853' },
+    { color: '#4285F4' },
+    { color: '#F9AB00' },
+    { color: '#EA4335' },
+  ];
+
   return (
     <div className="container py-8 sm:py-10 text-right" dir="rtl" style={{ maxWidth: '1440px' }}>
-      {/* 1. السطر العلوي: علامة مسار الويب ونقاط قوقل + زر الإضافة الرئيسي */}
+      {/* 1. السطر العلوي: علامة مسار الويب وزر القادة (يظهر فقط للقادة) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }} className="flex-wrap gap-4">
         <b style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: '#0F172A' }}>
           <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', background: '#4285F4' }} />
@@ -119,7 +158,8 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
           <span>مسار الويب</span>
         </b>
 
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        {/* زر الإضافة خاص بالقادة فقط */}
+        {isLeader && (
           <button
             type="button"
             onClick={() => openAddModal('workshop')}
@@ -127,14 +167,14 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
             style={{ padding: '8px 24px', minHeight: '44px', fontSize: '16px' }}
           >
             <Plus size={16} />
-            <span>{gText(isFemale, '+ أضيفي عملكِ للمعرض', '+ أضف عملكَ للمعرض')}</span>
+            <span>+ إضافة عمل للمعرض</span>
           </button>
-        </div>
+        )}
       </div>
 
-      {/* 2. عنوان المعرض الرئيسي والنبذة */}
+      {/* 2. عنوان المعرض الرئيسي */}
       <div style={{ marginBottom: '36px' }}>
-        <h1 style={{ fontSize: '48px', sm: '56px', lineHeight: 1.15, fontWeight: 800, color: '#0F172A', margin: '0 0 10px' }}>
+        <h1 style={{ fontSize: '48px', lineHeight: 1.15, fontWeight: 800, color: '#0F172A', margin: '0 0 10px' }}>
           معرض أعمال ومشاريع المسار 🚀
         </h1>
         <p style={{ fontSize: '18px', color: '#5f6673', margin: 0, fontWeight: 500 }}>
@@ -142,42 +182,39 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
         </p>
       </div>
 
-      {/* ================= القسم الأول: تطبيقات الورش والتاسكات (سحب أفقي ↔) ================= */}
+      {/* ================= القسم الأول: تطبيقات الورش والتاسكات (شريط أفقي) ================= */}
       <section style={{ marginBottom: '56px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
-                تطبيقات الورش والتاسكات البرمجية 💻
-              </h2>
-              <span className="t-proto" style={{ background: '#E8F0FE', color: '#1A73E8', fontWeight: 700 }}>
-                سحب أفقي ↔
-              </span>
-            </div>
+            <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+              تطبيقات الورش والتاسكات البرمجية 💻
+            </h2>
             <p style={{ fontSize: '15px', color: '#5f6673', margin: '4px 0 0' }}>
               أعمال وتطبيقات المطورين المعتمدة لكل ورشة وتاسك عملي يقرره القادة.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => openAddModal('workshop')}
-            className="b-proto"
-            style={{
-              padding: '6px 18px',
-              fontSize: '14px',
-              minHeight: '38px',
-              background: '#ffffff',
-              border: '2px solid #0F172A',
-              color: '#0F172A',
-            }}
-          >
-            <Plus size={15} />
-            <span>+ إضافة عمل لورشة / تاسك</span>
-          </button>
+          {isLeader && (
+            <button
+              type="button"
+              onClick={() => openAddModal('workshop')}
+              className="b-proto"
+              style={{
+                padding: '6px 18px',
+                fontSize: '14px',
+                minHeight: '38px',
+                background: '#ffffff',
+                border: '2px solid #0F172A',
+                color: '#0F172A',
+              }}
+            >
+              <Plus size={15} />
+              <span>+ إضافة عمل لورشة / تاسك</span>
+            </button>
+          )}
         </div>
 
-        {/* الحاوية الأفقية للسحب (Horizontal Scroll Track) */}
+        {/* شريط السحب الأفقي الحقيقي */}
         <div
           style={{
             display: 'flex',
@@ -202,7 +239,7 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                     maxWidth: '360px',
                     padding: 0,
                     overflow: 'hidden',
-                    borderRadius: '26px',
+                    borderRadius: '28px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
@@ -210,36 +247,17 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                     background: '#fff',
                   }}
                 >
-                  {/* الغلاف العلوي الملون 120px مع زهرة قوقل */}
                   <div
                     style={{
-                      height: '120px',
+                      height: '130px',
                       backgroundColor: bannerBg,
                       position: 'relative',
                       overflow: 'hidden',
                     }}
                   >
-                    <svg
-                      viewBox="-50 -50 100 100"
-                      aria-hidden="true"
-                      style={{
-                        position: 'absolute',
-                        width: '80px',
-                        height: '80px',
-                        left: '16px',
-                        top: '16px',
-                        opacity: 0.95,
-                      }}
-                    >
-                      <g fill="#ffffff">
-                        <path d="M0 0L0 -46A46 46 0 0 1 46 0Q20 -26 0 0Z" />
-                        <path transform="rotate(90)" d="M0 0L0 -46A46 46 0 0 1 46 0Q20 -26 0 0Z" />
-                        <path transform="rotate(180)" d="M0 0L0 -46A46 46 0 0 1 46 0Q20 -26 0 0Z" />
-                        <path transform="rotate(270)" d="M0 0L0 -46A46 46 0 0 1 46 0Q20 -26 0 0Z" />
-                      </g>
-                    </svg>
+                    <GooglePinwheelIcon size={90} />
 
-                    <div style={{ position: 'absolute', top: '12px', right: '12px' }}>
+                    <div style={{ position: 'absolute', top: '14px', right: '14px' }}>
                       <span
                         style={{
                           padding: '4px 12px',
@@ -256,13 +274,12 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                     </div>
                   </div>
 
-                  {/* تفاصيل المشروع */}
-                  <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
+                  <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
                     <div>
                       <b style={{ fontSize: '20px', color: '#0F172A', display: 'block', lineHeight: 1.3, marginBottom: '6px' }}>
                         {p.title}
                       </b>
-                      <p style={{ margin: '0 0 14px', fontSize: '14px', color: '#5f6673', fontWeight: 600 }}>
+                      <p style={{ margin: '0 0 16px', fontSize: '15px', color: '#5f6673', fontWeight: 600 }}>
                         {p.memberName} · {p.stageName || 'المرحلة 02'}
                       </p>
                     </div>
@@ -276,7 +293,7 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                         style={{
                           background: '#E8EAED',
                           color: '#0F172A',
-                          padding: '6px 18px',
+                          padding: '6px 20px',
                           fontSize: '14px',
                           minHeight: '38px',
                           textDecoration: 'none',
@@ -311,128 +328,63 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
               );
             })
           ) : (
-            /* الخانات الشاغرة بأيقونات فقط بانتظار تسليمات المطورين والورش */
-            <>
-              {/* خانة 1: بانتظار تطبيق الورشة الأولى */}
+            /* بطاقات الأيقونات الأصلية السابقة (زهرة قوقل الهندسية + الألوان الأربعة + بدون أسماء وتحديد مهمة) */
+            placeholderCards.map((card, idx) => (
               <div
+                key={idx}
                 className="k"
                 style={{
-                  flex: '0 0 320px',
-                  minWidth: '300px',
-                  maxWidth: '340px',
+                  flex: '0 0 340px',
+                  minWidth: '320px',
+                  maxWidth: '360px',
                   padding: 0,
                   overflow: 'hidden',
-                  borderRadius: '26px',
+                  borderRadius: '28px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  background: '#F8FAFC',
-                  border: '2px dashed #9AA0A6',
+                  scrollSnapAlign: 'start',
+                  background: '#fff',
                 }}
               >
-                <div style={{ height: '110px', backgroundColor: '#E8F0FE', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4285F4' }}>
-                    <Laptop size={28} />
-                  </div>
+                {/* الغلاف العلوي الأصلي الملون مع زهرة قوقل البيضاء */}
+                <div
+                  style={{
+                    height: '130px',
+                    backgroundColor: card.color,
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <GooglePinwheelIcon size={90} />
                 </div>
-                <div style={{ padding: '24px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <b style={{ fontSize: '18px', color: '#0F172A' }}>بانتظار تطبيق الورشة 💻</b>
-                  <p style={{ margin: 0, fontSize: '14px', color: '#5f6673', fontWeight: 500 }}>
-                    خانة شاغرة لمطوري المسار تُرصد فور اعتماد تسليم الورشة
-                  </p>
-                  <div style={{ marginTop: '12px' }}>
-                    <button
-                      type="button"
-                      onClick={() => openAddModal('workshop')}
-                      className="b-proto"
-                      style={{ padding: '6px 16px', fontSize: '13px', minHeight: '36px', background: '#E8EAED', color: '#5f6673', cursor: 'pointer' }}
-                    >
-                      + بانتظار الإضافة
-                    </button>
-                  </div>
-                </div>
-              </div>
 
-              {/* خانة 2: بانتظار تسليم التاسك البرمجي */}
-              <div
-                className="k"
-                style={{
-                  flex: '0 0 320px',
-                  minWidth: '300px',
-                  maxWidth: '340px',
-                  padding: 0,
-                  overflow: 'hidden',
-                  borderRadius: '26px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  background: '#F8FAFC',
-                  border: '2px dashed #9AA0A6',
-                }}
-              >
-                <div style={{ height: '110px', backgroundColor: '#E6F4EA', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34A853' }}>
-                    <Rocket size={28} />
+                {/* نص البطاقة الأصلي بدون أسماء أو مهمة محددة */}
+                <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
+                  <div>
+                    <b style={{ fontSize: '20px', color: '#0F172A', display: 'block', lineHeight: 1.4, marginBottom: '8px' }}>
+                      بانتظار مشاريع المطورين المبهرة
+                    </b>
                   </div>
-                </div>
-                <div style={{ padding: '24px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <b style={{ fontSize: '18px', color: '#0F172A' }}>بانتظار تسليم التاسك 🚀</b>
-                  <p style={{ margin: 0, fontSize: '14px', color: '#5f6673', fontWeight: 500 }}>
-                    خانة شاغرة للمهام المعتمدة تظهر فور تسليم الكود ورابط المشروع
-                  </p>
-                  <div style={{ marginTop: '12px' }}>
-                    <button
-                      type="button"
-                      onClick={() => openAddModal('workshop')}
-                      className="b-proto"
-                      style={{ padding: '6px 16px', fontSize: '13px', minHeight: '36px', background: '#E8EAED', color: '#5f6673', cursor: 'pointer' }}
-                    >
-                      + بانتظار الإضافة
-                    </button>
-                  </div>
-                </div>
-              </div>
 
-              {/* خانة 3: بانتظار المشاريع القادمة */}
-              <div
-                className="k"
-                style={{
-                  flex: '0 0 320px',
-                  minWidth: '300px',
-                  maxWidth: '340px',
-                  padding: 0,
-                  overflow: 'hidden',
-                  borderRadius: '26px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  background: '#F8FAFC',
-                  border: '2px dashed #9AA0A6',
-                }}
-              >
-                <div style={{ height: '110px', backgroundColor: '#FFF4D6', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F9AB00' }}>
-                    <Zap size={28} />
-                  </div>
-                </div>
-                <div style={{ padding: '24px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <b style={{ fontSize: '18px', color: '#0F172A' }}>بانتظار المشاريع القادمة ⚡</b>
-                  <p style={{ margin: 0, fontSize: '14px', color: '#5f6673', fontWeight: 500 }}>
-                    خانة شاغرة للورش القادمة وتحديات تطوير الويب التفاعلية
-                  </p>
-                  <div style={{ marginTop: '12px' }}>
-                    <button
-                      type="button"
-                      onClick={() => openAddModal('workshop')}
+                  <div style={{ marginTop: 'auto', paddingTop: '10px' }}>
+                    <span
                       className="b-proto"
-                      style={{ padding: '6px 16px', fontSize: '13px', minHeight: '36px', background: '#E8EAED', color: '#5f6673', cursor: 'pointer' }}
+                      style={{
+                        background: '#E8EAED',
+                        color: '#0F172A',
+                        padding: '8px 24px',
+                        fontSize: '15px',
+                        minHeight: '40px',
+                        display: 'inline-block',
+                      }}
                     >
-                      + بانتظار الإضافة
-                    </button>
+                      GitHub
+                    </span>
                   </div>
                 </div>
               </div>
-            </>
+            ))
           )}
         </div>
       </section>
@@ -449,7 +401,6 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
             </p>
           </div>
 
-          {/* فلاتر الحالة والأزرار */}
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
             <div className="tabs-proto">
               <button
@@ -475,25 +426,27 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => openAddModal('free')}
-              className="b-proto"
-              style={{
-                background: '#0F172A',
-                color: '#ffffff',
-                padding: '8px 20px',
-                fontSize: '15px',
-                minHeight: '42px',
-              }}
-            >
-              <Plus size={16} />
-              <span>+ إضافة مشروع عام</span>
-            </button>
+            {isLeader && (
+              <button
+                type="button"
+                onClick={() => openAddModal('free')}
+                className="b-proto"
+                style={{
+                  background: '#0F172A',
+                  color: '#ffffff',
+                  padding: '8px 20px',
+                  fontSize: '15px',
+                  minHeight: '42px',
+                }}
+              >
+                <Plus size={16} />
+                <span>+ إضافة مشروع عام</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* شبكة المشاريع أو الحالة الفارغة النظيفة */}
+        {/* شبكة المشاريع الحقيقية أو الحالة الفارغة الأصلية */}
         {generalProjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {generalProjects.map((p, idx) => {
@@ -522,25 +475,7 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                       overflow: 'hidden',
                     }}
                   >
-                    <svg
-                      viewBox="-50 -50 100 100"
-                      aria-hidden="true"
-                      style={{
-                        position: 'absolute',
-                        width: '90px',
-                        height: '90px',
-                        left: '20px',
-                        top: '20px',
-                        opacity: 0.95,
-                      }}
-                    >
-                      <g fill="#ffffff">
-                        <path d="M0 0L0 -46A46 46 0 0 1 46 0Q20 -26 0 0Z" />
-                        <path transform="rotate(90)" d="M0 0L0 -46A46 46 0 0 1 46 0Q20 -26 0 0Z" />
-                        <path transform="rotate(180)" d="M0 0L0 -46A46 46 0 0 1 46 0Q20 -26 0 0Z" />
-                        <path transform="rotate(270)" d="M0 0L0 -46A46 46 0 0 1 46 0Q20 -26 0 0Z" />
-                      </g>
-                    </svg>
+                    <GooglePinwheelIcon size={90} />
 
                     <div style={{ position: 'absolute', top: '14px', right: '14px', display: 'flex', gap: '6px' }}>
                       {isWorkshop && (
@@ -631,7 +566,7 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
             })}
           </div>
         ) : (
-          /* حالة فارغة راقية للمعرض العام بأيقونات فقط وبدون أي أسماء أو أعمال وهمية */
+          /* حالة الانتظار بالمعرض العام */
           <div
             className="k text-center py-16 px-6"
             style={{
@@ -657,28 +592,30 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
             >
               <FolderCode size={36} />
             </div>
-            <h3 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', margin: '0 0 8px' }}>
-              بانتظار إضافة المشاريع المعتمدة أو تسليمات المطورين 🚀
+            <h3 style={{ fontSize: '26px', fontWeight: 800, color: '#0F172A', margin: '0 0 8px' }}>
+              بانتظار مشاريع المطورين المبهرة
             </h3>
-            <p style={{ fontSize: '16px', color: '#5f6673', maxWidth: '520px', margin: '0 auto 24px', lineHeight: 1.6 }}>
-              ستظهر هنا مشاريع وتطبيقات أعضاء مسار الويب فور رفعها واعتمادها من قادة المسار.
+            <p style={{ fontSize: '16px', color: '#5f6673', maxWidth: '520px', margin: '0 auto 20px', lineHeight: 1.6 }}>
+              ستظهر هنا مشاريع وأعمال أعضاء المسار المعتمدة فور نشرها من قادة المسار.
             </p>
-            <button
-              type="button"
-              onClick={() => openAddModal('free')}
-              className="b-proto y"
-              style={{ padding: '10px 28px', fontSize: '16px' }}
-            >
-              <Plus size={16} />
-              <span>{gText(isFemale, '+ أضيفي مشروعكِ الآن', '+ أضف مشروعكَ الآن')}</span>
-            </button>
+            {isLeader && (
+              <button
+                type="button"
+                onClick={() => openAddModal('free')}
+                className="b-proto y"
+                style={{ padding: '10px 28px', fontSize: '16px' }}
+              >
+                <Plus size={16} />
+                <span>+ نشر مشروع في المعرض</span>
+              </button>
+            )}
           </div>
         )}
       </section>
 
-      {/* ================= نافذة إضافة مشروع أو عمل للمعرض ================= */}
+      {/* ================= نافذة إضافة عمل للمعرض (خاصة بالقادة) ================= */}
       <AnimatePresence>
-        {isAddModalOpen && (
+        {isAddModalOpen && isLeader && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
             onClick={() => setIsAddModalOpen(false)}
@@ -693,7 +630,7 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h3 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
-                  إضافة عمل إلى المعرض
+                  نشر عمل في المعرض (خاص بالقادة 👑)
                 </h3>
                 <button
                   type="button"
@@ -720,10 +657,9 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                 </div>
               ) : (
                 <form onSubmit={handleAddProject} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {/* تصنيف العمل: ورشة / تاسك محدد أو مشروع عام */}
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '6px' }}>
-                      مكان ظهور العمل في المعرض
+                      مكان نشر العمل في المعرض
                     </label>
                     <div className="tabs-proto" style={{ width: '100%', display: 'flex' }}>
                       <button
@@ -732,7 +668,7 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                         className={projCategory === 'workshop' ? 'on' : ''}
                         style={{ flex: 1, textAlign: 'center' }}
                       >
-                        معرض الورش والتاسكات (سحب أفقي)
+                        معرض الورش والتاسكات
                       </button>
                       <button
                         type="button"
@@ -745,7 +681,6 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                     </div>
                   </div>
 
-                  {/* إذا كان ورشة: تحديد اسم الورشة أو كتابة تاسك مخصص يقرره القائد */}
                   {projCategory === 'workshop' && (
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '6px' }}>
@@ -793,6 +728,33 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
 
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '6px' }}>
+                      اسم المطور صاحب العمل *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={developerName}
+                      onChange={(e) => setDeveloperName(e.target.value)}
+                      placeholder="اكتب اسم العضو أو المطور..."
+                      list="members-datalist"
+                      style={{
+                        width: '100%',
+                        padding: '12px 18px',
+                        borderRadius: '99px',
+                        border: '2px solid #9AA0A6',
+                        fontSize: '15px',
+                        outline: 'none',
+                      }}
+                    />
+                    <datalist id="members-datalist">
+                      {trackMembers.map((m) => (
+                        <option key={m.id} value={m.fullName} />
+                      ))}
+                    </datalist>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '6px' }}>
                       عنوان المشروع / التطبيق *
                     </label>
                     <input
@@ -800,7 +762,7 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                       required
                       value={projTitle}
                       onChange={(e) => setProjTitle(e.target.value)}
-                      placeholder="مثال: تطبيق صفحة هبوط تفاعلية"
+                      placeholder="مثال: تطبيق صفحة هبوط متجاوبة"
                       style={{
                         width: '100%',
                         padding: '12px 18px',
@@ -863,7 +825,7 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                     className="b-proto y"
                     style={{ width: '100%', marginTop: '8px' }}
                   >
-                    {isSubmitting ? 'جارٍ الإضافة...' : 'نشر العمل في المعرض 🚀'}
+                    {isSubmitting ? 'جارٍ النشر...' : 'نشر العمل في المعرض 🚀'}
                   </button>
                 </form>
               )}
