@@ -73,7 +73,13 @@ export const App: React.FC = () => {
     return false;
   });
 
-  const [showInquiriesModal, setShowInquiriesModal] = useState(false);
+  const [showInquiriesModal, setShowInquiriesModal] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('inquiry') === 'true') return true;
+    }
+    return false;
+  });
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomePhraseText, setWelcomePhraseText] = useState('');
   const [showStarsCelebrationAlert, setShowStarsCelebrationAlert] = useState(false);
@@ -95,7 +101,7 @@ export const App: React.FC = () => {
       setIsLoggedIn(store.isLoggedIn());
       setAuthReady(store.isAuthReady());
       setMustChangePassword(store.mustChangePassword());
-      if (user && (user.role === 'track_leader' || user.role === 'supervisor')) {
+      if (user && (user.role === 'track_leader' || user.role === 'co_leader' || user.role === 'supervisor')) {
         setCurrentTab((prev) => (prev === 'home' ? 'overview' : prev));
       }
     };
@@ -125,6 +131,10 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (currentUser && !store.mustChangePassword() && !welcomeShownRef.current) {
       welcomeShownRef.current = true;
+      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      if (urlParams && urlParams.get('skip_intro') === 'true') {
+        return;
+      }
       const phrase = selectWelcomePhrase(currentUser);
       setWelcomePhraseText(phrase.text);
       setShowWelcomeModal(true);
@@ -180,7 +190,7 @@ export const App: React.FC = () => {
       }
     }
 
-    if (user && (user.role === 'track_leader' || user.role === 'supervisor')) {
+    if (user && (user.role === 'track_leader' || user.role === 'co_leader' || user.role === 'supervisor')) {
       setCurrentTab('overview');
     } else {
       setCurrentTab('home');
@@ -351,7 +361,7 @@ export const App: React.FC = () => {
             >
             {/* التبويب 1: الرئيسية (أو نظرة عامة للقادة والمشرفين) */}
             {currentTab === 'home' && (
-              currentUser.role === 'track_leader' || currentUser.role === 'supervisor' ? (
+              currentUser.role === 'track_leader' || currentUser.role === 'co_leader' || currentUser.role === 'supervisor' ? (
                 <LeaderDashboard
                   currentUser={currentUser}
                   currentTab="overview"

@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti';
 import { UserProfile, MemberSkillItem, BadgeItem, UserStats } from '../../types';
 import { store } from '../../services/store';
 import { UserAvatar } from '../common/UserAvatar';
+import { isFemaleUser, gText, genderVocab } from '../../utils/gender';
 import {
   Award,
   Shield,
@@ -60,19 +61,24 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
 
   const displayedMember = allMembers.find((m) => m.id === selectedMemberId) || currentUser;
   const isViewingSelf = displayedMember.id === currentUser.id;
-  const isStaff = currentUser.role === 'track_leader' || currentUser.role === 'supervisor';
+  const isStaff = currentUser.role === 'track_leader' || currentUser.role === 'co_leader' || currentUser.role === 'supervisor';
+  const isFemale = isFemaleUser(displayedMember);
 
-  // البحث والفلترة في دليل الأعضاء
+  // البحث في دليل الأعضاء
   const [searchTerm, setSearchTerm] = useState('');
-  const [levelFilter, setLevelFilter] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all');
+
+  const excludedStaffNames = ['رنا', 'أثير', 'اثير', 'عامر', 'وجد', 'ثامر', 'ريتال', 'غيداء'];
 
   const filteredMembers = allMembers.filter((m) => {
+    // استبعاد الإشراف والقادة بناءً على الدور والرتبة والاسم الصريح
+    if (m.role === 'supervisor' || m.role === 'track_leader') return false;
+    if (excludedStaffNames.some((n) => m.fullName.includes(n))) return false;
+
     const matchesSearch =
       m.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.major?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.username?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLevel = levelFilter === 'all' || m.webLevel === levelFilter;
-    return matchesSearch && matchesLevel;
+    return matchesSearch;
   });
 
   // حالة نافذة تعديل الملف الشخصي
@@ -425,17 +431,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
                 />
                 <Search size={14} className="absolute right-3 top-2.5 text-gray-400" />
               </div>
-
-              <select
-                value={levelFilter}
-                onChange={(e) => setLevelFilter(e.target.value as any)}
-                className="px-3 py-2 text-xs rounded-xl bg-white border border-gray-300 text-gray-800 focus:outline-none"
-              >
-                <option value="all">كل المستويات</option>
-                <option value="beginner">مبتدئ</option>
-                <option value="intermediate">متوسط</option>
-                <option value="advanced">متقدم</option>
-              </select>
             </div>
           </div>
 
@@ -489,549 +484,490 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
           </div>
         </div>
       ) : (
-        /* ================= صفحة الملف الشخصي الشاملة ================= */
-        <>
-          {/* 1. بطاقة الهوية الأساسية للعضو */}
+        /* ================= صفحة الملف الشخصي الشاملة (ProfileV2) ================= */
+        <div className="flex flex-col gap-6">
+          {/* 1. كارت الهوية الأساسية مع شريط موجات الهوية وتداخل الصورة */}
           <div
-            className="p-6 sm:p-8 rounded-3xl card-navy mb-8 bg-white relative overflow-hidden"
+            className="k u"
             style={{
-              border: '2.5px solid #0F1729',
-              boxShadow: '0 12px 30px rgba(15, 23, 42, 0.06)',
+              animationDelay: '.2s',
+              marginTop: '12px',
+              padding: 0,
+              overflow: 'hidden',
+              border: '2px solid #0F172A',
+              borderRadius: '28px',
+              background: '#fff',
+              position: 'relative',
             }}
           >
-            {/* زخرفة خفيفة بهوية قوقل في الزاوية */}
-            <div className="absolute top-0 left-0 w-32 h-1.5 bg-gradient-to-r from-[#4285F4] via-[#EA4335] to-[#F9AB00]" />
-
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-              {/* تفاصيل العضو والصورة */}
-              <div className="flex items-start sm:items-center gap-5 sm:gap-6 flex-wrap sm:flex-nowrap">
-                <UserAvatar
-                  letter={displayedMember.avatarLetter}
-                  name={displayedMember.fullName}
-                  avatarUrl={displayedMember.avatarUrl}
-                  color={displayedMember.badgeColor}
-                  size="xl"
-                  role={displayedMember.role}
-                  showBadge
-                  className="shadow-md"
+            {/* 1. النصف العلوي: شريط أمواج متحرك بانسيابية كخلفية جمالية علوية */}
+            <div
+              style={{
+                position: 'relative',
+                height: '140px',
+                minHeight: '140px',
+                width: '100%',
+                backgroundColor: '#E6F4EA',
+                overflow: 'hidden',
+                zIndex: 0,
+              }}
+            >
+              {/* طبقة الأمواج الأساسية المتموجة */}
+              <svg
+                viewBox="0 0 1280 140"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+                className="animated-waves-layer1"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '200%',
+                  height: '100%',
+                  display: 'block',
+                  opacity: 0.95,
+                  pointerEvents: 'none',
+                }}
+              >
+                {/* 1. الموجة الصفراء */}
+                <path
+                  fill="#F9AB00"
+                  d="M0 40 C100 10 200 65 320 40 S520 10 640 40 S840 65 960 40 S1160 10 1280 40 V140 H0 Z"
                 />
+                {/* 2. الموجة الحمراء */}
+                <path
+                  fill="#EA4335"
+                  d="M0 55 C100 25 200 80 320 55 S520 25 640 55 S840 80 960 55 S1160 25 1280 55 V140 H0 Z"
+                />
+                {/* 3. الموجة الزرقاء */}
+                <path
+                  fill="#4285F4"
+                  d="M0 70 C100 40 200 95 320 70 S520 40 640 70 S840 95 960 70 S1160 40 1280 70 V140 H0 Z"
+                />
+                {/* 4. الموجة الخضراء */}
+                <path
+                  fill="#34A853"
+                  d="M0 85 C100 55 200 110 320 85 S520 55 640 85 S840 110 960 85 S1160 55 1280 85 V140 H0 Z"
+                />
+              </svg>
 
-                <div>
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <h1 className="text-2xl sm:text-3xl font-black text-gray-900">
+              {/* طبقة تموج ثانوية متداخلة لإعطاء عمق بصري مائي */}
+              <svg
+                viewBox="0 0 1280 140"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+                className="animated-waves-layer2"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '200%',
+                  height: '100%',
+                  display: 'block',
+                  opacity: 0.25,
+                  mixBlendMode: 'overlay',
+                  pointerEvents: 'none',
+                }}
+              >
+                <path
+                  fill="#FFFFFF"
+                  d="M0 60 C120 25 240 85 360 60 S540 25 640 60 S840 85 960 60 S1140 25 1280 60 V140 H0 Z"
+                />
+              </svg>
+            </div>
+
+            {/* 2. النصف السفلي: الأيقونة والبيانات في طبقة فوقية واضحة تماماً ولا تغطيها الأمواج أبداً */}
+            <div style={{ padding: '0 36px 32px', position: 'relative', zIndex: 10 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '24px',
+                  alignItems: 'flex-start',
+                  marginTop: '-60px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                {/* الأيقونة الدائرية على اليمين - نصفها العلوي يمتد فوق الأمواج كخلفية لها */}
+                <div
+                  style={{
+                    flex: 'none',
+                    width: '120px',
+                    height: '120px',
+                    borderRadius: '50%',
+                    backgroundColor: displayedMember.badgeColor || '#34A853',
+                    border: '4px solid #FFFFFF',
+                    boxShadow: '0 0 0 3px #0F172A',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700,
+                    fontSize: '60px',
+                    color: '#0F172A',
+                    position: 'relative',
+                    zIndex: 20,
+                  }}
+                >
+                  {displayedMember.avatarLetter || (displayedMember.fullName ? displayedMember.fullName[0] : 'ع')}
+                </div>
+
+                {/* الاسم والمعرف وبيانات المسار بجانب الأيقونة - تبدأ في المساحة البيضاء بوضوح تام */}
+                <div style={{ flex: 1, minWidth: '260px', paddingTop: '68px', position: 'relative', zIndex: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                    <h1
+                      style={{
+                        fontSize: '44px',
+                        lineHeight: 1.15,
+                        fontWeight: 800,
+                        color: '#0F172A',
+                        margin: 0,
+                      }}
+                    >
                       {displayedMember.fullName}
                     </h1>
-                    <span className="badge-pill bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">
-                      @{displayedMember.username}
-                    </span>
-                    <span className="badge-pill bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200">
-                      {displayedMember.roleTitle}
-                    </span>
-                    {displayedMember.webLevel === 'advanced' ? (
-                      <span className="badge-pill bg-purple-50 text-purple-700 text-xs font-bold border border-purple-200">
-                        مستوى الاستبيان: متقدم ⭐
-                      </span>
-                    ) : displayedMember.webLevel === 'intermediate' ? (
-                      <span className="badge-pill bg-amber-50 text-amber-700 text-xs font-bold border border-amber-200">
-                        مستوى الاستبيان: متوسط ⚡
-                      </span>
-                    ) : (
-                      <span className="badge-pill bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">
-                        مستوى الاستبيان: مبتدئ 🌱
-                      </span>
+
+                    {isViewingSelf && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditBio(displayedMember.bio || '');
+                          setEditPhone(displayedMember.phone || '');
+                          setEditAvatarUrl(displayedMember.avatarUrl || '');
+                          setEditMajor(displayedMember.major || '');
+                          setEditAcademicYear(displayedMember.academicYear || '');
+                          setShowEditModal(true);
+                        }}
+                        className="b cursor-pointer hover:bg-gray-100 transition-colors"
+                        style={{
+                          backgroundColor: '#F1F3F4',
+                          border: '2px solid #0F172A',
+                          borderRadius: '99px',
+                          padding: '8px 20px',
+                          minHeight: '40px',
+                          fontSize: '15px',
+                          fontWeight: 700,
+                          color: '#0F172A',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 3px 0 0 #0F172A',
+                        }}
+                      >
+                        <Edit3 size={15} />
+                        <span>تعديل الملف الشخصي</span>
+                      </button>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3 sm:gap-4 flex-wrap mt-2.5 text-xs text-gray-600 font-medium">
-                    <span className="flex items-center gap-1.5">
-                      <GraduationCap size={15} className="text-[#4285F4]" />
-                      <span>{displayedMember.major || 'علوم حاسب'} · المستوى الدراسي: <strong className="text-gray-900 font-bold">{displayedMember.academicYear || 'غير محدد'}</strong></span>
-                    </span>
+                  <p
+                    style={{
+                      marginTop: '6px',
+                      fontSize: '18px',
+                      color: '#3c4452',
+                      fontWeight: 600,
+                      margin: '6px 0 0',
+                    }}
+                  >
+                    <span className="font-['Arimo'] font-bold text-gray-700">@{displayedMember.username || 'عضو'}</span> · {displayedMember.major || 'علوم حاسب'} · المستوى الدراسي {displayedMember.academicYear || '1'}
+                  </p>
+                </div>
+              </div>
 
-                    <span className="flex items-center gap-1">
-                      <Calendar size={15} className="text-gray-400" />
-                      <span>انضم في: {displayedMember.onboarded_at ? new Date(displayedMember.onboarded_at).toLocaleDateString('ar-SA') : 'أكتوبر 2026'}</span>
-                    </span>
+              {/* النبذة التعريفية */}
+              <p
+                style={{
+                  marginTop: '18px',
+                  fontSize: '19px',
+                  lineHeight: 1.6,
+                  maxWidth: '900px',
+                  color: '#0F172A',
+                  margin: '18px 0 0',
+                }}
+              >
+                {displayedMember.bio ||
+                  gText(
+                    isFemale,
+                    'مهتمة بتجربة المستخدم وأداء المواقع. أحب بناء الواجهات والتصاميم التفاعلية وأتعلم من المشاريع.',
+                    'مهتم بتجربة المستخدم وأداء المواقع. أحب بناء الواجهات والتصاميم التفاعلية وأتعلم من المشاريع.'
+                  )}
+              </p>
 
-                    {/* حماية خصوصية رقم الجوال */}
-                    <span className="flex items-center gap-1.5">
-                      <Phone size={14} className="text-emerald-600" />
-                      {isViewingSelf || isStaff ? (
-                        <span className="font-bold text-gray-800 font-mono" dir="ltr">
-                          {displayedMember.phone || 'لم يُحدد بعد'}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 flex items-center gap-1 text-[11px] font-bold">
-                          <Lock size={12} />
-                          <span>خاص ومحمي</span>
-                        </span>
-                      )}
-                    </span>
-                  </div>
+              {/* الشرائح الثلاث */}
+              <div
+                style={{
+                  marginTop: '14px',
+                  display: 'flex',
+                  gap: '10px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <span
+                  className="t"
+                  style={{
+                    background: '#E8F0FE',
+                    color: '#0F172A',
+                    borderRadius: '99px',
+                    padding: '4px 14px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                  }}
+                >
+                  مستوى الاستبيان: {displayedMember.webLevel === 'advanced' ? 'متقدم' : displayedMember.webLevel === 'intermediate' ? 'متوسط' : 'مبتدئ'}
+                </span>
 
-                  {/* النبذة التعريفية */}
-                  {displayedMember.bio ? (
-                    <p className="text-xs sm:text-sm text-gray-700 leading-relaxed mt-3 max-w-2xl bg-gray-50/80 p-3 rounded-2xl border border-gray-100">
-                      {displayedMember.bio}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-gray-400 italic mt-3">
-                      لم تتم إضافة نبذة شخصية بعد.
-                    </p>
+                <span
+                  className="t"
+                  style={{
+                    background: '#F1F3F4',
+                    color: '#0F172A',
+                    borderRadius: '99px',
+                    padding: '4px 14px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                  }}
+                >
+                  {displayedMember.joinedAt || 'انضمت في ١٨ جمادى'}
+                </span>
+
+                <span
+                  className="t"
+                  style={{
+                    background: '#FFF4D6',
+                    color: '#0F172A',
+                    borderRadius: '99px',
+                    padding: '4px 14px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                  }}
+                >
+                  نبذتك معتمدة ✓
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. الصف الثاني: شريط تقدم رحلتك (3 محطات) + شبكة الإحصاءات الأربع بأيقونات Lucide SVG */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-stretch">
+            {/* شريط تقدم رحلتك (flex: 2 -> lg:col-span-2) */}
+            <div
+              className="rounded-[28px] bg-white border-2 border-[#0F172A] p-6 sm:p-7 flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-baseline justify-between mb-3">
+                  <b className="text-xl sm:text-2xl font-black text-gray-900">رحلتك</b>
+                  <span className="font-['Arimo'] text-base sm:text-lg text-gray-600 font-bold">
+                    <b className="text-3xl sm:text-4xl font-black text-[#34A853] ml-1">{displayedMember.points}</b> / 1500 نقطة
+                  </span>
+                </div>
+
+                {/* شريط التقدم الموحد بارتفاع 16px */}
+                <div className="w-full h-4 bg-[#E8EAED] rounded-full overflow-hidden my-4">
+                  <div
+                    className="h-full bg-[#34A853] rounded-full transition-all duration-700"
+                    style={{
+                      width: `${Math.min(100, Math.max(8, Math.round((displayedMember.points / 1500) * 100)))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* المحطات الثلاث المنفصلة */}
+              <div className="flex justify-between items-center text-sm sm:text-base font-bold text-gray-600 pt-2 border-t border-gray-100">
+                <span className={displayedMember.points >= 200 ? 'text-[#34A853] font-black' : ''}>التأسيس</span>
+                <span className={displayedMember.points >= 600 ? 'text-[#34A853] font-black' : ''}>التخصص</span>
+                <span className={displayedMember.points >= 1100 ? 'text-[#34A853] font-black' : ''}>الاستكشاف</span>
+              </div>
+            </div>
+
+            {/* شبكة الإحصاءات الأربع بأيقونات SVG المطابقة للنموذج (lg:col-span-3) */}
+            <div className="lg:col-span-3 grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+              {/* 1. ورش مكتملة */}
+              <div className="k" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: '#4285F4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F172A' }}>
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z" />
+                  </svg>
+                </div>
+                <b style={{ fontFamily: 'Arimo', fontSize: '34px', lineHeight: 1 }}>
+                  {userStats.workshopsCompleted || 0}
+                </b>
+                <span style={{ fontSize: '15px' }}>ورش مكتملة</span>
+              </div>
+
+              {/* 2. تحديات منجزة */}
+              <div className="k" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: '#F9AB00', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F172A' }}>
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="m16 18 6-6-6-6M8 6l-6 6 6 6" />
+                  </svg>
+                </div>
+                <b style={{ fontFamily: 'Arimo', fontSize: '34px', lineHeight: 1 }}>
+                  {userStats.challengesCompleted || 0}
+                </b>
+                <span style={{ fontSize: '15px' }}>تحديات منجزة</span>
+              </div>
+
+              {/* 3. مشاريع معتمدة */}
+              <div className="k" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: '#34A853', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F172A' }}>
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M4 22V4M4 4h13l-2 4 2 4H4" />
+                  </svg>
+                </div>
+                <b style={{ fontFamily: 'Arimo', fontSize: '34px', lineHeight: 1 }}>
+                  {userStats.projectsCompleted || 0}
+                </b>
+                <span style={{ fontSize: '15px' }}>مشاريع معتمدة</span>
+              </div>
+
+              {/* 4. مبادرات */}
+              <div className="k" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: '#EA4335', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F172A' }}>
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="9" cy="8" r="3.5" />
+                    <path d="M2 21a7 7 0 0 1 14 0M17 4a3.5 3.5 0 0 1 0 7M22 21a7 7 0 0 0-4-6" />
+                  </svg>
+                </div>
+                <b style={{ fontFamily: 'Arimo', fontSize: '34px', lineHeight: 1 }}>
+                  {store.getMemberAttendanceRate(displayedMember.id) > 0 ? `${store.getMemberAttendanceRate(displayedMember.id)}%` : '0'}
+                </b>
+                <span style={{ fontSize: '15px' }}>{store.getMemberAttendanceRate(displayedMember.id) > 0 ? 'نسبة الحضور' : 'مبادرات'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. الصف الثالث: مهاراتك (Chips) + الإنجازات (شبكة شارات بقفل) */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-start">
+            {/* مهاراتك (lg:col-span-3) */}
+            <div
+              className="lg:col-span-3 k flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <b style={{ fontSize: '24px' }}>{gText(isFemale, 'مهاراتكِ', 'مهاراتكَ')}</b>
+                  <span className="t-proto">
+                    {skillsList.filter((s) => s.status === 'approved').length} معتمدة · {skillsList.filter((s) => s.status !== 'approved').length} بانتظار الإثبات
+                  </span>
+                </div>
+
+                {/* نص التوضيح الموحد مع التأنيث والتذكير التفاعلي */}
+                <p style={{ margin: '8px 0 14px', fontSize: '16px', color: '#3c4452' }}>
+                  {gText(
+                    isFemale,
+                    'المهارات من استبيان التسجيل تصير معتمدة لما تسلّمين تطبيقاً عملياً أو تجتازين كويز.',
+                    'المهارات من استبيان التسجيل تصير معتمدة لما تسلّم تطبيقاً عملياً أو تجتاز كويز.'
+                  )}
+                </p>
+
+                {/* رقائق المهارات الصغيرة (Chips) مع إمكانية النقر لاختيار أي مهارة */}
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {skillsList.slice(0, 10).map((skill, idx) => {
+                    const isApproved = skill.status === 'approved';
+                    return (
+                      <span
+                        key={idx}
+                        onClick={() => {
+                          if (isViewingSelf) handleOpenProofModal(skill);
+                        }}
+                        title={isApproved ? 'مهارة معتمدة' : gText(isFemale, 'انقري لتسليم إثبات هذه المهارة', 'انقر لتسليم إثبات هذه المهارة')}
+                        style={{
+                          background: isApproved ? '#E6F4EA' : '#fff',
+                          border: isApproved ? '2px solid #34A853' : '2px dashed #9AA0A6',
+                          padding: '8px 16px',
+                          fontSize: '16px',
+                          fontFamily: 'Arimo',
+                          borderRadius: '99px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          color: isApproved ? '#137333' : '#0F172A',
+                          fontWeight: 600,
+                          cursor: isViewingSelf ? 'pointer' : 'default',
+                        }}
+                      >
+                        {isApproved && <Check size={16} strokeWidth={3} className="text-[#34A853]" />}
+                        <span>{skill.name}</span>
+                      </span>
+                    );
+                  })}
+                  {skillsList.length > 10 && (
+                    <span className="t-proto" style={{ padding: '8px 16px', background: '#E8F0FE', fontFamily: 'Arimo', fontSize: '16px', fontWeight: 700 }}>
+                      +{skillsList.length - 10}
+                    </span>
                   )}
                 </div>
               </div>
 
-              {/* بطاقة النقاط وزر تعديل الملف */}
-              <div className="flex flex-col sm:flex-row lg:flex-col items-start sm:items-center lg:items-end justify-between w-full lg:w-auto gap-4 pt-4 lg:pt-0 border-t lg:border-t-0 border-gray-100">
-                <div className="text-right sm:text-left lg:text-left">
-                  <div className="text-4xl sm:text-5xl font-black text-[#34A853] tracking-tight leading-none">
-                    {displayedMember.points}
-                  </div>
-                  <div className="text-xs font-bold text-gray-500 mt-1">
-                    نقطة إنجاز مسجلة
-                  </div>
-                </div>
-
-                {/* زر التعديل لصاحب الحساب فقط */}
-                {isViewingSelf && (
+              {/* زر تسليم إثبات مهارة مع مراعاة الجنس واختيار المهارة */}
+              {isViewingSelf && (
+                <div style={{ marginTop: '18px' }}>
                   <button
                     type="button"
                     onClick={() => {
-                      setEditBio(displayedMember.bio || '');
-                      setEditPhone(displayedMember.phone || '');
-                      setEditAvatarUrl(displayedMember.avatarUrl || '');
-                      setEditMajor(displayedMember.major || '');
-                      setEditAcademicYear(displayedMember.academicYear || '');
-                      setShowEditModal(true);
+                      const unverified = skillsList.find((s) => s.status !== 'approved') || skillsList[0];
+                      if (unverified) handleOpenProofModal(unverified);
                     }}
-                    className="px-4 py-2.5 rounded-2xl text-xs font-bold text-gray-900 bg-white border-2 border-[#0F1729] hover:bg-gray-50 shadow-xs transition-transform active:scale-95 flex items-center gap-2 cursor-pointer"
+                    className="b-proto y"
                   >
-                    <Edit3 size={15} />
-                    <span>تعديل الملف الشخصي</span>
+                    {genderVocab.submit(isFemale)} إثبات لمهارة
                   </button>
-                )}
-              </div>
-            </div>
-
-            {/* شريط التقدم نحو المستوى التالي */}
-            <div className="mt-6 pt-5 border-t border-gray-100">
-              <div className="flex items-center justify-between text-xs font-bold text-gray-800 mb-2">
-                <span>
-                  المستوى الحالي: <strong className="text-blue-600">{displayedMember.webLevelTitle}</strong>
-                </span>
-                <span>
-                  {displayedMember.points} / {targetPointsForNext} نقطة ({levelProgressPercent}%)
-                </span>
-              </div>
-              <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
-                <div
-                  className="h-full bg-gradient-to-l from-[#34A853] to-[#4285F4] rounded-full transition-all duration-500"
-                  style={{ width: `${levelProgressPercent}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* 2. المؤشرات المستقلة الأربعة (KPI Metrics) */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {/* 1. الورش المكتملة */}
-            <div
-              className="p-5 rounded-3xl bg-white border-2 border-[#0F1729] shadow-xs flex flex-col justify-between"
-              style={{ minHeight: '125px' }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-500">الورش المكتملة</span>
-                <span className="w-8 h-8 rounded-xl bg-blue-50 text-[#4285F4] flex items-center justify-center">
-                  <BookOpen size={16} />
-                </span>
-              </div>
-              <div className="text-3xl font-black text-gray-900 mt-2">
-                {userStats.workshopsCompleted}
-              </div>
-              <span className="text-[11px] text-gray-400 font-medium">ورشة تدريبية عملية</span>
-            </div>
-
-            {/* 2. التحديات المنجزة */}
-            <div
-              className="p-5 rounded-3xl bg-white border-2 border-[#0F1729] shadow-xs flex flex-col justify-between"
-              style={{ minHeight: '125px' }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-500">التحديات المنجزة</span>
-                <span className="w-8 h-8 rounded-xl bg-amber-50 text-[#F9AB00] flex items-center justify-center">
-                  <Terminal size={16} />
-                </span>
-              </div>
-              <div className="text-3xl font-black text-gray-900 mt-2">
-                {userStats.challengesCompleted}
-              </div>
-              <span className="text-[11px] text-gray-400 font-medium">تحدي كود ومختبر الويب</span>
-            </div>
-
-            {/* 3. المشاريع المعتمدة */}
-            <div
-              className="p-5 rounded-3xl bg-white border-2 border-[#0F1729] shadow-xs flex flex-col justify-between"
-              style={{ minHeight: '125px' }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-500">المشاريع المعتمدة</span>
-                <span className="w-8 h-8 rounded-xl bg-green-50 text-[#34A853] flex items-center justify-center">
-                  <Code2 size={16} />
-                </span>
-              </div>
-              <div className="text-3xl font-black text-gray-900 mt-2">
-                {userStats.projectsCompleted}
-              </div>
-              <span className="text-[11px] text-gray-400 font-medium">مشروع برمجي مكتمل</span>
-            </div>
-
-            {/* 4. المبادرات والمشاركات */}
-            <div
-              className="p-5 rounded-3xl bg-white border-2 border-[#0F1729] shadow-xs flex flex-col justify-between"
-              style={{ minHeight: '125px' }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-500">المشاركات والمبادرات</span>
-                <span className="w-8 h-8 rounded-xl bg-red-50 text-[#EA4335] flex items-center justify-center">
-                  <HeartHandshake size={16} />
-                </span>
-              </div>
-              <div className="text-3xl font-black text-gray-900 mt-2">
-                {userStats.initiativesCount}
-              </div>
-              <span className="text-[11px] text-gray-400 font-medium">تفاعل مجتمعي واستبيانات</span>
-            </div>
-          </div>
-
-          {/* 3. قسم المهارات التقنية + قسم الإنجازات والشارات */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* صندوق المهارات التقنية */}
-            <div
-              className="p-6 sm:p-8 rounded-3xl bg-white border-2 border-[#0F1729] shadow-xs flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
-                    <Shield size={20} className="text-[#4285F4]" />
-                    <span>المهارات التقنية</span>
-                  </h2>
-                  <span className="text-xs font-bold text-gray-400">
-                    {skillsList.length} مهارة مسجلة
-                  </span>
                 </div>
-
-                {/* قائمة المهارات مع التمييز الواضح */}
-                <div className="flex flex-col gap-3.5">
-                  {skillsList.map((skill, idx) => {
-                    const isApproved = skill.source === 'approved_by_leader';
-                    const isSurvey = skill.source === 'survey_registration';
-                    const hasGitUrl = Boolean(skill.gitUrl);
-
-                    return (
-                      <div
-                        key={idx}
-                        className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex flex-col gap-2.5 transition-all hover:border-gray-300"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3">
-                            {isApproved ? (
-                              <span
-                                className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs flex-shrink-0 mt-0.5"
-                                title="معتمدة رسمياً من قادة المسار"
-                              >
-                                🛡️
-                              </span>
-                            ) : isSurvey ? (
-                              <span
-                                className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs flex-shrink-0 mt-0.5"
-                                title="من استبيان التسجيل"
-                              >
-                                📋
-                              </span>
-                            ) : (
-                              <span
-                                className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs flex-shrink-0 mt-0.5"
-                                title="مهارة شخصية مضافة"
-                              >
-                                🐙
-                              </span>
-                            )}
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-black text-sm text-gray-900">
-                                  {skill.name}
-                                </span>
-                                {isApproved && (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                                    معتمدة من قادة المسار ✨
-                                  </span>
-                                )}
-                                {isSurvey && (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
-                                    مأخوذة من استبيان التسجيل (غير معتمدة بعد)
-                                  </span>
-                                )}
-                                {!isApproved && !isSurvey && (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
-                                    مهارة شخصية (تعتمد برابط Git)
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* الملاحظة التوضيحية الخاصة بقرار الاستبيان */}
-                              {isSurvey && (
-                                <div className="text-[11px] text-amber-800 font-medium mt-1 leading-relaxed bg-amber-50/70 p-2 rounded-xl border border-amber-200/60">
-                                  💡 <strong>توضيح:</strong> تُعتمد المهارة وتُضاف نقاطها بعد تسليم رابط تطبيق عملي أو اجتياز كويز نضعه لكم.
-                                </div>
-                              )}
-
-                              {/* توضيح رابط Git للمهارات الشخصية */}
-                              {!isApproved && !isSurvey && (
-                                <div className="text-[11px] text-purple-800 font-medium mt-1 leading-relaxed bg-purple-50/70 p-2 rounded-xl border border-purple-200/60">
-                                  {hasGitUrl ? (
-                                    <span>
-                                      ⏳ <strong>تم إرسال رابط Git للمراجعة:</strong>{' '}
-                                      <a
-                                        href={skill.gitUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 underline"
-                                      >
-                                        {skill.gitUrl}
-                                      </a>
-                                    </span>
-                                  ) : (
-                                    <span>
-                                      🐙 <strong>طريقة الاعتماد:</strong> ارفع كود المشروع على GitHub وأرفق الرابط هنا لإضافة النقاط إلى رصيدك.
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-
-                              {skill.verificationNotes && isSurvey && (
-                                <div className="text-[10px] text-blue-700 font-bold mt-1">
-                                  {skill.verificationNotes}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`text-xs font-bold px-2.5 py-1 rounded-xl ${
-                                isApproved
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-gray-200 text-gray-700'
-                              }`}
-                            >
-                              {skill.progressPercent}%
-                            </span>
-
-                            {/* زر حذف المهارة الشخصية لصاحب الحساب فقط */}
-                            {isViewingSelf && !isApproved && skill.source === 'self' && (
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveSkill(skill.name)}
-                                className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors border-none bg-transparent cursor-pointer"
-                                title="حذف المهارة الشخصية"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* زر تسليم الإثبات لصاحب الحساب إن لم تكن معتمدة */}
-                        {isViewingSelf && !isApproved && (
-                          <div className="flex justify-end pt-2 border-t border-gray-100">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenProofModal(skill)}
-                              className="px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all cursor-pointer border-none flex items-center gap-1.5 shadow-xs"
-                              style={{
-                                backgroundColor: isSurvey ? '#F9AB00' : '#4285F4',
-                                color: isSurvey ? '#0F1729' : '#FFFFFF',
-                              }}
-                            >
-                              {isSurvey ? (
-                                <>
-                                  <FileCode2 size={13} />
-                                  <span>تسليم إثبات (تطبيق عملي أو طلب كويز) 🔗</span>
-                                </>
-                              ) : (
-                                <>
-                                  <FolderGit2 size={13} />
-                                  <span>{hasGitUrl ? 'تحديث رابط GitHub 🐙' : 'إرفاق رابط GitHub للاعتماد والنقاط 🐙'}</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* إضافة مهارة شخصية لصاحب الحساب */}
-                {isViewingSelf && (
-                  <form onSubmit={handleAddSkill} className="mt-5 pt-4 border-t border-gray-100 flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={newSkillName}
-                      onChange={(e) => setNewSkillName(e.target.value)}
-                      placeholder="أضف مهارة شخصية (مثال: React, Tailwind)..."
-                      className="flex-1 px-3 py-2 text-xs rounded-xl bg-white border border-gray-300 text-gray-900 focus:outline-none focus:border-blue-500"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isAddingSkill || !newSkillName.trim()}
-                      className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#4285F4] hover:bg-blue-600 disabled:opacity-50 transition-colors border-none cursor-pointer flex items-center gap-1"
-                    >
-                      <Plus size={14} />
-                      <span>إضافة</span>
-                    </button>
-                  </form>
-                )}
-              </div>
-
-              <div className="text-[11px] text-gray-500 font-medium mt-6 pt-3 border-t border-gray-100 flex items-center gap-1.5">
-                <Info size={14} className="text-blue-500 flex-shrink-0" />
-                <span>المهارات من الاستبيان تتطلب كويز أو رابط تطبيق للاعتماد. والمهارات الشخصية تُعتمد برابط Git من قبل القائدة مع إضافة النقاط.</span>
-              </div>
+              )}
             </div>
 
-            {/* صندوق الإنجازات والشارات */}
+            {/* الإنجازات والشارات (lg:col-span-2) */}
             <div
-              className="p-6 sm:p-8 rounded-3xl bg-white border-2 border-[#0F1729] shadow-xs flex flex-col justify-between"
+              className="lg:col-span-2 k"
             >
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
-                    <Trophy size={20} className="text-[#F9AB00]" />
-                    <span>الإنجازات والشارات</span>
-                  </h2>
-                  <span className="text-xs font-bold text-gray-400">
-                    {userBadges.length} شارات مكتسبة
-                  </span>
-                </div>
+              <b style={{ fontSize: '24px' }}>الإنجازات</b>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {userBadges.map((badge) => (
-                    <div
-                      key={badge.id}
-                      className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex items-start gap-3 relative overflow-hidden"
-                    >
-                      <div className="w-10 h-10 rounded-2xl bg-white border border-gray-200 flex items-center justify-center flex-shrink-0 shadow-xs">
-                        {getBadgeIcon(badge.iconName)}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-black text-xs text-gray-900">
-                          {badge.name}
-                        </div>
-                        <div className="text-[11px] text-gray-500 font-medium mt-0.5 leading-tight">
-                          {badge.description}
-                        </div>
-                        <div className="text-[10px] text-blue-600 font-bold mt-1">
-                          {badge.reason}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="text-[11px] text-gray-400 font-medium mt-6 pt-3 border-t border-gray-100 flex items-center justify-between">
-                <span>تُمنح الشارات آلياً بناءً على إنجازاتك في المنصة.</span>
-                <span className="text-emerald-600 font-bold">نظام الشارات نشط ✨</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 4. قسم المشاريع المعتمدة */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
-                  <Code2 size={20} className="text-[#34A853]" />
-                  <span>مشاريع وتطبيقات العضو</span>
-                </h2>
-                <p className="text-xs text-gray-500 font-medium mt-0.5">
-                  المشاريع البرمجية التي عمل عليها وسلّم روابطها في المسار
-                </p>
-              </div>
-
-              <a
-                href="/?tab=showcase"
-                className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"
-              >
-                <span>معرض المشاريع العام</span>
-                <ExternalLink size={13} />
-              </a>
-            </div>
-
-            {userSubmissions.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {userSubmissions.map((sub: any) => (
-                  <div
-                    key={sub.id}
-                    className="p-5 rounded-2xl bg-white border-2 border-gray-200 hover:border-gray-900 transition-all shadow-xs flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-xs font-black text-gray-900">
-                          {sub.taskTitle || 'مشروع مسار الويب'}
-                        </span>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            sub.status === 'approved'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {sub.status === 'approved' ? 'معتمد ✅' : 'قيد المراجعة'}
-                        </span>
-                      </div>
-
-                      <p className="text-xs text-gray-600 line-clamp-2 mb-3">
-                        {sub.notes || 'مشروع تطبيقي يجسد المهارات المكتسبة في مسار الويب.'}
-                      </p>
-                    </div>
-
-                    <div className="pt-3 border-t border-gray-100 flex items-center gap-3">
-                      {sub.repoUrl && (
-                        <a
-                          href={sub.repoUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs font-bold text-gray-800 hover:text-black flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-xl"
-                        >
-                          <FolderGit2 size={13} />
-                          <span>الكود</span>
-                        </a>
-                      )}
-                      {sub.liveUrl && (
-                        <a
-                          href={sub.liveUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-xl"
-                        >
-                          <ExternalLink size={13} />
-                          <span>معاينة حية</span>
-                        </a>
-                      )}
-                    </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginTop: '14px' }}>
+                {/* شارة 1: أول دخول (مفتوحة دائماً بالعضو المسجل) */}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ width: '72px', height: '72px', margin: '0 auto 6px', borderRadius: '50%', background: '#F9AB00', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F172A' }}>
+                    <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="m12 2 3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" />
+                    </svg>
                   </div>
-                ))}
+                  <span style={{ fontSize: '15px' }}>أول دخول</span>
+                </div>
+
+                {/* شارة 2: أول تسليم */}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ width: '72px', height: '72px', margin: '0 auto 6px', borderRadius: '50%', background: userSubmissions.length > 0 ? '#34A853' : '#F1F3F4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: userSubmissions.length > 0 ? '#fff' : '#5f6673' }}>
+                    {userSubmissions.length > 0 ? (
+                      <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    )}
+                  </div>
+                  <span style={{ fontSize: '15px' }}>أول تسليم</span>
+                </div>
+
+                {/* شارة 3: أول ورشة */}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ width: '72px', height: '72px', margin: '0 auto 6px', borderRadius: '50%', background: store.getMemberAttendanceStats(displayedMember.id).attended > 0 ? '#4285F4' : '#F1F3F4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: store.getMemberAttendanceStats(displayedMember.id).attended > 0 ? '#fff' : '#5f6673' }}>
+                    {store.getMemberAttendanceStats(displayedMember.id).attended > 0 ? (
+                      <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    )}
+                  </div>
+                  <span style={{ fontSize: '15px' }}>أول ورشة</span>
+                </div>
               </div>
-            ) : (
-              <div className="p-8 rounded-3xl bg-gray-50 border border-dashed border-gray-300 text-center text-xs text-gray-500">
-                لم يتم تسليم مشاريع معتمدة بعد في هذا الملف.
-              </div>
-            )}
+            </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* ================= نافذة تعديل الملف الشخصي (Modal) ================= */}
@@ -1206,6 +1142,35 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
                   <>
                     <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 leading-relaxed font-medium">
                       📌 <strong>ملاحظة الاعتماد:</strong> مهارات الاستبيان تُعتمد بعد تسليم رابط تطبيق عملي أنجزته أو تقديم طلب لحل كويز المسار ليتم رصد النقاط لك.
+                    </div>
+
+                    {/* قائمة منسدلة لاختيار المهارة بحرية كاملة */}
+                    <div>
+                      <label className="block font-bold text-gray-800 mb-1.5">
+                        {gText(isFemale, 'اختاري المهارة التي تودين تسليم إثبات لها:', 'اختار المهارة التي تود تسليم إثبات لها:')}
+                      </label>
+                      <select
+                        value={selectedSkillForProof.name}
+                        onChange={(e) => {
+                          const chosen = skillsList.find((s) => s.name === e.target.value);
+                          if (chosen) {
+                            setSelectedSkillForProof(chosen);
+                            setProofValue(chosen.gitUrl || '');
+                            if (chosen.source === 'survey_registration') {
+                              setProofType('app_link');
+                            } else {
+                              setProofType('git_url');
+                            }
+                          }
+                        }}
+                        className="w-full p-2.5 rounded-xl border border-gray-300 bg-white font-bold text-gray-900 focus:outline-none focus:border-blue-500 text-xs shadow-xs"
+                      >
+                        {skillsList.map((s, idx) => (
+                          <option key={idx} value={s.name}>
+                            {s.name} {s.status === 'approved' ? '✓ (معتمدة)' : '⏳ (بانتظار الإثبات)'}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div>

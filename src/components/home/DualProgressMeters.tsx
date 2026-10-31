@@ -8,6 +8,9 @@ interface DualProgressMetersProps {
   points: number;
   levelNumber: number;
   levelTitle: string;
+  attendanceRate?: number;
+  tasksRate?: number;
+  participationRate?: number;
 }
 
 export const DualProgressMeters: React.FC<DualProgressMetersProps> = ({
@@ -16,7 +19,11 @@ export const DualProgressMeters: React.FC<DualProgressMetersProps> = ({
   points,
   levelNumber,
   levelTitle,
+  attendanceRate = 95,
+  tasksRate = 80,
+  participationRate = 85,
 }) => {
+  const [showBreakdown, setShowBreakdown] = React.useState(false);
   // حساب عدد البتلات والأذرع المضاءة (من إجمالي 8)
   const litPetals = Math.max(1, Math.min(8, Math.round((engagementPercent / 100) * 8)));
   const litStars = Math.max(1, Math.min(8, Math.round((learningPercent / 100) * 8)));
@@ -37,10 +44,44 @@ export const DualProgressMeters: React.FC<DualProgressMetersProps> = ({
           </h3>
         </div>
 
-        <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-          {points} نقطة
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowBreakdown(!showBreakdown)}
+            className="text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-full border border-blue-200 transition-colors"
+            title="طريقة احتساب مؤشر التفاعل"
+          >
+            {showBreakdown ? 'إخفاء الحسبة' : 'كيف يُقاس؟ ℹ️'}
+          </button>
+          <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+            {points} نقطة
+          </span>
+        </div>
       </div>
+
+      {/* شرح احتساب المؤشر */}
+      {showBreakdown && (
+        <div className="mb-4 p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1">
+          <div className="font-bold text-[#0F1729] flex items-center justify-between">
+            <span>معادلة قياس مؤشر التفاعل:</span>
+            <span className="text-emerald-700 font-extrabold">{engagementPercent}%</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 pt-1.5 text-center text-[11px]">
+            <div className="bg-white p-1.5 rounded-xl border border-slate-200">
+              <span className="text-gray-500 block">الحضور (35%)</span>
+              <strong className="text-blue-600 font-black">{attendanceRate}%</strong>
+            </div>
+            <div className="bg-white p-1.5 rounded-xl border border-slate-200">
+              <span className="text-gray-500 block">المهام (35%)</span>
+              <strong className="text-emerald-600 font-black">{tasksRate}%</strong>
+            </div>
+            <div className="bg-white p-1.5 rounded-xl border border-slate-200">
+              <span className="text-gray-500 block">المشاركات (30%)</span>
+              <strong className="text-amber-600 font-black">{participationRate}%</strong>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* المؤشران الإبداعيان جنباً إلى جنب بتصميم متناسق وجذاب */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4">

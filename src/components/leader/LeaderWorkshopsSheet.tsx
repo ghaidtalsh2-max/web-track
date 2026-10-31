@@ -125,45 +125,32 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
 
   return (
     <div className="space-y-6 text-right" dir="rtl">
-      {/* الترويسة الرئيسية مع شريط التبديل بين الخطة والشيت */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+      {/* ترويسة خطة الورش المطابقة للنموذج بالملي */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-900 text-xs font-black mb-1 border border-blue-200 shadow-2xs">
-            <span>نوفمبر 2026</span>
-            <span>·</span>
-            <span>8 ورش معتمدة</span>
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-gray-950">
-            خطة الورش وشيت التحضير الميداني 📋
-          </h2>
-          <p className="text-xs sm:text-sm text-gray-500 font-bold mt-0.5">
-            جدولة المحاور والمقدمين، اعتماد ونشر الورش للأعضاء، وتحضير الحضور ورصد التسليمات كالشيت
+          <h1 className="text-4xl sm:text-5xl font-black text-[#0F172A] tracking-tight leading-tight">
+            خطة الورش
+          </h1>
+          <p className="text-base sm:text-lg text-gray-600 font-bold mt-1">
+            ٨ ورش · نوفمبر ٢٠٢٦ · {adminWorkshops.filter((w) => w.isPublished).length} منشورة
           </p>
         </div>
 
-        {/* أزرار التبديل الفرعية */}
-        <div className="inline-flex items-center p-1 rounded-2xl bg-gray-100 border border-gray-200">
+        {/* أزرار التبديل الفرعية البيضاوية (tabs-proto) */}
+        <div className="tabs-proto">
           <button
             type="button"
             onClick={() => setActiveSubTab('schedule')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer border-none ${
-              activeSubTab === 'schedule'
-                ? 'bg-[#0F1729] text-white shadow-xs'
-                : 'bg-transparent text-gray-600 hover:text-gray-950'
-            }`}
+            className={activeSubTab === 'schedule' ? 'on' : ''}
           >
-            خطة الورش الـ 8 (المسودة) 📅
+            خطة الورش
           </button>
           <button
             type="button"
             onClick={() => setActiveSubTab('sheet')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer border-none ${
-              activeSubTab === 'sheet'
-                ? 'bg-[#0F1729] text-white shadow-xs'
-                : 'bg-transparent text-gray-600 hover:text-gray-950'
-            }`}
+            className={activeSubTab === 'sheet' ? 'on' : ''}
           >
-            شيت التحضير والتسليمات 📋
+            شيت التحضير
           </button>
         </div>
       </div>
@@ -177,103 +164,167 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
       {/* 1. قسم خطة الورش الـ 8 (المسودة للإدارة) */}
       {activeSubTab === 'schedule' && (
         <div className="space-y-4">
-          <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-300 flex items-center justify-between gap-3 text-xs font-bold text-amber-950">
-            <div className="flex items-center gap-2">
-              <span className="text-base">🔒</span>
-              <span>
-                <strong>مسودة مجدولة لحسابات الإدارة فقط:</strong> الورش لا تظهر في حسابات الأعضاء حتى تقومي بالنقر على زر «اعتماد ونشر للأعضاء 🚀».
-              </span>
-            </div>
+          <div className="k flex items-center gap-3.5" style={{ background: '#FFF4D6', borderColor: '#F9AB00', padding: '16px 24px', borderRadius: '24px' }}>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-[#0F172A]">
+              <rect x="4" y="11" width="16" height="10" rx="2" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+            </svg>
+            <span style={{ fontSize: '17px', fontWeight: 600, color: '#0F172A' }}>
+              الورش مسودة لحساب القادة فقط، ولا تظهر للأعضاء إلا بعد «اعتماد ونشر».
+            </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {adminWorkshops.map((ws) => (
-              <div
-                key={ws.id}
-                className={`p-6 rounded-3xl border-2 transition-all bg-white relative flex flex-col justify-between ${
-                  ws.isPublished ? 'border-emerald-500 shadow-xs' : 'border-[#0F1729]'
-                }`}
-                style={{
-                  borderRadius: '24px',
-                  boxShadow: '0 4px 0 0 #0F1729',
-                }}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="px-3 py-1 rounded-full text-xs font-black bg-blue-100 text-blue-900 border border-blue-200">
-                      الورشة {ws.orderNumber}
-                    </span>
+            {adminWorkshops.map((ws, idx) => {
+              const bgColors = ['#4285F4', '#EA4335', '#34A853', '#F9AB00', '#4285F4', '#EA4335', '#34A853', '#F9AB00'];
+              const iconBg = bgColors[idx % bgColors.length];
 
-                    {ws.isPublished ? (
-                      <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1">
-                        <Check size={12} />
-                        <span>منشورة ومعتمدة للأعضاء ✓</span>
-                      </span>
+              return (
+                <div
+                  key={ws.id}
+                  className="k flex gap-5 items-center transition-transform hover:-translate-y-1"
+                  style={{ padding: '22px 24px' }}
+                >
+                  {/* صندوق الأيقونة الأنيق المصغر 72x72px وأيقونة 34x34px */}
+                  <div
+                    style={{
+                      width: '72px',
+                      height: '72px',
+                      minWidth: '72px',
+                      minHeight: '72px',
+                      borderRadius: '18px',
+                      backgroundColor: iconBg,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#0F172A',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {idx % 4 === 0 ? (
+                      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="m16 18 6-6-6-6M8 6l-6 6 6 6" />
+                      </svg>
+                    ) : idx % 4 === 1 ? (
+                      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M6 3v12" />
+                        <circle cx="18" cy="6" r="3" />
+                        <circle cx="6" cy="18" r="3" />
+                        <path d="M18 9a9 9 0 0 1-9 9" />
+                      </svg>
+                    ) : idx % 4 === 2 ? (
+                      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <path d="M3 9h18M9 21V9" />
+                      </svg>
                     ) : (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-300">
-                        مسودة مجدولة (إدارة فقط) ⏳
-                      </span>
+                      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <ellipse cx="12" cy="5" rx="9" ry="3" />
+                        <path d="M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0" />
+                      </svg>
                     )}
                   </div>
 
-                  <h3 className="text-xl font-black text-gray-950 mb-1">
-                    {ws.titleAr} <span className="text-sm font-bold text-gray-500">| {ws.titleEn}</span>
-                  </h3>
+                  {/* تفاصيل الورشة والأزرار */}
+                  <div className="flex-1 flex flex-col justify-between min-w-0 gap-2">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="t-proto" style={{ background: '#fff', border: '1.5px solid #c9ced3' }}>
+                          الورشة {ws.orderNumber}
+                        </span>
 
-                  <div className="text-xs font-bold text-gray-600 mb-3 flex items-center gap-3">
-                    <span>📅 {ws.dateStr}</span>
-                    <span>•</span>
-                    <span>🎤 المقدّم: <strong>{ws.presenter}</strong></span>
-                  </div>
+                        {ws.isPublished ? (
+                          <span className="t-proto" style={{ background: '#E6F4EA' }}>
+                            <span style={{ display: 'inline-block', width: '9px', height: '9px', borderRadius: '50%', background: '#34A853', marginInlineEnd: '6px' }} />
+                            <span>منشورة</span>
+                          </span>
+                        ) : (
+                          <span className="t-proto" style={{ background: '#F1F3F4' }}>
+                            <span style={{ display: 'inline-block', width: '9px', height: '9px', borderRadius: '50%', background: '#9AA0A6', marginInlineEnd: '6px' }} />
+                            <span>مسودة</span>
+                          </span>
+                        )}
+                      </div>
 
-                  {/* المحاور الرئيسية الأربعة */}
-                  <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 mb-3.5">
-                    <span className="text-[11px] font-black text-gray-700 block mb-1.5">
-                      المحاور الرئيسية الأربعة:
-                    </span>
-                    <ul className="space-y-1 text-xs text-gray-600 list-disc list-inside">
-                      {ws.pillars.map((pil, idx) => (
-                        <li key={idx} className="leading-relaxed">
-                          {pil}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                      <b className="font-['Arimo'] text-2xl font-bold text-[#0F172A] block truncate" style={{ fontSize: '24px' }}>
+                        {ws.titleEn || ws.titleAr}
+                      </b>
+                      <span className="text-base text-gray-700 font-bold block mb-2" style={{ fontSize: '17px' }}>
+                        {ws.titleAr}
+                      </span>
 
-                  {/* المهمة والتاسك */}
-                  <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200 mb-4">
-                    <span className="text-[11px] font-black text-amber-900 block mb-1">
-                      {ws.taskNumber} — {ws.taskTitle}
-                    </span>
-                    <p className="text-xs text-amber-950 font-medium leading-relaxed">
-                      {ws.taskDescription}
-                    </p>
+                      <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-[#3c4452] mb-3" style={{ fontSize: '15px' }}>
+                        <span className="flex items-center gap-1.5">
+                          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <rect x="3" y="4" width="18" height="18" rx="2" />
+                            <path d="M16 2v4M8 2v4M3 10h18" />
+                          </svg>
+                          <span>{ws.dateStr}</span>
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <rect x="9" y="2" width="6" height="12" rx="3" />
+                            <path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3" />
+                          </svg>
+                          <span>المقدّم: {ws.presenter}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 mt-auto pt-2">
+                      {store.canManageWorkshops() ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(ws)}
+                            className="b-proto"
+                            style={{ background: '#F1F3F4', padding: '8px 18px', minHeight: '42px', fontSize: '16px' }}
+                          >
+                            تعديل
+                          </button>
+
+                          {!ws.isPublished ? (
+                            <button
+                              type="button"
+                              onClick={() => handlePublish(ws)}
+                              className="b-proto"
+                              style={{ backgroundColor: iconBg, color: '#fff', padding: '8px 18px', minHeight: '42px', fontSize: '16px' }}
+                            >
+                              اعتماد ونشر
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                store.updateAdminScheduledWorkshop({ ...ws, isPublished: false });
+                                setSuccessMsg(`تمت إعادة ورشة «${ws.titleAr}» إلى مسودة.`);
+                                setTimeout(() => setSuccessMsg(''), 3000);
+                              }}
+                              className="b-proto"
+                              style={{ backgroundColor: '#FFF4D6', color: '#0F172A', border: '1.5px solid #F9AB00', padding: '8px 14px', minHeight: '42px', fontSize: '14px' }}
+                            >
+                              إلغاء النشر
+                            </button>
+                          )}
+                        </>
+                      ) : store.isSupervisorOnly() ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await store.requestSupervisorPermission(currentUser.fullName, `نشر أو تعديل ورشة ${ws.titleAr}`);
+                            alert('تم إرسال طلب الصلاحية إلى القائدة غيداء بنجاح ✨');
+                          }}
+                          className="b-proto"
+                          style={{ background: '#EEF2FF', color: '#4338CA', border: '1.5px solid #C7D2FE', padding: '8px 14px', minHeight: '42px', fontSize: '13px' }}
+                        >
+                          طلب إذن اعتماد من غيداء 📩
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-
-                {/* أزرار الإجراءات */}
-                <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEdit(ws)}
-                    className="flex-1 py-2 px-3 rounded-xl text-xs font-black bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors border border-gray-300 cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <Edit3 size={13} />
-                    <span>تعديل الرابط والبوستر والتاسك</span>
-                  </button>
-
-                  {!ws.isPublished && (
-                    <button
-                      type="button"
-                      onClick={() => handlePublish(ws)}
-                      className="py-2 px-4 rounded-xl text-xs font-black bg-[#34A853] hover:bg-green-700 text-white transition-colors border-none cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                    >
-                      <span>اعتماد ونشر للأعضاء 🚀</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -281,23 +332,45 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
       {/* 2. قسم شيت التحضير والتسليمات الميداني */}
       {activeSubTab === 'sheet' && (
         <div className="space-y-5">
-          {/* أدوات الشيت: اختيار الورشة + البحث + تحضير الكل */}
-          <div className="p-5 rounded-3xl bg-white border-2 border-[#0F1729] shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+          {/* أدوات الشيت: اختيار الورشة/الحدث + إضافة حدث جديد + البحث + تحضير الكل */}
+          <div className="p-5 rounded-3xl bg-white border-2 border-[#0F172A] shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-1">
               <label className="text-xs font-black text-gray-800 shrink-0">
-                اختيار الورشة المراد تحضيرها:
+                اختيار الورشة أو الحدث:
               </label>
               <select
                 value={selectedWorkshopId}
                 onChange={(e) => setSelectedWorkshopId(e.target.value)}
                 className="px-4 py-2 rounded-2xl bg-gray-50 border border-gray-300 text-xs sm:text-sm font-black text-gray-900 focus:outline-none shadow-xs cursor-pointer flex-1"
               >
+                <option value="orientation-session">لقاء تدشين المسار (أمس) — اللقاء التعريفي</option>
                 {adminWorkshops.map((w) => (
                   <option key={w.id} value={w.id}>
                     الورشة {w.orderNumber}: {w.titleAr} ({w.dateStr}) — {w.presenter}
                   </option>
                 ))}
               </select>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const title = prompt('أدخلي اسم الحدث أو الورشة الجديدة:');
+                  if (!title) return;
+                  const dateStr = prompt('أدخلي تاريخ أو وقت الحدث:', 'الأسبوع القادم') || 'مجدول';
+                  const newId = `custom-event-${Date.now()}`;
+                  store.addAttendanceEvent({
+                    id: newId,
+                    title,
+                    type: 'workshop',
+                    dateStr,
+                  });
+                  setSelectedWorkshopId(newId);
+                  alert(`تمت إضافة الحدث: "${title}" إلى قائمة التحضير بنجاح!`);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-black bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 shrink-0 cursor-pointer"
+              >
+                + إضافة حدث/ورشة جديدة
+              </button>
             </div>
 
             <div className="flex items-center gap-3">
@@ -326,7 +399,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
           {/* شريط الإحصائية للورشة المحددة */}
           <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200 flex items-center justify-between text-xs font-bold text-blue-950">
             <span>
-              <strong>الورشة المحددة:</strong> {selectedWorkshop.titleAr} | {selectedWorkshop.presenter} ({selectedWorkshop.dateStr})
+              <strong>الحدث المحدد:</strong> {selectedWorkshop?.titleAr || 'لقاء المجال'} ({selectedWorkshop?.dateStr || 'أمس'})
             </span>
             <span className="bg-white px-3 py-1 rounded-full border border-blue-300 text-blue-900 font-black">
               نسبة الحضور: {attendedCount} من {regularMembers.length} عضو ({Math.round((attendedCount / (regularMembers.length || 1)) * 100)}%)
@@ -342,19 +415,21 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                     <th className="py-3 px-4 w-12 text-center">#</th>
                     <th className="py-3 px-4">اسم العضو</th>
                     <th className="py-3 px-4">المعرف والمسار</th>
-                    <th className="py-3 px-4 text-center">تحضير الحضور (+20 نقطة)</th>
-                    <th className="py-3 px-4">تسليم المهمة ({selectedWorkshop.taskNumber})</th>
+                    <th className="py-3 px-4 text-center">تحضير هذا الحدث</th>
+                    <th className="py-3 px-4 text-center">معدل الحضور العام</th>
+                    <th className="py-3 px-4">تسليم المهمة ({selectedWorkshop?.taskNumber || 'التاسك'})</th>
                     <th className="py-3 px-4 text-center">النقاط الكلية</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 text-xs">
                   {regularMembers.map((m, idx) => {
                     const isAttended = !!attendanceMap[m.id]?.attended;
+                    const attStats = store.getMemberAttendanceStats(m.id);
                     const submissions = store.getSubmissions();
                     const sub = submissions.find(
                       (s) =>
                         (s.profile_id === m.id || s.userId === m.id) &&
-                        (s.workshop_id === selectedWorkshop.id || s.taskTitle?.includes(selectedWorkshop.taskNumber))
+                        (s.workshop_id === selectedWorkshop?.id || s.taskTitle?.includes(selectedWorkshop?.taskNumber || ''))
                     );
 
                     return (
@@ -382,7 +457,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                           <span className="text-[10px] text-gray-400 block">{m.major || 'علوم حاسب'}</span>
                         </td>
 
-                        {/* زر التحضير التفاعلي */}
+                        {/* زر التحضير التفاعلي للحدث الحالي */}
                         <td className="py-3 px-4 text-center">
                           <button
                             type="button"
@@ -395,6 +470,21 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                           >
                             {isAttended ? 'حاضر ✓' : 'غائب ✗'}
                           </button>
+                        </td>
+
+                        {/* معدل الحضور العام ونسبة الحضور من الورش */}
+                        <td className="py-3 px-4 text-center">
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-xs font-black inline-block ${
+                              attStats.rate >= 80
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                : attStats.rate >= 50
+                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                : 'bg-rose-50 text-rose-800 border border-rose-200'
+                            }`}
+                          >
+                            {attStats.rate}% ({attStats.attended}/{attStats.total})
+                          </span>
                         </td>
 
                         {/* تسليم المهمة */}
