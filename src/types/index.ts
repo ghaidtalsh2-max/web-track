@@ -451,5 +451,14 @@ export interface LeadershipEvaluation {
   auditLog: EvaluationAuditEntry[];
 }
 
-
-
+export interface ShowcaseSlot {
+  id: string;
+  title: string;
+  description: string;
+  stageName: string;
+  category: 'workshop' | 'general';
+  color: string;
+  createdAt: string;
+  createdBy?: string;
+  createdByName?: string;
+}

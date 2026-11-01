@@ -30,6 +30,7 @@ import {
   AdminScheduledWorkshop,
   WorkshopAttendanceRecord,
   AttendanceEvent,
+  ShowcaseSlot,
 } from '../types';
 import { supabase } from './supabase';
 import type { Session } from '@supabase/supabase-js';
@@ -461,6 +462,7 @@ const STORAGE_KEYS = {
   ATTENDANCE_EVENTS: 'gdg_webtrack_attendance_events_v2',
   RESOURCES: 'gdg_webtrack_resources_v1',
   PROJECTS: 'gdg_webtrack_showcase_projects_v1',
+  SHOWCASE_SLOTS: 'gdg_webtrack_showcase_slots_v2',
 };
 
 // قائمة فعاليات وورش التحضير الأساسية المعتمدة
@@ -4177,6 +4179,91 @@ class StoreManager {
   public getWorkshopShowcaseItems(): any[] {
     const all = this.getShowcaseProjects();
     return all.filter((p) => p.isWorkshopTask || p.category?.includes('ورشة') || p.category?.includes('مهمة') || p.category?.includes('تحدي'));
+  }
+
+  public getShowcaseSlots(): ShowcaseSlot[] {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.SHOWCASE_SLOTS) : null;
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  public addShowcaseSlot(slotData: Omit<ShowcaseSlot, 'id' | 'createdAt'>): ShowcaseSlot {
+    const newSlot: ShowcaseSlot = {
+      ...slotData,
+      id: `slot-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    const current = this.getShowcaseSlots();
+    const updated = [newSlot, ...current];
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.SHOWCASE_SLOTS, JSON.stringify(updated));
+    }
+    this.notify();
+    return newSlot;
+  }
+
+  public deleteShowcaseSlot(id: string): void {
+    const current = this.getShowcaseSlots();
+    const updated = current.filter((s) => s.id !== id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.SHOWCASE_SLOTS, JSON.stringify(updated));
+    }
+    this.notify();
+  }
+
+  public submitProjectToSlot(submission: {
+    slotId?: string;
+    slotTitle?: string;
+    title: string;
+    githubUrl: string;
+    liveUrl?: string;
+    notes?: string;
+    memberId: string;
+    memberName: string;
+    stageName?: string;
+    color?: string;
+  }): any {
+    const newProj = {
+      id: `proj-${Date.now()}`,
+      slotId: submission.slotId,
+      title: submission.title.trim(),
+      memberName: submission.memberName.trim(),
+      memberId: submission.memberId,
+      stageName: submission.stageName || 'المرحلة 02',
+      status: 'approved',
+      color: submission.color || '#34A853',
+      githubUrl: submission.githubUrl.trim(),
+      liveUrl: submission.liveUrl?.trim() || undefined,
+      category: 'تطبيق ورشة',
+      workshopTaskName: submission.slotTitle || 'تطبيق ورشة',
+      isWorkshopTask: true,
+      createdAt: new Date().toISOString(),
+      notes: submission.notes,
+    };
+    const current = this.getShowcaseProjects();
+    const updated = [newProj, ...current];
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(updated));
+    }
+    try {
+      this.addInquiry({
+        userId: submission.memberId,
+        userName: submission.memberName,
+        title: `تسليم عمل للمعرض: ${submission.title}`,
+        category: 'project',
+        details: `تسليم عمل في خانة "${submission.slotTitle || 'المعرض'}":\nرابط GitHub: ${submission.githubUrl}\nرابط المعاينة: ${submission.liveUrl || 'لا يوجد'}\nملاحظات: ${submission.notes || 'لا يوجد'}`,
+        status: 'approved',
+      });
+    } catch (e) {
+      console.warn('Inquiry notice:', e);
+    }
+    this.notify();
+    return newProj;
   }
 
   public addShowcaseProject(projData: any): any {
