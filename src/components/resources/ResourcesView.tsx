@@ -121,12 +121,13 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
       try {
         const persisted = await persistLocalFile(resId, selectedFile);
         savedFileData = persisted.dataUrl;
-        finalUrl = persisted.dataUrl;
+        finalUrl = `local://${resId}`;
       } catch (err) {
         console.warn('Could not persist to indexedDB, fallback to in-memory dataUrl:', err);
       }
     } else if (uploadMode === 'url') {
       finalUrl = sanitizeViewUrl(fileUrl);
+      savedFileData = undefined;
     }
 
     const newRes = store.addResource({
@@ -176,17 +177,17 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
 
   // فتح الملف ومعاينته فوراً
   const handleOpenFile = async (res: TrackResource) => {
-    let content = res.fileData || res.fileUrl;
+    let content = res.fileData;
     if (!content || !content.startsWith('data:')) {
       setIsPreviewLoading(true);
       const persisted = await getPersistedLocalFile(res.id);
-      if (persisted) {
+      if (persisted && persisted.startsWith('data:')) {
         content = persisted;
       }
       setIsPreviewLoading(false);
     }
     setPreviewResource(res);
-    setPreviewDataUrl(content || null);
+    setPreviewDataUrl(content || (res.fileUrl.startsWith('http') ? res.fileUrl : null));
   };
 
   // تحميل الملف المباشر على جهاز المستخدم
@@ -1286,9 +1287,9 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
                       borderRadius: '12px',
                     }}
                   />
-                ) : (previewDataUrl && previewDataUrl.startsWith('data:application/pdf')) || previewResource.fileUrl.endsWith('.pdf') ? (
+                ) : (previewDataUrl && (previewDataUrl.includes('pdf') || previewResource.fileType === 'pdf' || previewResource.fileName?.toLowerCase().endsWith('.pdf'))) || (previewResource.fileUrl && previewResource.fileUrl.endsWith('.pdf')) ? (
                   <iframe
-                    src={previewDataUrl || previewResource.fileUrl}
+                    src={previewDataUrl || (previewResource.fileUrl.startsWith('http') ? previewResource.fileUrl : '')}
                     title={previewResource.title}
                     style={{
                       width: '100%',

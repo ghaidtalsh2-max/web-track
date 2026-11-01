@@ -80,6 +80,29 @@ export async function persistLocalFile(id: string, file: File): Promise<{
 }
 
 /**
+ * حفظ Data URL مباشرة في IndexedDB للملفات المرفوعة
+ */
+export async function persistLocalDataUrl(
+  id: string,
+  dataUrl: string,
+  fileName?: string,
+  fileSize?: string
+): Promise<void> {
+  try {
+    const db = await openFilesDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.put({
+      id,
+      dataUrl,
+      fileName: fileName || `${id}.pdf`,
+      fileSize: fileSize || '١٫٠ MB',
+      updatedAt: Date.now(),
+    });
+  } catch {}
+}
+
+/**
  * جلب محتوى الملف المخزن بواسطة المعرف
  */
 export async function getPersistedLocalFile(id: string): Promise<string | null> {
@@ -204,10 +227,9 @@ export async function openTrackFile(resource: {
   // تنظيف أي بادئة خاطئة
   const rawUrl = (resource.fileUrl || '').replace(/^https?:\/\/blob:/i, 'blob:');
 
-  // إذا كان الرابط مؤقتاً blob ولا توجد بيانات مخزنة له (ملف قديم قبل تفعيل التخزين الدائم)
-  if (rawUrl.startsWith('blob:')) {
+  if (rawUrl.startsWith('local://') || rawUrl.startsWith('blob:')) {
     alert(
-      `عذراً، الملف «${resource.title}» فاقد للبيانات المؤقتة من الجلسة السابقة. يرجى حذفه وإعادة اختياره لمرة واحدة ليبقى محفوظاً بشكل دائم ويفتح دائماً.`
+      `عذراً، الملف «${resource.title}» فاقد للبيانات في هذا المتصفح. يرجى حذفه وإعادة رفعه ليبقى محفوظاً بشكل دائم.`
     );
     return;
   }
@@ -258,9 +280,9 @@ export async function downloadTrackFile(resource: {
 
   const rawUrl = (resource.fileUrl || '').replace(/^https?:\/\/blob:/i, 'blob:');
 
-  if (rawUrl.startsWith('blob:')) {
+  if (rawUrl.startsWith('local://') || rawUrl.startsWith('blob:')) {
     alert(
-      `عذراً، الملف «${resource.title}» فاقد للبيانات المؤقتة من الجلسة السابقة. يرجى إعادة اختياره لمرة واحدة ليتم حفظه دائماً.`
+      `عذراً، الملف «${resource.title}» فاقد للبيانات في هذا المتصفح. يرجى حذفه وإعادة رفعه ليبقى محفوظاً بشكل دائم.`
     );
     return;
   }

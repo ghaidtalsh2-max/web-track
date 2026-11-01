@@ -34,7 +34,7 @@ import {
 } from '../types';
 import { supabase } from './supabase';
 import type { Session } from '@supabase/supabase-js';
-import { deletePersistedLocalFile } from './fileStorage';
+import { deletePersistedLocalFile, persistLocalDataUrl } from './fileStorage';
 
 // البريد المشتق من اسم المستخدم (يطابق ما ينشئه scripts/provision_accounts.cjs)
 const AUTH_EMAIL_DOMAIN = 'members.gdgtu.local';
@@ -3935,6 +3935,7 @@ class StoreManager {
         if (Array.isArray(parsed) && parsed.length > 0) {
           const mockResourceIds = ['res-ws-1-slides', 'res-css-grid-cheat', 'res-web-dev-guide'];
           const mockTitles = ['سلايدات الورشة 01', 'مرجع الأكواد السريع', 'دليل مطور الويب الشامل'];
+          let needsSanitization = false;
           list = parsed
             .filter((r: any) => {
               if (!r) return false;
@@ -3942,10 +3943,30 @@ class StoreManager {
               if (mockTitles.some((t) => (r.title || '').includes(t))) return false;
               return true;
             })
-            .map((r: any) => ({
-              ...r,
-              fileUrl: (r.fileUrl || '').replace(/^https?:\/\/blob:/i, 'blob:'),
-            }));
+            .map((r: any) => {
+              let url = r.fileUrl || '';
+              // إذا كان الملف يحتوي على DataURL قديم متضخم في localStorage، نرحله إلى IndexedDB وننظف localStorage
+              if (url.startsWith('data:') || (r.fileData && r.fileData.startsWith('data:'))) {
+                const data = r.fileData || url;
+                if (typeof window !== 'undefined') {
+                  persistLocalDataUrl(r.id, data, r.fileName, r.fileSize).catch(() => {});
+                }
+                url = `local://${r.id}`;
+                needsSanitization = true;
+              }
+              return {
+                ...r,
+                fileUrl: url.replace(/^https?:\/\/blob:/i, 'blob:'),
+                fileData: undefined,
+              };
+            });
+
+          // تحرير مساحة localStorage فوراً إذا وُجدت بيانات Base64 متضخمة
+          if (needsSanitization && typeof window !== 'undefined') {
+            try {
+              localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(list));
+            } catch {}
+          }
         }
       } catch {}
     }
@@ -3954,7 +3975,11 @@ class StoreManager {
 
   public addResource(resData: Partial<TrackResource> & Omit<TrackResource, 'uploadedAt'>): TrackResource {
     const assignedId = resData.id || `res-${Date.now()}`;
-    const cleanUrl = (resData.fileUrl || '').replace(/^https?:\/\/blob:/i, 'blob:');
+    let cleanUrl = (resData.fileUrl || '').replace(/^https?:\/\/blob:/i, 'blob:');
+    if (cleanUrl.startsWith('data:')) {
+      cleanUrl = `local://${assignedId}`;
+    }
+
     const newRes: TrackResource = {
       id: assignedId,
       uploadedAt: new Date().toISOString().split('T')[0],
@@ -3965,26 +3990,25 @@ class StoreManager {
       fileType: resData.fileType || 'pdf',
       fileSize: resData.fileSize || '١٫٠ MB',
       fileName: resData.fileName,
-      fileData: resData.fileData,
+      fileData: resData.fileData, // في الذاكرة الحالية للمعروضات الفورية
       workshopName: resData.workshopName || 'عام',
       color: resData.color || '#4285F4',
       uploadedBy: resData.uploadedBy || 'قائد المسار',
     };
     const current = this.getResources();
     const updated = [newRes, ...current];
+
+    // حفظ خفيف الوزن للغاية في localStorage ليتسع لمئات الملفات دون أي خطأ في المساحة (IndexedDB يحفظ الثنائيات)
+    const storageList = updated.map((r) => ({
+      ...r,
+      fileData: undefined,
+      fileUrl: (r.fileUrl && r.fileUrl.startsWith('data:')) ? `local://${r.id}` : r.fileUrl,
+    }));
+
     try {
-      localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(updated));
+      localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(storageList));
     } catch (e) {
-      console.warn('Quota exceeded in localStorage for resources, storing lightweight metadata:', e);
-      // Strip large Base64 strings from localStorage to prevent QuotaExceededError
-      // since the raw data is safely stored in IndexedDB
-      const safeList = updated.map((r) => ({
-        ...r,
-        fileData: r.fileData && r.fileData.length > 100000 ? undefined : r.fileData,
-      }));
-      try {
-        localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(safeList));
-      } catch {}
+      console.warn('Error saving resources to localStorage:', e);
     }
     this.notify();
     return newRes;
