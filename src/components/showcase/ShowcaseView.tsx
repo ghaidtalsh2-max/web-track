@@ -128,12 +128,23 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
     }, 1100);
   };
 
-  // تقسيم المشاريع
-  const workshopProjects = projects.filter(
+  // المعرض فقط روابط: تصفية المشاريع واستبعاد أي كويز، وإظهار فقط المشاريع ذات الروابط الحقيقية
+  const validProjects = projects.filter((p) => {
+    const t = (p.title || '').toLowerCase();
+    if (t.includes('كويز') || t.includes('quiz') || p.id?.includes('quiz')) return false;
+    const gh = (p.githubUrl || '').trim();
+    const lv = (p.liveUrl || '').trim();
+    const isRealGh = gh.startsWith('http') && gh !== 'https://github.com' && !gh.includes('quiz') && !gh.includes('gdg-taif.dev');
+    const isRealLv = lv.startsWith('http') && !lv.includes('quiz') && !lv.includes('gdg-taif.dev');
+    return isRealGh || isRealLv;
+  });
+
+  // تقسيم المشاريع الحقيقية ذات الروابط
+  const workshopProjects = validProjects.filter(
     (p) => p.isWorkshopTask || p.category?.includes('ورشة') || p.category?.includes('تاسك')
   );
 
-  const generalProjects = projects.filter((p) => {
+  const generalProjects = validProjects.filter((p) => {
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
     return matchesStatus;
   });
@@ -408,7 +419,7 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                 onClick={() => setStatusFilter('all')}
                 className={statusFilter === 'all' ? 'on' : ''}
               >
-                الكل ({projects.length})
+                الكل ({validProjects.length})
               </button>
               <button
                 type="button"

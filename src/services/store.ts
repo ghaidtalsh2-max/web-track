@@ -2555,35 +2555,37 @@ class StoreManager {
         ? 'رابط تطبيق عملي'
         : 'رابط Git للمشروع';
 
-    // تسجيل التسليم كـ Submission رسمي للاعتماد وليس كاستفسار
-    const taskId = `skill-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-    try {
-      await supabase.from('tasks').upsert(
-        {
-          id: taskId,
-          title: `تسليم إثبات مهارة: ${skillName}`,
-          target_level: 'beginner',
-          due_date: new Date().toISOString(),
-          points: 25,
-          is_active: true,
-        },
-        { onConflict: 'id' }
-      );
+    // تسجيل التسليم كـ Submission رسمي للاعتماد فقط إذا كان تسليماً برابط حقيقي (وليس كويز)
+    if (proofType !== 'quiz' && proofValue.startsWith('http')) {
+      const taskId = `skill-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+      try {
+        await supabase.from('tasks').upsert(
+          {
+            id: taskId,
+            title: `تسليم إثبات مهارة: ${skillName}`,
+            target_level: 'beginner',
+            due_date: new Date().toISOString(),
+            points: 25,
+            is_active: true,
+          },
+          { onConflict: 'id' }
+        );
 
-      await supabase.from('submissions').upsert(
-        {
-          id: `sub-skill-${userId}-${taskId}`,
-          task_id: taskId,
-          profile_id: userId,
-          repo_url: proofValue.startsWith('http') ? proofValue : 'https://gdg-taif.dev',
-          live_url: proofValue.startsWith('http') ? proofValue : null,
-          notes: `إثبات مهارة (${proofLabel}): ${proofValue}`,
-          status: 'in_review',
-        },
-        { onConflict: 'id' }
-      );
-    } catch (e) {
-      console.warn('Submissions insert warning:', e);
+        await supabase.from('submissions').upsert(
+          {
+            id: `sub-skill-${userId}-${taskId}`,
+            task_id: taskId,
+            profile_id: userId,
+            repo_url: proofValue,
+            live_url: proofValue,
+            notes: `إثبات مهارة (${proofLabel}): ${proofValue}`,
+            status: 'in_review',
+          },
+          { onConflict: 'id' }
+        );
+      } catch (e) {
+        console.warn('Submissions insert warning:', e);
+      }
     }
 
     await this.refreshData();
@@ -2672,36 +2674,7 @@ class StoreManager {
       console.warn('Could not record quiz points in Supabase:', e);
     }
 
-    // 3. تسجيل التسليم في قائمة التسليمات الرسمية لقائدة المسار
-    const taskId = `skill-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-    try {
-      await supabase.from('tasks').upsert(
-        {
-          id: taskId,
-          title: `اجتياز كويز مهارة: ${skillName}`,
-          target_level: 'beginner',
-          due_date: new Date().toISOString(),
-          points: 25,
-          is_active: true,
-        },
-        { onConflict: 'id' }
-      );
-
-      await supabase.from('submissions').upsert(
-        {
-          id: `sub-quiz-${userId}-${taskId}`,
-          task_id: taskId,
-          profile_id: userId,
-          repo_url: 'https://gdg-taif.dev/quiz',
-          notes: `اجتياز كويز مهارة ${skillName} بنجاح (${score}/4) ✓`,
-          status: 'in_review',
-        },
-        { onConflict: 'id' }
-      );
-    } catch (e) {
-      console.warn('Submissions quiz insert warning:', e);
-    }
-
+    // 3. الكويزات معتمدة في بروفايل العضو فقط ونقاطه ولا تُرسل كـ Submission للمعرض
     await this.refreshData();
     this.notify();
     return true;
@@ -3867,7 +3840,14 @@ class StoreManager {
       };
     }
     const members = this.getMembers().filter((m) => m.role === 'member');
-    const submissions = this.getSubmissions();
+    const submissions = this.getSubmissions().filter((s) => {
+      const t = (s.taskTitle || s.task?.title || s.notes || '').toLowerCase();
+      if (t.includes('كويز') || t.includes('quiz') || s.id?.includes('quiz') || (s.repo_url && s.repo_url.includes('quiz')) || (s.repoUrl && s.repoUrl.includes('quiz'))) return false;
+      const hasLink =
+        (s.repoUrl && s.repoUrl.startsWith('http') && !s.repoUrl.includes('quiz') && s.repoUrl !== 'https://github.com') ||
+        (s.live_url && s.live_url.startsWith('http') && !s.live_url.includes('quiz'));
+      return Boolean(hasLink);
+    });
     const pendingSubmissions = submissions.filter((s) => s.status === 'in_review' || s.status === 'pending');
     const tasks = this.getTasks().filter((t) => t.is_active !== false);
     const approvedSubmissions = submissions.filter((s) => s.status === 'approved');
@@ -4061,7 +4041,12 @@ class StoreManager {
             if (!p || p.id?.startsWith('proj-demo-')) return false;
             if (mockTitles.some((t) => p.title?.includes(t))) return false;
             if (mockNames.some((n) => p.memberName?.includes(n))) return false;
-            return true;
+            if (p.title?.includes('كويز') || p.title?.toLowerCase().includes('quiz') || p.id?.includes('quiz')) return false;
+            const gh = (p.githubUrl || '').trim();
+            const lv = (p.liveUrl || '').trim();
+            const hasRealGh = gh.startsWith('http') && gh !== 'https://github.com' && !gh.includes('quiz') && !gh.includes('gdg-taif.dev');
+            const hasRealLv = lv.startsWith('http') && !lv.includes('quiz') && !lv.includes('gdg-taif.dev');
+            return hasRealGh || hasRealLv;
           });
         }
       } catch {}
@@ -4079,11 +4064,30 @@ class StoreManager {
       );
     };
 
-    // 1. جلب كل التسليمات الحقيقية التي تحتوي على روابط (المعتمدة وقيد المراجعة)
+    // 1. جلب كل التسليمات الحقيقية التي تحتوي على روابط (المعتمدة وقيد المراجعة) مع استبعاد الكويزات تماماً
     this.getSubmissions().forEach((s: any, idx: number) => {
       const repoUrl = s.repo_url || s.repoUrl;
       const liveUrl = s.live_url || s.liveUrl;
-      if (!repoUrl && !liveUrl) return;
+      const title = s.taskTitle || s.task?.title || '';
+      const notes = s.notes || '';
+
+      // الكويزات معتمدة في بروفايل العضو فقط ولا تظهر في المعرض
+      if (
+        title.includes('كويز') ||
+        title.toLowerCase().includes('quiz') ||
+        notes.includes('كويز') ||
+        notes.toLowerCase().includes('quiz') ||
+        s.id?.includes('quiz') ||
+        s.task_id?.includes('quiz') ||
+        (repoUrl && repoUrl.includes('quiz'))
+      ) {
+        return;
+      }
+
+      // المعرض فقط مشاريع بروابط حقيقية (GitHub أو رابط المعاينة)
+      const isRealRepo = repoUrl && repoUrl.startsWith('http') && repoUrl !== 'https://github.com' && !repoUrl.includes('quiz') && !repoUrl.includes('gdg-taif.dev');
+      const isRealLive = liveUrl && liveUrl.startsWith('http') && !liveUrl.includes('quiz') && !liveUrl.includes('gdg-taif.dev');
+      if (!isRealRepo && !isRealLive) return;
 
       if (hasProjectWithUrls(repoUrl, liveUrl)) return;
 
@@ -4092,15 +4096,15 @@ class StoreManager {
 
       projectItems.push({
         id: s.id || `sub-proj-${idx}`,
-        title: s.taskTitle || s.task?.title || 'مشروع تطبيقي للمسار',
+        title: title || 'مشروع تطبيقي للمسار',
         memberName,
         stageName: member?.webLevelTitle?.split(':')[1] || 'المرحلة 02',
         status: s.status === 'approved' ? 'approved' : 'in_review',
         color: gdgColors[projectItems.length % gdgColors.length],
-        githubUrl: repoUrl || 'https://github.com',
-        liveUrl: liveUrl || undefined,
-        category: (s.taskTitle || '').includes('ورشة') ? 'تطبيق ورشة' : 'المشاريع الحرة',
-        isWorkshopTask: Boolean((s.taskTitle || '').includes('ورشة') || (s.taskTitle || '').includes('تحدي')),
+        githubUrl: isRealRepo ? repoUrl : (isRealLive ? liveUrl : 'https://github.com'),
+        liveUrl: isRealLive ? liveUrl : undefined,
+        category: (title || '').includes('ورشة') ? 'تطبيق ورشة' : 'المشاريع الحرة',
+        isWorkshopTask: Boolean((title || '').includes('ورشة') || (title || '').includes('تحدي')),
       });
     });
 
@@ -4108,6 +4112,10 @@ class StoreManager {
     const choices = typeof this.getChallengeChoices === 'function' ? this.getChallengeChoices() : [];
     choices.forEach((c: any) => {
       if (!c.repoUrl && !c.liveUrl) return;
+      const isRealRepo = c.repoUrl && c.repoUrl.startsWith('http') && c.repoUrl !== 'https://github.com' && !c.repoUrl.includes('quiz');
+      const isRealLive = c.liveUrl && c.liveUrl.startsWith('http') && !c.liveUrl.includes('quiz');
+      if (!isRealRepo && !isRealLive) return;
+
       if (hasProjectWithUrls(c.repoUrl, c.liveUrl)) return;
 
       const member = this.getMemberById(c.memberId);
@@ -4120,20 +4128,26 @@ class StoreManager {
         stageName: member?.webLevelTitle?.split(':')[1] || 'المرحلة 02',
         status: c.status === 'approved' ? 'approved' : 'in_review',
         color: gdgColors[projectItems.length % gdgColors.length],
-        githubUrl: c.repoUrl || 'https://github.com',
-        liveUrl: c.liveUrl || undefined,
+        githubUrl: isRealRepo ? c.repoUrl : (isRealLive ? c.liveUrl : 'https://github.com'),
+        liveUrl: isRealLive ? c.liveUrl : undefined,
         category: 'تطبيق ورشة',
         isWorkshopTask: true,
       });
     });
 
-    // 3. فحص استفسارات ورسائل الأعضاء في حال أرفق العضو رابط مشروعه (مثل إثباتات الروابط ورسائل عبدالعزيز)
+    // 3. فحص استفسارات ورسائل الأعضاء في حال أرفق العضو رابط مشروعه الحقيقي
     this.getInquiries().forEach((inq: any) => {
+      const rawTitle = inq.title || '';
+      if (rawTitle.includes('كويز') || rawTitle.toLowerCase().includes('quiz')) return;
+
       const details = inq.details || '';
       const urlMatches = details.match(/https?:\/\/[^\s]+/g);
       if (urlMatches && urlMatches.length > 0) {
-        const ghUrl = urlMatches.find((u: string) => u.includes('github.com')) || urlMatches[0];
-        const lvUrl = urlMatches.find(
+        const realUrls = urlMatches.filter((u: string) => !u.includes('quiz') && !u.includes('gdg-taif.dev'));
+        if (realUrls.length === 0) return;
+
+        const ghUrl = realUrls.find((u: string) => u.includes('github.com')) || realUrls[0];
+        const lvUrl = realUrls.find(
           (u: string) =>
             !u.includes('github.com') &&
             (u.includes('vercel.app') ||
@@ -4148,7 +4162,6 @@ class StoreManager {
 
         const member = this.getMemberById(inq.userId);
         const memberName = inq.userName || member?.fullName || 'عضو مسار الويب';
-        const rawTitle = inq.title || 'مشروع تطبيقي';
         const cleanTitle = rawTitle
           .replace('تسليم جديد:', '')
           .replace('طلب اعتماد', 'مشروع تطبيقي')
@@ -4162,7 +4175,7 @@ class StoreManager {
           stageName: member?.webLevelTitle?.split(':')[1] || 'المرحلة 02',
           status: inq.status === 'approved' ? 'approved' : 'in_review',
           color: gdgColors[projectItems.length % gdgColors.length],
-          githubUrl: ghUrl || 'https://github.com',
+          githubUrl: ghUrl || lvUrl || 'https://github.com',
           liveUrl: lvUrl || undefined,
           category: inq.title?.includes('ورشة') ? 'تطبيق ورشة' : 'المشاريع الحرة',
           isWorkshopTask: Boolean(inq.title?.includes('ورشة') || inq.title?.includes('تحدي')),
@@ -4170,7 +4183,16 @@ class StoreManager {
       }
     });
 
-    return projectItems;
+    // تصفية نهائية صارمة: المعرض فقط مشاريع بروابط حقيقية والكويزات تظهر في البروفايل فقط
+    return projectItems.filter((p) => {
+      const t = (p.title || '').toLowerCase();
+      if (t.includes('كويز') || t.includes('quiz') || p.id?.includes('quiz')) return false;
+      const gh = p.githubUrl || '';
+      const lv = p.liveUrl || '';
+      const isRealGh = gh.startsWith('http') && gh !== 'https://github.com' && !gh.includes('quiz') && !gh.includes('gdg-taif.dev');
+      const isRealLv = lv.startsWith('http') && !lv.includes('quiz') && !lv.includes('gdg-taif.dev');
+      return Boolean(isRealGh || isRealLv);
+    });
   }
 
   public getWorkshopShowcaseItems(): any[] {

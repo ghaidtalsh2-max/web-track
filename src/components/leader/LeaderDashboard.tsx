@@ -402,6 +402,14 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
     if (i.status === 'answered' || i.status === 'approved' || i.status === 'rejected') return false;
     if (Boolean(i.responseText) || Boolean(i.response_text) || Boolean(i.decision) || Boolean(i.respondedBy) || Boolean(i.answered_by)) return false;
 
+    // 4. استبعاد أي كويز أو اختبار آلي نهائياً (الكويزات تظهر في بروفايل العضو فقط)
+    const isQuizInq =
+      (i.title || '').includes('كويز') ||
+      (i.title || '').toLowerCase().includes('quiz') ||
+      (i.details || '').includes('كويز') ||
+      (i.details || '').toLowerCase().includes('quiz');
+    if (isQuizInq) return false;
+
     return true;
   });
 
