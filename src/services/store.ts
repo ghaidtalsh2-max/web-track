@@ -3232,41 +3232,124 @@ class StoreManager {
     return newInquiry;
   }
 
-  public async answerInquiry(inquiryId: string, answerText: string, answeredBy: string): Promise<boolean> {
+  /**
+   * البت في طلب أو استفسار العضو (موافقة أو رفض) وتفعيل الصلاحيات والنقاط آلياً
+   */
+  public async resolveInquiry(
+    inquiryId: string,
+    decision: 'approved' | 'rejected',
+    notes: string,
+    leaderName: string
+  ): Promise<boolean> {
     const now = new Date().toISOString();
+    const targetInq = this.inquiries.find((inq) => inq.id === inquiryId);
+    const userId = targetInq?.userId || '';
+    const responseText =
+      notes.trim() ||
+      (decision === 'approved'
+        ? 'تمت الموافقة والاعتماد بنجاح، وتفعيل الصلاحية/النقاط المطلوبة.'
+        : 'نعتذر، لم يتم اعتماد الطلب في الوقت الحالي.');
 
-    // 1. التحديث المباشر في جدول inquiries الفعلي في Supabase (عمود response_text)
-    const { error } = await supabase
-      .from('inquiries')
-      .update({
-        status: 'answered',
-        response_text: answerText.trim(),
-        answered_by: answeredBy,
-        answered_at: now,
-      })
-      .eq('id', inquiryId);
-
-    if (error) {
-      console.error('Supabase answerInquiry error:', error);
-      throw new Error(`فشل حفظ الرد في قاعدة البيانات (inquiries): ${error.message}`);
+    // 1. تحديث Supabase inquiries
+    try {
+      await supabase
+        .from('inquiries')
+        .update({
+          status: decision,
+          response_text: responseText,
+          answered_by: leaderName,
+          answered_at: now,
+        })
+        .eq('id', inquiryId);
+    } catch (err) {
+      console.error('Supabase resolveInquiry error:', err);
     }
 
-    // 2. تحديث الكاش المحلي بعد التأكيد
+    // 2. تحديث الكاش المحلي
     this.inquiries = this.inquiries.map((inq) => {
       if (inq.id === inquiryId) {
         return {
           ...inq,
-          status: 'answered' as const,
-          responseText: answerText.trim(),
-          respondedBy: answeredBy,
+          status: decision,
+          decision,
+          decisionNotes: notes.trim(),
+          responseText,
+          respondedBy: leaderName,
           respondedAt: 'الآن',
         };
       }
       return inq;
     });
 
+    // 3. في حال الموافقة: تفعيل الصلاحيات والنقاط والمشاريع تلقائياً
+    if (decision === 'approved' && targetInq) {
+      const inqTitle = targetInq.title || '';
+      const inqDetails = targetInq.details || '';
+      const isRoleRequest =
+        inqTitle.includes('إشراف') ||
+        inqTitle.includes('مشرف') ||
+        inqTitle.includes('صلاحية') ||
+        inqDetails.includes('إشراف') ||
+        inqDetails.includes('مشرف') ||
+        inqDetails.includes('صلاحية') ||
+        (targetInq.userName || '').includes('عامر');
+
+      // تفعيل صلاحية الإشراف إذا كان طلب إشراف
+      if (isRoleRequest && userId) {
+        try {
+          await this.patchMember(userId, { role: 'supervisor' });
+        } catch (e) {
+          console.warn('patchMember supervisor error:', e);
+        }
+      }
+
+      // اعتماد التسليمات أو إثباتات المهارة وإضافة النقاط
+      const isProofOrTask =
+        inqTitle.includes('إثبات') ||
+        inqTitle.includes('تحدي') ||
+        inqTitle.includes('مهمة') ||
+        inqTitle.includes('كويز') ||
+        inqTitle.includes('تسليم') ||
+        inqDetails.includes('http');
+
+      if (isProofOrTask && userId) {
+        try {
+          await this.awardPoints(userId, 25, `اعتماد طلب: ${inqTitle || 'تسليم إثبات'}`);
+        } catch (e) {
+          console.warn('awardPoints error:', e);
+        }
+
+        // تحديث حالة التسليم المطابق في التسليمات
+        this.submissions = this.submissions.map((sub: any) => {
+          if (sub.profile_id === userId || sub.profileId === userId || sub.user_id === userId) {
+            return { ...sub, status: 'approved' };
+          }
+          return sub;
+        });
+      }
+    }
+
+    // 4. إشعار للمرسل
+    if (userId) {
+      try {
+        this.addNotification({
+          userId,
+          title: decision === 'approved' ? 'تهانينا! تمت الموافقة على طلبك ✅' : 'تحديث بشأن طلبك 📋',
+          message:
+            decision === 'approved'
+              ? `تمت الموافقة على طلبك (${targetInq?.title || 'طلبك'}) وتفعيل الصلاحية بنجاح.`
+              : `نعتذر، لم يتم اعتماد طلبك (${targetInq?.title || 'طلبك'}): ${responseText}`,
+          type: decision === 'approved' ? 'success' : 'info',
+        });
+      } catch {}
+    }
+
     this.notify();
     return true;
+  }
+
+  public async answerInquiry(inquiryId: string, answerText: string, answeredBy: string): Promise<boolean> {
+    return this.resolveInquiry(inquiryId, 'approved', answerText, answeredBy);
   }
 
   // --- Polls (polls, poll_options, poll_responses in Supabase) ---
@@ -3840,7 +3923,7 @@ class StoreManager {
     this.notify();
   }
 
-  // --- Showcase Projects Management (معرض مشاريع الأعضاء الحقيقي المعتمد) ---
+  // --- Showcase Projects Management (معرض مشاريع الأعضاء الحقيقي المعتمد وتحديثات الروابط) ---
   public getShowcaseProjects(): any[] {
     const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.PROJECTS) : null;
     let localList: any[] = [];
@@ -3868,33 +3951,109 @@ class StoreManager {
       } catch {}
     }
 
-    // تصفية فقط التسليمات الحقيقية والمكتملة بروابط صالحة من قاعدة البيانات (Supabase)
-    const approvedSubmissions = this.getSubmissions()
-      .filter((s: any) => 
-        s.status === 'approved' && 
-        (s.repo_url || s.live_url || s.repoUrl || s.liveUrl) &&
-        !s.taskTitle?.includes('كويز') &&
-        !s.taskTitle?.includes('إثبات') &&
-        (s.taskTitle?.length || 0) > 4
-      )
-      .map((s: any, idx: number) => {
-        const member = this.getMemberById(s.profile_id || s.profileId || s.userId);
-        const gdgColors = ['#4285F4', '#EA4335', '#34A853', '#F9AB00'];
-        return {
-          id: s.id || `sub-proj-${idx}`,
-          title: s.taskTitle || 'مشروع تطبيقي معتمد',
-          memberName: member?.fullName || s.studentName || 'عضو مسار الويب',
-          stageName: member?.webLevelTitle?.split(':')[1] || 'المرحلة 02',
-          status: 'approved',
-          color: gdgColors[idx % gdgColors.length],
-          githubUrl: s.repo_url || s.repoUrl || 'https://github.com',
-          liveUrl: s.live_url || s.liveUrl,
-          category: s.taskTitle?.includes('ورشة') ? 'تطبيق ورشة' : 'المشاريع الحرة',
-          isWorkshopTask: Boolean(s.taskTitle?.includes('ورشة') || s.taskTitle?.includes('تحدي')),
-        };
-      });
+    const gdgColors = ['#34A853', '#4285F4', '#F9AB00', '#EA4335'];
+    const projectItems: any[] = [...localList];
 
-    return [...localList, ...approvedSubmissions];
+    // دالة مساعدة لتفادي التكرار
+    const hasProjectWithUrls = (repo?: string, live?: string) => {
+      return projectItems.some(
+        (p) =>
+          (repo && p.githubUrl && p.githubUrl.toLowerCase() === repo.toLowerCase()) ||
+          (live && p.liveUrl && p.liveUrl.toLowerCase() === live.toLowerCase())
+      );
+    };
+
+    // 1. جلب كل التسليمات الحقيقية التي تحتوي على روابط (المعتمدة وقيد المراجعة)
+    this.getSubmissions().forEach((s: any, idx: number) => {
+      const repoUrl = s.repo_url || s.repoUrl;
+      const liveUrl = s.live_url || s.liveUrl;
+      if (!repoUrl && !liveUrl) return;
+
+      if (hasProjectWithUrls(repoUrl, liveUrl)) return;
+
+      const member = this.getMemberById(s.profile_id || s.profileId || s.user_id || s.userId);
+      const memberName = member?.fullName || s.studentName || s.profile?.fullName || 'عضو مسار الويب';
+
+      projectItems.push({
+        id: s.id || `sub-proj-${idx}`,
+        title: s.taskTitle || s.task?.title || 'مشروع تطبيقي للمسار',
+        memberName,
+        stageName: member?.webLevelTitle?.split(':')[1] || 'المرحلة 02',
+        status: s.status === 'approved' ? 'approved' : 'in_review',
+        color: gdgColors[projectItems.length % gdgColors.length],
+        githubUrl: repoUrl || 'https://github.com',
+        liveUrl: liveUrl || undefined,
+        category: (s.taskTitle || '').includes('ورشة') ? 'تطبيق ورشة' : 'المشاريع الحرة',
+        isWorkshopTask: Boolean((s.taskTitle || '').includes('ورشة') || (s.taskTitle || '').includes('تحدي')),
+      });
+    });
+
+    // 2. جلب اختيارات التحديات التي سلمها الأعضاء بروابط مباشرة
+    this.getChallengeChoices().forEach((c: any) => {
+      if (!c.repoUrl && !c.liveUrl) return;
+      if (hasProjectWithUrls(c.repoUrl, c.liveUrl)) return;
+
+      const member = this.getMemberById(c.memberId);
+      const memberName = c.memberName || member?.fullName || 'عضو مسار الويب';
+
+      projectItems.push({
+        id: c.id || `chal-proj-${c.memberId}`,
+        title: c.challengeTitle || 'مشروع التحدي البرمجي',
+        memberName,
+        stageName: member?.webLevelTitle?.split(':')[1] || 'المرحلة 02',
+        status: c.status === 'approved' ? 'approved' : 'in_review',
+        color: gdgColors[projectItems.length % gdgColors.length],
+        githubUrl: c.repoUrl || 'https://github.com',
+        liveUrl: c.liveUrl || undefined,
+        category: 'تطبيق ورشة',
+        isWorkshopTask: true,
+      });
+    });
+
+    // 3. فحص استفسارات ورسائل الأعضاء في حال أرفق العضو رابط مشروعه (مثل إثباتات الروابط ورسائل عبدالعزيز)
+    this.getInquiries().forEach((inq: any) => {
+      const details = inq.details || '';
+      const urlMatches = details.match(/https?:\/\/[^\s]+/g);
+      if (urlMatches && urlMatches.length > 0) {
+        const ghUrl = urlMatches.find((u: string) => u.includes('github.com')) || urlMatches[0];
+        const lvUrl = urlMatches.find(
+          (u: string) =>
+            !u.includes('github.com') &&
+            (u.includes('vercel.app') ||
+              u.includes('netlify.app') ||
+              u.includes('.app') ||
+              u.includes('.dev') ||
+              u.includes('.com') ||
+              u.includes('.io'))
+        );
+
+        if (hasProjectWithUrls(ghUrl, lvUrl)) return;
+
+        const member = this.getMemberById(inq.userId);
+        const memberName = inq.userName || member?.fullName || 'عضو مسار الويب';
+        const rawTitle = inq.title || 'مشروع تطبيقي';
+        const cleanTitle = rawTitle
+          .replace('تسليم جديد:', '')
+          .replace('طلب اعتماد', 'مشروع تطبيقي')
+          .replace('إثبات مهارة:', '')
+          .trim() || 'مشروع تطبيقي';
+
+        projectItems.push({
+          id: `inq-proj-${inq.id}`,
+          title: cleanTitle,
+          memberName,
+          stageName: member?.webLevelTitle?.split(':')[1] || 'المرحلة 02',
+          status: inq.status === 'approved' ? 'approved' : 'in_review',
+          color: gdgColors[projectItems.length % gdgColors.length],
+          githubUrl: ghUrl || 'https://github.com',
+          liveUrl: lvUrl || undefined,
+          category: inq.title?.includes('ورشة') ? 'تطبيق ورشة' : 'المشاريع الحرة',
+          isWorkshopTask: Boolean(inq.title?.includes('ورشة') || inq.title?.includes('تحدي')),
+        });
+      }
+    });
+
+    return projectItems;
   }
 
   public getWorkshopShowcaseItems(): any[] {

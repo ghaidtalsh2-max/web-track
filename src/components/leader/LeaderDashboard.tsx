@@ -249,6 +249,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
   const [memberSortBy, setMemberSortBy] = useState<'alpha_asc' | 'alpha_desc' | 'level' | 'points'>('alpha_asc');
   const [memberViewMode, setMemberViewMode] = useState<'cards' | 'table'>('cards');
   const [viewingMemberModal, setViewingMemberModal] = useState<UserProfile | null>(null);
+  const [contentSubTab, setContentSubTab] = useState<'attendance' | 'learning_sources'>('attendance');
 
   const filteredMembers = members
     .filter((m) => {
@@ -320,12 +321,20 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
     }
   };
 
-  const handleSendReply = async () => {
-    if (!selectedInquiry || !replyText.trim()) return;
+  const handleResolveInquiryDecision = async (decision: 'approved' | 'rejected') => {
+    if (!selectedInquiry) return;
     try {
-      await store.answerInquiry(selectedInquiry.id, replyText.trim(), currentUser.fullName);
+      await store.resolveInquiry(
+        selectedInquiry.id,
+        decision,
+        replyText.trim(),
+        currentUser.fullName
+      );
+      if (decision === 'approved') {
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      }
     } catch (err: any) {
-      alert(err?.message || 'تعذّر حفظ الرد.');
+      alert(err?.message || 'تعذّر تسجيل القرار.');
       return;
     }
     setInquiries(store.getInquiries());
@@ -334,28 +343,12 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
     setReplyText('');
   };
 
+  const handleSendReply = async () => {
+    return handleResolveInquiryDecision('approved');
+  };
+
   const handleApproveSkillProof = async () => {
-    if (!selectedInquiry) return;
-    try {
-      await store.awardPoints(
-        selectedInquiry.userId,
-        25,
-        `اعتماد تسليم: ${selectedInquiry.title || 'إثبات مهارة'}`
-      );
-      await store.answerInquiry(
-        selectedInquiry.id,
-        'تمت مراجعة الإثبات واعتماده رسمياً وإضافة 25 نقطة إلى رصيدك! ✨🎉',
-        currentUser.fullName
-      );
-      confetti({ particleCount: 75, spread: 60, origin: { y: 0.6 } });
-    } catch (err: any) {
-      alert(err?.message || 'تعذّر اعتماد المهارة.');
-      return;
-    }
-    setInquiries(store.getInquiries());
-    setReplyModalOpen(false);
-    setSelectedInquiry(null);
-    setReplyText('');
+    return handleResolveInquiryDecision('approved');
   };
 
   const handleSimulateImport = () => {
@@ -429,7 +422,10 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
               else if (type === 'task') setTaskModalOpen(true);
               else if (type === 'poll') setPollModalOpen(true);
               else if (type === 'announcement') setAnnouncementModalOpen(true);
-              else if (type === 'attendance') onNavigateTab('content');
+              else if (type === 'attendance') {
+                setContentSubTab('attendance');
+                onNavigateTab('content');
+              }
             }}
           />
 
@@ -449,7 +445,10 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
               </div>
             </div>
             <button
-              onClick={() => onNavigateTab('content')}
+              onClick={() => {
+                setContentSubTab('attendance');
+                onNavigateTab('content');
+              }}
               className="btn-pill px-5 py-2.5 text-xs font-black text-gray-900 bg-amber-300 hover:bg-amber-400 border border-gray-900 transition-all cursor-pointer whitespace-nowrap shadow-xs"
             >
               فتح شيت التحضير والورش 🚀
@@ -987,28 +986,6 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                 </div>
               </div>
             )}
-
-            {/* نافذة استعراض ملف العضو للقادة */}
-            {viewingMemberModal && (
-              <div className="fixed inset-0 z-50 overflow-y-auto bg-white/95 backdrop-blur-md p-3 sm:p-8" dir="rtl">
-                <div className="max-w-[1440px] mx-auto">
-                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
-                    <button
-                      type="button"
-                      onClick={() => setViewingMemberModal(null)}
-                      className="b-proto gray"
-                      style={{ padding: '8px 24px', fontSize: '16px' }}
-                    >
-                      ← العودة لقائمة الأعضاء
-                    </button>
-                    <span className="t-proto" style={{ background: '#FFF4D6', fontSize: '15px' }}>
-                      معاينة حساب العضو: {viewingMemberModal.fullName}
-                    </span>
-                  </div>
-                  <ProfileView currentUser={viewingMemberModal} />
-                </div>
-              </div>
-            )}
           </motion.div>
         );
       })()}
@@ -1090,29 +1067,55 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
         </motion.div>
       )}
 
-      {/* 4. تبويب المحتوى ومصادر التعلم (Content) */}
+      {/* 4. تبويب المحتوى والورش وشيت التحضير (Content) */}
       {currentTab === 'content' && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="space-y-12"
+          className="space-y-8"
         >
-          {/* شاشة مصادر التعلم المعتمدة (بروتوتايب محتوى المسار) */}
-          <LeaderLearningSourcesView currentUser={currentUser} />
-
-          {/* شيت الورش الميدانية والتحضير */}
-          <div className="pt-10 border-t-2 border-gray-100">
-            <div className="mb-6">
-              <h2 className="text-2xl font-black text-[#0F172A] tracking-tight">
-                شيت الورش الميدانية والتحضير
-              </h2>
-              <p className="text-sm text-gray-500 font-medium mt-1">
-                جدول ورش المسار، إحصائيات الحضور، شيت Google، ورصد التسليمات المعتمدة
-              </p>
-            </div>
-            <LeaderWorkshopsSheet currentUser={currentUser} />
+          {/* شريط التبديل بين شيت التحضير والورش ومصادر التعلم */}
+          <div className="flex items-center gap-2 p-1.5 bg-gray-100 rounded-2xl w-fit border border-gray-300">
+            <button
+              type="button"
+              onClick={() => setContentSubTab('attendance')}
+              className={`px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all flex items-center gap-2 cursor-pointer border-none ${
+                contentSubTab === 'attendance'
+                  ? 'bg-gray-900 text-white shadow-md'
+                  : 'bg-transparent text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <span>📋 شيت الورش والتحضير الميداني</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setContentSubTab('learning_sources')}
+              className={`px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all flex items-center gap-2 cursor-pointer border-none ${
+                contentSubTab === 'learning_sources'
+                  ? 'bg-gray-900 text-white shadow-md'
+                  : 'bg-transparent text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <span>📚 مصادر وكورسات التعلم</span>
+            </button>
           </div>
+
+          {contentSubTab === 'attendance' ? (
+            <div>
+              <div className="mb-6">
+                <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+                  شيت الورش والتحضير الميداني المعتمد
+                </h1>
+                <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
+                  جدول ورش المسار، كشوفات الحضور، تحضير الأعضاء بنقرة واحدة (+20 نقطة)، ورصد تسليمات المشاريع
+                </p>
+              </div>
+              <LeaderWorkshopsSheet currentUser={currentUser} />
+            </div>
+          ) : (
+            <LeaderLearningSourcesView currentUser={currentUser} />
+          )}
         </motion.div>
       )}
 
@@ -1634,24 +1637,33 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
       </AnimatePresence>
 
       {/* نافذة الرد على استفسار العضو */}
+      {/* نافذة البت في طلب أو استفسار العضو (موافقة أو رفض + تفعيل الصلاحية/النقاط) */}
       <AnimatePresence>
         {replyModalOpen && selectedInquiry && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-gray-900 text-right"
+              className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-gray-900 text-right"
             >
-              <h3 className="text-lg font-black text-gray-900 mb-1">
-                الرد على: {selectedInquiry.userName}
-              </h3>
-              <p className="text-xs font-bold text-gray-500 mb-2">
-                {selectedInquiry.title || 'تسليم إثبات مهارة / استفسار'}
-              </p>
+              <div className="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
+                <div>
+                  <h3 className="text-lg font-black text-gray-900">
+                    البت في طلب: {selectedInquiry.userName}
+                  </h3>
+                  <span className="text-xs text-gray-500 font-semibold">
+                    {selectedInquiry.title || 'طلب اعتماد / صلاحية / استفسار'}
+                  </span>
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs font-black bg-blue-100 text-blue-800 border border-blue-200">
+                  قيد المراجعة ⏳
+                </span>
+              </div>
 
-              <div className="text-xs text-gray-700 bg-gray-50 p-3.5 rounded-2xl border border-gray-200 mb-4 whitespace-pre-wrap leading-relaxed">
-                {selectedInquiry.details || 'تفاصيل التسليم مسجلة لدى العضو.'}
+              <div className="text-xs text-gray-800 bg-gray-50 p-4 rounded-2xl border border-gray-200 mb-4 whitespace-pre-wrap leading-relaxed">
+                <p className="font-bold text-gray-900 mb-1">تفاصيل ومحتوى الطلب المُرسل:</p>
+                {selectedInquiry.details || 'تفاصيل الطلب مسجلة لدى العضو.'}
 
                 {/* كشف أي رابط واستخراجه كزر مباشر لفتح التطبيق أو المشروع */}
                 {(() => {
@@ -1659,8 +1671,8 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                   if (urlMatch) {
                     const url = urlMatch[0];
                     return (
-                      <div className="mt-3 pt-3 border-t border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-emerald-50/60 p-2.5 rounded-xl border-emerald-200">
-                        <span className="text-[11px] text-emerald-900 font-bold truncate max-w-[220px]" dir="ltr">
+                      <div className="mt-3 pt-3 border-t border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-emerald-50/70 p-3 rounded-xl border-emerald-200">
+                        <span className="text-[11px] text-emerald-900 font-bold truncate max-w-[240px]" dir="ltr">
                           {url}
                         </span>
                         <a
@@ -1669,7 +1681,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                           rel="noreferrer"
                           className="px-3 py-1.5 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 transition-colors inline-flex items-center gap-1 shadow-xs whitespace-nowrap"
                         >
-                          زيارة الرابط المسلّم 🔗
+                          معاينة الرابط المرفق 🔗
                         </a>
                       </div>
                     );
@@ -1678,52 +1690,53 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                 })()}
               </div>
 
-              {/* زر اعتماد سريع لإثباتات المهارات والتحديات */}
-              {((selectedInquiry.title || selectedInquiry.details || '').includes('إثبات') ||
-                (selectedInquiry.title || selectedInquiry.details || '').includes('كويز') ||
-                (selectedInquiry.details || '').includes('http')) && (
-                <div className="mb-4 p-3 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-between gap-2">
-                  <div className="text-right">
-                    <p className="text-[11px] font-black text-amber-900">اعتماد الإثبات مباشرة ⭐</p>
-                    <p className="text-[10px] text-amber-700">منح العضو 25 نقطة إنجاز وإغلاق الطلب كمعتمد</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleApproveSkillProof}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-black text-gray-950 bg-amber-300 hover:bg-amber-400 border border-amber-500 shadow-xs cursor-pointer whitespace-nowrap"
-                  >
-                    اعتماد (+25 نقطة) ✓
-                  </button>
-                </div>
-              )}
+              {/* بيان أثر الموافقة */}
+              <div className="mb-4 p-3 rounded-2xl bg-amber-50 border border-amber-200">
+                <p className="text-xs font-black text-amber-900 mb-0.5">أثر قرار الموافقة الآلي ⭐</p>
+                <p className="text-[11px] text-amber-800 leading-normal">
+                  {((selectedInquiry.title || selectedInquiry.details || '').includes('إشراف') || (selectedInquiry.userName || '').includes('عامر'))
+                    ? 'عند الموافقة: سيتم تفعيل ومنح صلاحيات المشرف لحسابه تلقائياً وتحديث دوره في النظام.'
+                    : 'عند الموافقة: سيتم رصد نقاط الإنجاز (+25 نقطة)، اعتماد المهمة، وإظهار مشروعه في المعرض إن وُجد رابط.'}
+                </p>
+              </div>
 
               <div className="mb-5">
-                <label className="text-xs font-bold text-gray-700 block mb-1">
-                  رد القائدة الرسمي (اختياري مع الاعتماد)
+                <label className="text-xs font-bold text-gray-800 block mb-1">
+                  رد وملاحظات القيادة (تظهر للعضو عند الضغط على "شاهد الرد"):
                 </label>
                 <textarea
                   rows={3}
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="اكتب الرد التوضيحي للعضو..."
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-900 resize-none"
+                  placeholder="اكتب التوجيه، الملاحظات، أو رسالة التهنئة للعضو..."
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-gray-50 border border-gray-300 text-gray-900 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-2 border-t border-gray-100">
                 <button
+                  type="button"
                   onClick={() => setReplyModalOpen(false)}
-                  className="px-4 py-2 rounded-full text-xs font-bold bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer text-center"
                 >
                   إلغاء
                 </button>
-                <button
-                  onClick={handleSendReply}
-                  disabled={!replyText.trim()}
-                  className="px-6 py-2 rounded-full text-xs font-bold text-white bg-[#4285F4] hover:bg-blue-700 disabled:opacity-50"
-                >
-                  إرسال الرد للعضو ✓
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleResolveInquiryDecision('rejected')}
+                    className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs font-black text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-300 transition-all cursor-pointer text-center"
+                  >
+                    ❌ رفض الطلب
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleResolveInquiryDecision('approved')}
+                    className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 transition-all cursor-pointer shadow-sm text-center"
+                  >
+                    ✅ موافقة واعتماد وتفعيل
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
@@ -2376,6 +2389,34 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
           </div>
         )}
       </AnimatePresence>
+
+      {/* نافذة استعراض ملف العضو للقادة (معتمة 100% بدون أي تداخل أو تسريب لعناصر الجدول بالخلفية) */}
+      {viewingMemberModal && (
+        <div
+          className="fixed inset-0 z-[99999] overflow-y-auto p-4 sm:p-8"
+          dir="rtl"
+          style={{ backgroundColor: '#F8FAFD' }}
+        >
+          <div className="max-w-[1440px] mx-auto">
+            <div className="sticky top-0 z-30 bg-white border-2 border-gray-900 rounded-2xl p-4 mb-6 flex items-center justify-between shadow-md">
+              <button
+                type="button"
+                onClick={() => setViewingMemberModal(null)}
+                className="px-6 py-2.5 rounded-full text-sm font-black bg-gray-900 text-white hover:bg-black transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+              >
+                <span>← العودة لقائمة الأعضاء</span>
+              </button>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold text-gray-500">معاينة حساب العضو:</span>
+                <span className="px-4 py-1.5 rounded-full text-sm font-black bg-amber-100 text-amber-900 border border-amber-300">
+                  {viewingMemberModal.fullName}
+                </span>
+              </div>
+            </div>
+            <ProfileView currentUser={viewingMemberModal} hideDirectoryTab={true} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
