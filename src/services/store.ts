@@ -2222,13 +2222,16 @@ class StoreManager {
       repoUrl: s.repo_url,
       submittedAt: s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('ar-SA') : '',
     }));
-    let resolvedInqIds: string[] = [];
+    let resolvedData: Record<string, any> = {};
     try {
-      resolvedInqIds = JSON.parse(localStorage.getItem('gdg_webtrack_resolved_inquiries') || '[]');
+      resolvedData = JSON.parse(localStorage.getItem('gdg_webtrack_resolved_inquiries_data') || '{}');
     } catch {}
+    let resolvedInqIds: string[] = Object.keys(resolvedData);
 
     this.inquiries = (inqRes.data || []).map((r: any) => {
+      const saved = resolvedData[r.id];
       const isResolved =
+        Boolean(saved) ||
         resolvedInqIds.includes(r.id) ||
         r.status === 'answered' ||
         r.status === 'approved' ||
@@ -2242,10 +2245,11 @@ class StoreManager {
         userAvatar: (r.user_name || 'م').charAt(0),
         title: r.title,
         details: r.details,
-        status: isResolved ? 'answered' : (r.status || 'new'),
-        responseText: r.response_text || (isResolved ? 'تم الرد والاعتماد' : undefined),
-        respondedBy: r.answered_by || undefined,
-        respondedAt: r.answered_at ? new Date(r.answered_at).toLocaleDateString('ar-SA') : undefined,
+        status: saved?.status || (isResolved ? 'answered' : (r.status || 'new')),
+        decision: saved?.decision || (r.status === 'approved' ? 'approved' : r.status === 'rejected' ? 'rejected' : undefined),
+        responseText: saved?.responseText || r.response_text || (isResolved ? 'تم الرد والاعتماد' : undefined),
+        respondedBy: saved?.respondedBy || r.answered_by || undefined,
+        respondedAt: saved?.respondedAt || (r.answered_at ? new Date(r.answered_at).toLocaleDateString('ar-SA') : undefined),
         createdAt: r.created_at ? new Date(r.created_at).toLocaleDateString('ar-SA') : '',
       };
     });
@@ -3346,13 +3350,17 @@ class StoreManager {
       return inq;
     });
 
-    // 2.1 حفظ في التخزين المحلي لضمان عدم عودتها لـ "تنتظر مراجعتك"
+    // 2.1 حفظ كامل تفاصيل الرد والقرار في التخزين المحلي لضمان ظهورها للعضو دائماً
     try {
-      const stored = JSON.parse(localStorage.getItem('gdg_webtrack_resolved_inquiries') || '[]');
-      if (!stored.includes(inquiryId)) {
-        stored.push(inquiryId);
-        localStorage.setItem('gdg_webtrack_resolved_inquiries', JSON.stringify(stored));
-      }
+      const storedData = JSON.parse(localStorage.getItem('gdg_webtrack_resolved_inquiries_data') || '{}');
+      storedData[inquiryId] = {
+        status: 'answered',
+        decision,
+        responseText,
+        respondedBy: leaderName,
+        respondedAt: new Date().toLocaleDateString('ar-SA'),
+      };
+      localStorage.setItem('gdg_webtrack_resolved_inquiries_data', JSON.stringify(storedData));
     } catch {}
 
     // 3. في حال الموافقة: تفعيل الصلاحيات والنقاط والمشاريع تلقائياً
@@ -3403,16 +3411,23 @@ class StoreManager {
       }
     }
 
-    // 4. إشعار للمرسل
-    if (userId) {
+    // 4. إشعار فوري وتنبيه للمُرسل يظهر في شريط الإشعارات والجرس
+    let targetRecipientId = userId;
+    if (!targetRecipientId && targetInq?.userName) {
+      const found = this.members.find(
+        (m) =>
+          m.fullName.toLowerCase().includes(targetInq.userName.toLowerCase()) ||
+          targetInq.userName.toLowerCase().includes(m.fullName.toLowerCase())
+      );
+      if (found) targetRecipientId = found.id;
+    }
+
+    if (targetRecipientId) {
       try {
         this.addNotification({
-          userId,
+          userId: targetRecipientId,
           title: decision === 'approved' ? 'تهانينا! تمت الموافقة على طلبك ✅' : 'تحديث بشأن طلبك 📋',
-          message:
-            decision === 'approved'
-              ? `تمت الموافقة على طلبك (${targetInq?.title || 'طلبك'}) وتفعيل الصلاحية بنجاح.`
-              : `نعتذر، لم يتم اعتماد طلبك (${targetInq?.title || 'طلبك'}): ${responseText}`,
+          message: `رد القيادة (${leaderName}): ${responseText}`,
           type: decision === 'approved' ? 'success' : 'info',
         });
       } catch {}
