@@ -344,7 +344,7 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                           boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
                         }}
                       >
-                        {slot.stageName || 'المرحلة 01'}
+                        {isLeader ? (slot.stageName || 'المرحلة 01') : 'تطبيق ورشة'}
                       </span>
                     </div>
 
@@ -407,7 +407,10 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                             >
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                                 <span style={{ fontWeight: 700, fontSize: '14px', color: '#0F172A' }}>{p.title}</span>
-                                <span style={{ fontSize: '12px', color: '#5f6673' }}>{p.memberName}</span>
+                                <span style={{ fontSize: '12px', color: '#5f6673' }}>
+                                  {p.memberName}
+                                  {isLeader && p.stageName ? ` · ${p.stageName}` : ''}
+                                </span>
                               </div>
                               <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
                                 <a
@@ -678,7 +681,8 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                           {p.title}
                         </b>
                         <p style={{ margin: '0 0 16px', fontSize: '15px', color: '#5f6673', fontWeight: 600 }}>
-                          {p.memberName} · {p.stageName || 'المرحلة 02'}
+                          {p.memberName}
+                          {isLeader && p.stageName ? ` · ${p.stageName}` : ''}
                         </p>
                       </div>
 

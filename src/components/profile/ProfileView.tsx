@@ -712,19 +712,21 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                   flexWrap: 'wrap',
                 }}
               >
-                <span
-                  className="t"
-                  style={{
-                    background: '#E8F0FE',
-                    color: '#0F172A',
-                    borderRadius: '99px',
-                    padding: '4px 14px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                  }}
-                >
-                  مستوى الاستبيان: {displayedMember.webLevel === 'advanced' ? 'متقدم' : displayedMember.webLevel === 'intermediate' ? 'متوسط' : 'مبتدئ'}
-                </span>
+                {isStaff && (
+                  <span
+                    className="t"
+                    style={{
+                      background: '#E8F0FE',
+                      color: '#0F172A',
+                      borderRadius: '99px',
+                      padding: '4px 14px',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    مستوى الاستبيان: {displayedMember.webLevel === 'advanced' ? 'متقدم' : displayedMember.webLevel === 'intermediate' ? 'متوسط' : 'مبتدئ'}
+                  </span>
+                )}
 
                 <span
                   className="t"
