@@ -140,6 +140,8 @@ export interface TrackResource {
   fileUrl: string;
   fileType: 'pdf' | 'zip' | 'code' | 'doc' | 'link';
   fileSize?: string;
+  fileName?: string;
+  fileData?: string;
   workshopName?: string;
   workshopId?: string;
   color?: string;

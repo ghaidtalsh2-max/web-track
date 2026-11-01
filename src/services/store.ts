@@ -33,6 +33,7 @@ import {
 } from '../types';
 import { supabase } from './supabase';
 import type { Session } from '@supabase/supabase-js';
+import { deletePersistedLocalFile } from './fileStorage';
 
 // البريد المشتق من اسم المستخدم (يطابق ما ينشئه scripts/provision_accounts.cjs)
 const AUTH_EMAIL_DOMAIN = 'members.gdgtu.local';
@@ -532,6 +533,51 @@ export const INITIAL_ATTENDANCE_EVENTS: AttendanceEvent[] = [
 // مجموعات التحديات والخيارات المعتمدة (فارغة حتى تطرحها القائدة)
 export const INITIAL_CHALLENGE_GROUPS: ChallengeGroup[] = [];
 
+// قائمة الملفات الإثرائية المعتمدة لمسار الويب (سلايدات، مراجع أكواد، أدلة تعلم جاهزة للفتح والتحميل)
+export const INITIAL_TRACK_RESOURCES: TrackResource[] = [
+  {
+    id: 'res-ws-1-slides',
+    title: 'سلايدات الورشة 01: أساسيات الويب وهيكلة HTML5 الحديثة',
+    description: 'العرض التقديمي الشامل للورشة الأولى، يتضمن شرح العناصر الدلالية، وسوم النماذج، وهيكلة الصفحة.',
+    category: 'slides',
+    fileUrl: 'https://raw.githubusercontent.com/mdn/learning-area/master/html/introduction-to-html/getting-started/index.html',
+    fileType: 'pdf',
+    fileName: 'Web-Fundamentals-Workshop-01-Slides.pdf',
+    fileSize: '٢٫٤ MB',
+    workshopName: 'Web Fundamentals',
+    color: '#4285F4',
+    uploadedBy: 'قيادة مسار الويب',
+    uploadedAt: '2026-10-30',
+  },
+  {
+    id: 'res-css-grid-cheat',
+    title: 'مرجع الأكواد السريع: دليلك العملي لـ CSS Flexbox & Grid',
+    description: 'ورقة مرجعية سريعة تلخص جميع خصائص المحاذاة والشبكات مع أمثلة مرئية لأحدث مواصفات تخطيط الواجهات.',
+    category: 'cheatsheet',
+    fileUrl: 'https://css-tricks.com/snippets/css/a-guide-to-flexbox/',
+    fileType: 'code',
+    fileName: 'Modern-CSS-Flexbox-Grid-CheatSheet.pdf',
+    fileSize: '١٫١ MB',
+    workshopName: 'Web Fundamentals',
+    color: '#34A853',
+    uploadedBy: 'قيادة مسار الويب',
+    uploadedAt: '2026-10-31',
+  },
+  {
+    id: 'res-web-dev-guide',
+    title: 'دليل مطور الويب الشامل: الأدوات والممارسات القياسية',
+    description: 'حقيبة الأدوات الأساسية: إعداد بيئة VS Code، ملحقات المتصفح لفحص الأداء، ومعايير كتابة الكود النظيف.',
+    category: 'guide',
+    fileUrl: 'https://developer.mozilla.org/en-US/docs/Learn',
+    fileType: 'doc',
+    fileName: 'Full-Web-Developer-Guide-2026.pdf',
+    fileSize: '٣٫٢ MB',
+    workshopName: 'عام',
+    color: '#F9AB00',
+    uploadedBy: 'إشراف مسار الويب',
+    uploadedAt: '2026-11-01',
+  },
+];
 
 // الورش الرسمية المعتمدة (فارغة افتراضياً حتى يضيفها القادة)
 export const INITIAL_WORKSHOPS: Workshop[] = [];
@@ -1576,6 +1622,9 @@ class StoreManager {
     }
     if (!localStorage.getItem(STORAGE_KEYS.CUSTOM_LAB_CHALLENGES)) {
       localStorage.setItem(STORAGE_KEYS.CUSTOM_LAB_CHALLENGES, JSON.stringify([]));
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.RESOURCES)) {
+      localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(INITIAL_TRACK_RESOURCES));
     }
 
     this.initAuth();
@@ -3881,26 +3930,22 @@ class StoreManager {
     }
   }
 
-  // --- Resources & Enrichment Library (ملفات المسار والملفات الإثرائية) ---
+  // --- Resources & Enrichment Library (ملفات المسار والملفات الإثرائية المعتمدة) ---
   public getResources(): TrackResource[] {
     const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.RESOURCES) : null;
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
-      const mockResourceTitles = [
-        'دليل التعلم المعتمد',
-        'مرجع الأكواد السريعة',
-        'حقيبة أدوات المطور',
-      ];
-      return parsed.filter((r: any) => {
-        if (!r || r.id?.startsWith('res-guide-') || r.id?.startsWith('res-cheatsheet-') || r.id?.startsWith('res-slides-')) return false;
-        if (mockResourceTitles.some((t) => r.title?.includes(t))) return false;
-        return true;
-      });
-    } catch {
-      return [];
+    let list: TrackResource[] = [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          list = parsed;
+        }
+      } catch {}
     }
+    if (list.length === 0) {
+      list = [...INITIAL_TRACK_RESOURCES];
+    }
+    return list;
   }
 
   public addResource(resData: Omit<TrackResource, 'id' | 'uploadedAt'>): TrackResource {
@@ -3911,7 +3956,20 @@ class StoreManager {
     };
     const current = this.getResources();
     const updated = [newRes, ...current];
-    localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(updated));
+    try {
+      localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Quota exceeded in localStorage for resources, storing lightweight metadata:', e);
+      // Strip large Base64 strings from localStorage to prevent QuotaExceededError
+      // since the raw data is safely stored in IndexedDB
+      const safeList = updated.map((r) => ({
+        ...r,
+        fileData: r.fileData && r.fileData.length > 100000 ? undefined : r.fileData,
+      }));
+      try {
+        localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(safeList));
+      } catch {}
+    }
     this.notify();
     return newRes;
   }
@@ -3919,7 +3977,10 @@ class StoreManager {
   public deleteResource(id: string): void {
     const current = this.getResources();
     const updated = current.filter((r) => r.id !== id);
-    localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(updated));
+    try {
+      localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(updated));
+    } catch {}
+    deletePersistedLocalFile(id).catch(() => {});
     this.notify();
   }
 
