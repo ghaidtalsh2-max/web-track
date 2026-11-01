@@ -51,7 +51,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
 
   // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [uploadMode, setUploadMode] = useState<'upload' | 'url'>('url');
+  const [uploadMode, setUploadMode] = useState<'upload' | 'url'>('upload');
   const [title, setTitle] = useState('');
   const [workshopName, setWorkshopName] = useState('Web Fundamentals');
   const [customWorkshop, setCustomWorkshop] = useState('');
@@ -130,6 +130,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
     }
 
     const newRes = store.addResource({
+      id: resId,
       title: title.trim(),
       description: `ملف إثرائي معتمد لمسار الويب · ${finalWorkshop}`,
       category,

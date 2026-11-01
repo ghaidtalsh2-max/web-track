@@ -131,7 +131,14 @@ export function dataUrlToBlob(dataUrl: string): Blob {
  */
 export function sanitizeDownloadUrl(rawUrl: string): string {
   let url = rawUrl.trim();
-  if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('data:')) {
+  url = url.replace(/^https?:\/\/blob:/i, 'blob:');
+
+  // روابط الـ blob والـ data تبقى كما هي
+  if (url.startsWith('blob:') || url.startsWith('data:')) {
+    return url;
+  }
+
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
     url = `https://${url}`;
   }
 
@@ -149,7 +156,13 @@ export function sanitizeDownloadUrl(rawUrl: string): string {
  */
 export function sanitizeViewUrl(rawUrl: string): string {
   let url = rawUrl.trim();
-  if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('data:') && !url.startsWith('blob:')) {
+  url = url.replace(/^https?:\/\/blob:/i, 'blob:');
+
+  if (url.startsWith('blob:') || url.startsWith('data:')) {
+    return url;
+  }
+
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
     url = `https://${url}`;
   }
   return url;
@@ -164,12 +177,12 @@ export async function openTrackFile(resource: {
   fileUrl: string;
   fileData?: string;
 }): Promise<void> {
-  let content = resource.fileData || resource.fileUrl;
+  let content = resource.fileData;
 
   // فحص IndexedDB إذا لم تكن البيانات في الذاكرة
   if (!content || !content.startsWith('data:')) {
     const persisted = await getPersistedLocalFile(resource.id);
-    if (persisted) {
+    if (persisted && persisted.startsWith('data:')) {
       content = persisted;
     }
   }
@@ -188,7 +201,18 @@ export async function openTrackFile(resource: {
     }
   }
 
-  const cleanUrl = sanitizeViewUrl(resource.fileUrl);
+  // تنظيف أي بادئة خاطئة
+  const rawUrl = (resource.fileUrl || '').replace(/^https?:\/\/blob:/i, 'blob:');
+
+  // إذا كان الرابط مؤقتاً blob ولا توجد بيانات مخزنة له (ملف قديم قبل تفعيل التخزين الدائم)
+  if (rawUrl.startsWith('blob:')) {
+    alert(
+      `عذراً، الملف «${resource.title}» فاقد للبيانات المؤقتة من الجلسة السابقة. يرجى حذفه وإعادة اختياره لمرة واحدة ليبقى محفوظاً بشكل دائم ويفتح دائماً.`
+    );
+    return;
+  }
+
+  const cleanUrl = sanitizeViewUrl(rawUrl);
   window.open(cleanUrl, '_blank', 'noopener,noreferrer');
 }
 
@@ -203,11 +227,11 @@ export async function downloadTrackFile(resource: {
   fileType?: string;
   fileData?: string;
 }): Promise<void> {
-  let content = resource.fileData || resource.fileUrl;
+  let content = resource.fileData;
 
   if (!content || !content.startsWith('data:')) {
     const persisted = await getPersistedLocalFile(resource.id);
-    if (persisted) {
+    if (persisted && persisted.startsWith('data:')) {
       content = persisted;
     }
   }
@@ -232,7 +256,16 @@ export async function downloadTrackFile(resource: {
     }
   }
 
-  const directUrl = sanitizeDownloadUrl(resource.fileUrl);
+  const rawUrl = (resource.fileUrl || '').replace(/^https?:\/\/blob:/i, 'blob:');
+
+  if (rawUrl.startsWith('blob:')) {
+    alert(
+      `عذراً، الملف «${resource.title}» فاقد للبيانات المؤقتة من الجلسة السابقة. يرجى إعادة اختياره لمرة واحدة ليتم حفظه دائماً.`
+    );
+    return;
+  }
+
+  const directUrl = sanitizeDownloadUrl(rawUrl);
 
   // إنشاء رابط تحميل مباشر
   const link = document.createElement('a');

@@ -2222,19 +2222,33 @@ class StoreManager {
       repoUrl: s.repo_url,
       submittedAt: s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('ar-SA') : '',
     }));
-    this.inquiries = (inqRes.data || []).map((r: any) => ({
-      id: r.id,
-      userId: r.profile_id,
-      userName: r.user_name,
-      userAvatar: (r.user_name || 'م').charAt(0),
-      title: r.title,
-      details: r.details,
-      status: r.status,
-      responseText: r.response_text || undefined,
-      respondedBy: r.answered_by || undefined,
-      respondedAt: r.answered_at ? new Date(r.answered_at).toLocaleDateString('ar-SA') : undefined,
-      createdAt: r.created_at ? new Date(r.created_at).toLocaleDateString('ar-SA') : '',
-    }));
+    let resolvedInqIds: string[] = [];
+    try {
+      resolvedInqIds = JSON.parse(localStorage.getItem('gdg_webtrack_resolved_inquiries') || '[]');
+    } catch {}
+
+    this.inquiries = (inqRes.data || []).map((r: any) => {
+      const isResolved =
+        resolvedInqIds.includes(r.id) ||
+        r.status === 'answered' ||
+        r.status === 'approved' ||
+        r.status === 'rejected' ||
+        Boolean(r.response_text);
+
+      return {
+        id: r.id,
+        userId: r.profile_id,
+        userName: r.user_name,
+        userAvatar: (r.user_name || 'م').charAt(0),
+        title: r.title,
+        details: r.details,
+        status: isResolved ? 'answered' : (r.status || 'new'),
+        responseText: r.response_text || (isResolved ? 'تم الرد والاعتماد' : undefined),
+        respondedBy: r.answered_by || undefined,
+        respondedAt: r.answered_at ? new Date(r.answered_at).toLocaleDateString('ar-SA') : undefined,
+        createdAt: r.created_at ? new Date(r.created_at).toLocaleDateString('ar-SA') : '',
+      };
+    });
     this.pointsLedger = dedupedLedger.map((l: any) => ({
       ...l,
       memberName: byId.get(l.profile_id)?.fullName || '—',
@@ -3304,7 +3318,7 @@ class StoreManager {
       await supabase
         .from('inquiries')
         .update({
-          status: decision,
+          status: 'answered',
           response_text: responseText,
           answered_by: leaderName,
           answered_at: now,
@@ -3319,16 +3333,27 @@ class StoreManager {
       if (inq.id === inquiryId) {
         return {
           ...inq,
-          status: decision,
+          status: 'answered',
           decision,
           decisionNotes: notes.trim(),
           responseText,
           respondedBy: leaderName,
           respondedAt: 'الآن',
+          answered_by: leaderName,
+          answered_at: now,
         };
       }
       return inq;
     });
+
+    // 2.1 حفظ في التخزين المحلي لضمان عدم عودتها لـ "تنتظر مراجعتك"
+    try {
+      const stored = JSON.parse(localStorage.getItem('gdg_webtrack_resolved_inquiries') || '[]');
+      if (!stored.includes(inquiryId)) {
+        stored.push(inquiryId);
+        localStorage.setItem('gdg_webtrack_resolved_inquiries', JSON.stringify(stored));
+      }
+    } catch {}
 
     // 3. في حال الموافقة: تفعيل الصلاحيات والنقاط والمشاريع تلقائياً
     if (decision === 'approved' && targetInq) {
@@ -3938,7 +3963,10 @@ class StoreManager {
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          list = parsed;
+          list = parsed.map((r: any) => ({
+            ...r,
+            fileUrl: (r.fileUrl || '').replace(/^https?:\/\/blob:/i, 'blob:'),
+          }));
         }
       } catch {}
     }
@@ -3948,11 +3976,23 @@ class StoreManager {
     return list;
   }
 
-  public addResource(resData: Omit<TrackResource, 'id' | 'uploadedAt'>): TrackResource {
+  public addResource(resData: Partial<TrackResource> & Omit<TrackResource, 'uploadedAt'>): TrackResource {
+    const assignedId = resData.id || `res-${Date.now()}`;
+    const cleanUrl = (resData.fileUrl || '').replace(/^https?:\/\/blob:/i, 'blob:');
     const newRes: TrackResource = {
-      ...resData,
-      id: `res-${Date.now()}`,
+      id: assignedId,
       uploadedAt: new Date().toISOString().split('T')[0],
+      title: resData.title || 'ملف إثرائي',
+      description: resData.description || 'ملف إثرائي لمسار الويب',
+      category: resData.category || 'slides',
+      fileUrl: cleanUrl,
+      fileType: resData.fileType || 'pdf',
+      fileSize: resData.fileSize || '١٫٠ MB',
+      fileName: resData.fileName,
+      fileData: resData.fileData,
+      workshopName: resData.workshopName || 'عام',
+      color: resData.color || '#4285F4',
+      uploadedBy: resData.uploadedBy || 'قائد المسار',
     };
     const current = this.getResources();
     const updated = [newRes, ...current];
@@ -4050,7 +4090,8 @@ class StoreManager {
     });
 
     // 2. جلب اختيارات التحديات التي سلمها الأعضاء بروابط مباشرة
-    this.getChallengeChoices().forEach((c: any) => {
+    const choices = typeof this.getChallengeChoices === 'function' ? this.getChallengeChoices() : [];
+    choices.forEach((c: any) => {
       if (!c.repoUrl && !c.liveUrl) return;
       if (hasProjectWithUrls(c.repoUrl, c.liveUrl)) return;
 
@@ -4173,6 +4214,17 @@ class StoreManager {
 
     this.notify();
     return newGroup;
+  }
+
+  public getChallengeChoices(): ChallengeChoice[] {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.CHALLENGE_CHOICES) : null;
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   }
 
   public getMemberChallengeChoice(memberId: string, groupId: string): ChallengeChoice | null {

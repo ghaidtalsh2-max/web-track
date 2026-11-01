@@ -337,7 +337,22 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
       alert(err?.message || 'تعذّر تسجيل القرار.');
       return;
     }
-    setInquiries(store.getInquiries());
+    const inqId = selectedInquiry.id;
+    // تحديث فوري للحالة محلياً لإخفائها فوراً من قائمة "تنتظر مراجعتك"
+    setInquiries((prev) =>
+      prev.map((i) =>
+        i.id === inqId
+          ? {
+              ...i,
+              status: 'answered',
+              decision,
+              responseText: replyText.trim() || 'تم الرد والاعتماد',
+              respondedBy: currentUser.fullName,
+              respondedAt: 'الآن',
+            }
+          : i
+      )
+    );
     setReplyModalOpen(false);
     setSelectedInquiry(null);
     setReplyText('');
@@ -358,7 +373,12 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
 
   const leaderFirst = currentUser.fullName.split(' ')[0] || 'غيداء';
   const stats = store.getRealStats();
-  const unansweredInquiries = inquiries.filter((i) => i.status !== 'answered');
+  const unansweredInquiries = inquiries.filter((i: any) => {
+    // أي استفسار تم الرد عليه أو اعتماده أو رفضه لا يظهر في تنتظر مراجعتك
+    if (i.status === 'answered' || i.status === 'approved' || i.status === 'rejected') return false;
+    if (Boolean(i.responseText) || Boolean(i.response_text) || Boolean(i.decision) || Boolean(i.respondedBy) || Boolean(i.answered_by)) return false;
+    return true;
+  });
 
   return (
     <div className="container py-8 sm:py-12 text-right">
