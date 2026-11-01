@@ -19,61 +19,77 @@ export const Footer: React.FC = () => {
 
       <div className="container pt-12 pb-10">
         <div className="footer-grid mb-10">
-          {/* العمود الأول (اليمين): الإشراف */}
+          {/* العمود الأول (اليمين): قادة النادي */}
+          <div className="footer-col-leads flex flex-col gap-3">
+            <h4
+              className="text-base font-extrabold tracking-tight"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              قادة النادي :
+            </h4>
+            <div className="flex flex-col gap-2.5 text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
+              <div className="flex items-center gap-2.5">
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4285F4', flexShrink: 0, display: 'inline-block' }} />
+                <span>وجد العتيبي</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EA4335', flexShrink: 0, display: 'inline-block' }} />
+                <span>ثامر الشنبري</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#9C27B0', flexShrink: 0, display: 'inline-block' }} />
+                <span>نائبة ومستشارة القادة: رنا أمين</span>
+              </div>
+            </div>
+          </div>
+
+          {/* العمود الثاني: قادة المجالات */}
           <div className="footer-col-right flex flex-col gap-3">
             <h4
               className="text-base font-extrabold tracking-tight"
               style={{ color: 'var(--text-primary)' }}
             >
-              الإشراف
+              قادة المجالات :
             </h4>
             <div className="flex flex-col gap-2.5 text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4285F4', flexShrink: 0, display: 'inline-block' }} />
-                <span>{typeof window !== 'undefined' && window.location.search.includes('demo=') ? 'هيئة إشراف المسارات — إدارة المجالات التقنية' : 'أثير العتيبي — قائدة المجالات'}</span>
+                <span>أثير العتيبي</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EA4335', flexShrink: 0, display: 'inline-block' }} />
-                <span>{typeof window !== 'undefined' && window.location.search.includes('demo=') ? 'لجنة الإشراف والتطوير — الدعم الأكاديمي' : 'عامر الحارثي — نائب قائدة المجالات'}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#9C27B0', flexShrink: 0, display: 'inline-block' }} />
-                <span>{typeof window !== 'undefined' && window.location.search.includes('demo=') ? 'المستشار الفني للنادي — الاستشارات التقنية' : 'رنا أمين فيض — نائبة قادة النادي والمستشارة'}</span>
+                <span>نائب القائدة: عامر الحارثي</span>
               </div>
             </div>
           </div>
 
-          {/* العمود الثاني (الوسط): قادة المسار */}
+          {/* العمود الثالث: قادة المجال */}
           <div className="footer-col-center flex flex-col gap-3">
             <h4
               className="text-base font-extrabold tracking-tight"
               style={{ color: 'var(--text-primary)' }}
             >
-              قادة المسار
+              قادة المجال :
             </h4>
-            <div className="flex flex-col gap-2.5 text-sm font-semibold items-center" style={{ color: 'var(--text-secondary)' }}>
+            <div className="flex flex-col gap-2.5 text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#34A853', flexShrink: 0, display: 'inline-block' }} />
-                <span>{typeof window !== 'undefined' && window.location.search.includes('demo=') ? 'د. هدى فهد التميمي — قائدة المسار' : 'غيداء تركي الشريف — قائدة المسار'}</span>
+                <span>غيداء تركي الشريف</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FBBC04', flexShrink: 0, display: 'inline-block' }} />
-                <span>{typeof window !== 'undefined' && window.location.search.includes('demo=') ? 'أ. نورة سعود الحربي — قائدة مساعدة' : 'ريتال القثامي — قائدة المسار'}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4285F4', flexShrink: 0, display: 'inline-block' }} />
-                <span>{typeof window !== 'undefined' && window.location.search.includes('demo=') ? 'م. طارق محمد الزهراني — نائب القادة' : 'سلمان الغامدي — نائب القادة'}</span>
+                <span>ريتال القثامي</span>
               </div>
             </div>
           </div>
 
-          {/* العمود الثالث (اليسار): الشعار والوصف الرسمي المتناسق */}
+          {/* العمود الرابع (اليسار): الشعار المصغر والوصف */}
           <div className="footer-col-left flex flex-col gap-3">
             <div className="flex items-center">
-              <GDGLogo variant="full" size="md" />
+              <GDGLogo variant="full" size="sm" />
             </div>
             <p
-              className="text-sm font-medium leading-relaxed"
+              className="text-xs sm:text-sm font-medium leading-relaxed"
               style={{
                 color: 'var(--text-secondary)',
                 margin: 0,
@@ -85,7 +101,7 @@ export const Footer: React.FC = () => {
             </p>
             <div className="flex items-center gap-2 mt-1">
               <span
-                className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold"
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold"
                 style={{
                   backgroundColor: 'rgba(66, 133, 244, 0.1)',
                   color: '#4285F4',
@@ -94,7 +110,7 @@ export const Footer: React.FC = () => {
                 #خلّك_قوقلي
               </span>
               <span
-                className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold"
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold"
                 style={{
                   backgroundColor: 'rgba(52, 168, 83, 0.1)',
                   color: '#34A853',
