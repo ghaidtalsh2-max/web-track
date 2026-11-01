@@ -45,12 +45,14 @@ import {
 
 interface ProfileViewProps {
   currentUser: UserProfile;
+  hideDirectoryTab?: boolean;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirectoryTab = false }) => {
   const [allMembers, setAllMembers] = useState<UserProfile[]>(() => store.getMembers());
   const [selectedMemberId, setSelectedMemberId] = useState<string>(currentUser.id);
   const [activeTab, setActiveTab] = useState<'profile' | 'directory'>('profile');
+  const [viewingInquiryModal, setViewingInquiryModal] = useState<any | null>(null);
 
   // مزامنة البيانات عند أي تحديث في المتجر
   useEffect(() => {
@@ -58,6 +60,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
     sync();
     return store.subscribe(sync);
   }, []);
+
+  // تحديث العضو المختار عند تغيير المستخدم أو تفعيل وضع المعاينة
+  useEffect(() => {
+    setSelectedMemberId(currentUser.id);
+    if (hideDirectoryTab) {
+      setActiveTab('profile');
+    }
+  }, [currentUser.id, hideDirectoryTab]);
 
   const displayedMember = allMembers.find((m) => m.id === selectedMemberId) || currentUser;
   const isViewingSelf = displayedMember.id === currentUser.id;
@@ -367,45 +377,47 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
       className="container py-8 sm:py-12 text-right"
       dir="rtl"
     >
-      {/* 1. التبديل بين البروفايل ودليل الأعضاء */}
-      <div className="flex items-center justify-between gap-4 mb-8 flex-wrap">
-        <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-gray-100 border border-gray-200">
-          <button
-            type="button"
-            onClick={() => setActiveTab('profile')}
-            className={`px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer border-none ${
-              activeTab === 'profile'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'bg-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            {isViewingSelf ? 'ملفي الشخصي' : `ملف: ${displayedMember.fullName}`}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('directory')}
-            className={`px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer border-none flex items-center gap-1.5 ${
-              activeTab === 'directory'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'bg-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Users size={15} />
-            <span>استكشاف أعضاء المسار</span>
-          </button>
-        </div>
+      {/* 1. التبديل بين البروفايل ودليل الأعضاء (يُخفى تلقائياً عند معاينة ملف عضو محدد) */}
+      {!hideDirectoryTab && (
+        <div className="flex items-center justify-between gap-4 mb-8 flex-wrap">
+          <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-gray-100 border border-gray-200">
+            <button
+              type="button"
+              onClick={() => setActiveTab('profile')}
+              className={`px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer border-none ${
+                activeTab === 'profile'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'bg-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {isViewingSelf ? 'ملفي الشخصي' : `ملف: ${displayedMember.fullName}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('directory')}
+              className={`px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer border-none flex items-center gap-1.5 ${
+                activeTab === 'directory'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'bg-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Users size={15} />
+              <span>استكشاف أعضاء المسار</span>
+            </button>
+          </div>
 
-        {!isViewingSelf && (
-          <button
-            type="button"
-            onClick={() => setSelectedMemberId(currentUser.id)}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer border border-blue-200 flex items-center gap-1.5"
-          >
-            <ArrowRight size={14} className="rotate-180" />
-            <span>العودة لملفي الشخصي</span>
-          </button>
-        )}
-      </div>
+          {!isViewingSelf && (
+            <button
+              type="button"
+              onClick={() => setSelectedMemberId(currentUser.id)}
+              className="px-4 py-2 rounded-xl text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer border border-blue-200 flex items-center gap-1.5"
+            >
+              <ArrowRight size={14} className="rotate-180" />
+              <span>العودة لملفي الشخصي</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {activeTab === 'directory' ? (
         /* ================= دليل استكشاف الأعضاء ================= */
@@ -834,6 +846,79 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
               </div>
             </div>
           </div>
+
+          {/* قسم متابعة طلبات العضو وتحديثات الاعتماد (موافقة / رفض / شاهد الرد) */}
+          {(() => {
+            const memberInquiries = store
+              .getInquiries()
+              .filter((inq) => inq.userId === displayedMember.id);
+            if (memberInquiries.length === 0) return null;
+
+            return (
+              <div className="rounded-[28px] bg-white border-2 border-[#0F172A] p-6 sm:p-7 shadow-xs text-right">
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100 flex-wrap gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xl">📬</span>
+                    <h3 className="text-xl font-black text-gray-900">
+                      طلبات الاعتماد وتحديثات الإشراف
+                    </h3>
+                  </div>
+                  <span className="text-xs font-bold text-gray-500">
+                    {memberInquiries.length} طلبات مسجلة
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {memberInquiries.map((inq: any) => {
+                    const isApproved = inq.status === 'approved';
+                    const isRejected = inq.status === 'rejected';
+                    const isPending = !isApproved && !isRejected;
+
+                    return (
+                      <div
+                        key={inq.id}
+                        className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-gray-400 transition-all"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-sm font-black text-gray-900">
+                              {inq.title || 'طلب اعتماد / استفسار'}
+                            </span>
+                            {isApproved && (
+                              <span className="px-3 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                معتمد ومقبول بنجاح ✅
+                              </span>
+                            )}
+                            {isRejected && (
+                              <span className="px-3 py-0.5 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300">
+                                مرفوض ❌
+                              </span>
+                            )}
+                            {isPending && (
+                              <span className="px-3 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-300">
+                                قيد المراجعة ⏳
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-600 line-clamp-1">
+                            {inq.details || 'لا توجد تفاصيل إضافية'}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setViewingInquiryModal(inq)}
+                          className="px-4 py-2 rounded-xl text-xs font-black bg-gray-900 text-white hover:bg-black transition-all cursor-pointer whitespace-nowrap shadow-xs flex items-center gap-1.5"
+                        >
+                          <span>👁️ شاهد الرد والتفاصيل</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* 3. الصف الثالث: مهاراتك (Chips) + الإنجازات (شبكة شارات بقفل) */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-start">
@@ -1455,6 +1540,96 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
                   )}
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* نافذة شاهد الرد والتفاصيل للعضو */}
+      <AnimatePresence>
+        {viewingInquiryModal && (
+          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-gray-900 text-right"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
+                <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                  <span>تفاصيل ورد القيادة</span>
+                </h3>
+                {viewingInquiryModal.status === 'approved' && (
+                  <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    معتمد ومقبول بنجاح ✅
+                  </span>
+                )}
+                {viewingInquiryModal.status === 'rejected' && (
+                  <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300">
+                    مرفوض ❌
+                  </span>
+                )}
+                {viewingInquiryModal.status !== 'approved' && viewingInquiryModal.status !== 'rejected' && (
+                  <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-300">
+                    قيد المراجعة ⏳
+                  </span>
+                )}
+              </div>
+
+              {/* بطاقة الطلب الأصلي */}
+              <div className="mb-4 p-4 rounded-2xl bg-gray-50 border border-gray-200">
+                <p className="text-xs font-bold text-gray-500 mb-1">الطلب المُرسل:</p>
+                <b className="text-sm text-gray-900 block mb-2">{viewingInquiryModal.title}</b>
+                <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
+                  {viewingInquiryModal.details}
+                </p>
+              </div>
+
+              {/* بطاقة رد القيادة الرسمي */}
+              <div className={`mb-6 p-4 rounded-2xl border ${
+                viewingInquiryModal.status === 'approved'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                  : viewingInquiryModal.status === 'rejected'
+                  ? 'bg-rose-50 border-rose-300 text-rose-950'
+                  : 'bg-amber-50 border-amber-300 text-amber-950'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-black flex items-center gap-1.5">
+                    {viewingInquiryModal.status === 'approved' && '✅ قرار القيادة: تمت الموافقة والاعتماد'}
+                    {viewingInquiryModal.status === 'rejected' && '❌ قرار القيادة: نعتذر، لم يتم الاعتماد'}
+                    {viewingInquiryModal.status !== 'approved' && viewingInquiryModal.status !== 'rejected' && '⏳ قيد المراجعة والدراسة'}
+                  </span>
+                  {viewingInquiryModal.respondedBy && (
+                    <span className="text-[11px] font-bold opacity-80">
+                      بواسطة: {viewingInquiryModal.respondedBy}
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs leading-relaxed whitespace-pre-wrap font-medium">
+                  {viewingInquiryModal.responseText ||
+                    viewingInquiryModal.decisionNotes ||
+                    (viewingInquiryModal.status === 'approved'
+                      ? 'تم اعتماد طلبك رسمياً وتفعيل الصلاحية/النقاط في حسابك بنجاح.'
+                      : 'طلبك قيد المتابعة من قِبل إدارة المسار.')}
+                </p>
+
+                {viewingInquiryModal.status === 'approved' && (
+                  <div className="mt-3 pt-2 border-t border-emerald-200 text-[11px] font-bold text-emerald-800">
+                    ⭐ الأثر: تم تفعيل الصلاحية أو رصد نقاط الإنجاز لحسابك تلقائياً.
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setViewingInquiryModal(null)}
+                  className="px-6 py-2.5 rounded-full text-xs font-black bg-gray-900 text-white hover:bg-black transition-all cursor-pointer shadow-sm"
+                >
+                  إغلاق النافذة
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

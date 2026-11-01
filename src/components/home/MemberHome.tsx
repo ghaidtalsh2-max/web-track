@@ -88,6 +88,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
 
   // حالة فتح نافذة أنشطة اليوم المختار في شريط الأسبوع
   const [selectedDay, setSelectedDay] = useState<WeeklyDay | null>(null);
+  const [viewingInquiryModal, setViewingInquiryModal] = useState<any | null>(null);
 
   // اشتراك لتحديث البيانات الفورية من store
   useEffect(() => {
@@ -450,6 +451,82 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
           >
             <span>✎ اكتب لنا</span>
           </motion.button>
+
+          {/* بطاقة متابعة طلبات العضو وتحديثات الاعتماد (موافقة / رفض / شاهد الرد) */}
+          {(() => {
+            const myInquiries = store
+              .getInquiries()
+              .filter((inq) => inq.userId === currentUser.id);
+            if (myInquiries.length === 0) return null;
+
+            return (
+              <motion.div
+                variants={itemVariants}
+                className="rounded-3xl bg-white border-2 border-gray-900 p-5 sm:p-6 shadow-sm text-right mt-3"
+              >
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100 flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">📬</span>
+                    <b className="text-sm sm:text-base font-black text-gray-900">
+                      طلباتك وتحديثات الاعتماد
+                    </b>
+                  </div>
+                  <span className="text-[11px] font-bold text-gray-500">
+                    {myInquiries.length} طلبات
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {myInquiries.map((inq: any) => {
+                    const isApproved = inq.status === 'approved';
+                    const isRejected = inq.status === 'rejected';
+                    const isPending = !isApproved && !isRejected;
+
+                    return (
+                      <div
+                        key={inq.id}
+                        className="p-3 rounded-2xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 hover:border-gray-400 transition-all"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-xs font-black text-gray-900">
+                              {inq.title || 'طلب اعتماد'}
+                            </span>
+                            {isApproved && (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                معتمد ومقبول بنجاح ✅
+                              </span>
+                            )}
+                            {isRejected && (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300">
+                                مرفوض ❌
+                              </span>
+                            )}
+                            {isPending && (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
+                                قيد المراجعة ⏳
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-gray-600 line-clamp-1">
+                            {inq.details || 'تفاصيل مسجلة'}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setViewingInquiryModal(inq)}
+                          className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-gray-900 text-white hover:bg-black transition-all cursor-pointer whitespace-nowrap shadow-xs flex items-center gap-1"
+                        >
+                          <span>👁️ شاهد الرد</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            );
+          })()}
         </div>
       </div>
 
@@ -1176,6 +1253,100 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                   ))}
                 </div>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* نافذة شاهد الرد والتفاصيل للعضو */}
+      <AnimatePresence>
+        {viewingInquiryModal && (
+          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-gray-900 text-right"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
+                <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                  <span>تفاصيل ورد القيادة</span>
+                </h3>
+                {viewingInquiryModal.status === 'approved' && (
+                  <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    معتمد ومقبول بنجاح ✅
+                  </span>
+                )}
+                {viewingInquiryModal.status === 'rejected' && (
+                  <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300">
+                    مرفوض ❌
+                  </span>
+                )}
+                {viewingInquiryModal.status !== 'approved' && viewingInquiryModal.status !== 'rejected' && (
+                  <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-300">
+                    قيد المراجعة ⏳
+                  </span>
+                )}
+              </div>
+
+              {/* بطاقة الطلب الأصلي */}
+              <div className="mb-4 p-4 rounded-2xl bg-gray-50 border border-gray-200">
+                <p className="text-xs font-bold text-gray-500 mb-1">الطلب المُرسل:</p>
+                <b className="text-sm text-gray-900 block mb-2">{viewingInquiryModal.title}</b>
+                <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
+                  {viewingInquiryModal.details}
+                </p>
+              </div>
+
+              {/* بطاقة رد القيادة الرسمي */}
+              <div
+                className={`mb-6 p-4 rounded-2xl border ${
+                  viewingInquiryModal.status === 'approved'
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                    : viewingInquiryModal.status === 'rejected'
+                    ? 'bg-rose-50 border-rose-300 text-rose-950'
+                    : 'bg-amber-50 border-amber-300 text-amber-950'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-black flex items-center gap-1.5">
+                    {viewingInquiryModal.status === 'approved' && '✅ قرار القيادة: تمت الموافقة والاعتماد'}
+                    {viewingInquiryModal.status === 'rejected' && '❌ قرار القيادة: نعتذر، لم يتم الاعتماد'}
+                    {viewingInquiryModal.status !== 'approved' &&
+                      viewingInquiryModal.status !== 'rejected' &&
+                      '⏳ قيد المراجعة والدراسة'}
+                  </span>
+                  {viewingInquiryModal.respondedBy && (
+                    <span className="text-[11px] font-bold opacity-80">
+                      بواسطة: {viewingInquiryModal.respondedBy}
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs leading-relaxed whitespace-pre-wrap font-medium">
+                  {viewingInquiryModal.responseText ||
+                    viewingInquiryModal.decisionNotes ||
+                    (viewingInquiryModal.status === 'approved'
+                      ? 'تم اعتماد طلبك رسمياً وتفعيل الصلاحية/النقاط في حسابك بنجاح.'
+                      : 'طلبك قيد المتابعة والدراسة من قِبل القيادة.')}
+                </p>
+
+                {viewingInquiryModal.status === 'approved' && (
+                  <div className="mt-3 pt-2 border-t border-emerald-200 text-[11px] font-bold text-emerald-800">
+                    ⭐ الأثر: تم تفعيل الصلاحية أو رصد نقاط الإنجاز لحسابك تلقائياً.
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setViewingInquiryModal(null)}
+                  className="px-6 py-2.5 rounded-full text-xs font-black bg-gray-900 text-white hover:bg-black transition-all cursor-pointer shadow-sm"
+                >
+                  إغلاق النافذة
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

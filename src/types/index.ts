@@ -280,7 +280,7 @@ export interface NextMission {
 }
 
 
-export type InquiryStatus = 'new' | 'in_progress' | 'answered';
+export type InquiryStatus = 'new' | 'in_progress' | 'answered' | 'approved' | 'rejected';
 
 export interface Inquiry {
   id: string;
@@ -294,6 +294,8 @@ export interface Inquiry {
   responseText?: string;
   respondedBy?: string;
   respondedAt?: string;
+  decision?: 'approved' | 'rejected';
+  decisionNotes?: string;
   createdAt: string;
 }
 
