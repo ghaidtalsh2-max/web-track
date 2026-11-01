@@ -533,51 +533,8 @@ export const INITIAL_ATTENDANCE_EVENTS: AttendanceEvent[] = [
 // مجموعات التحديات والخيارات المعتمدة (فارغة حتى تطرحها القائدة)
 export const INITIAL_CHALLENGE_GROUPS: ChallengeGroup[] = [];
 
-// قائمة الملفات الإثرائية المعتمدة لمسار الويب (سلايدات، مراجع أكواد، أدلة تعلم جاهزة للفتح والتحميل)
-export const INITIAL_TRACK_RESOURCES: TrackResource[] = [
-  {
-    id: 'res-ws-1-slides',
-    title: 'سلايدات الورشة 01: أساسيات الويب وهيكلة HTML5 الحديثة',
-    description: 'العرض التقديمي الشامل للورشة الأولى، يتضمن شرح العناصر الدلالية، وسوم النماذج، وهيكلة الصفحة.',
-    category: 'slides',
-    fileUrl: 'https://raw.githubusercontent.com/mdn/learning-area/master/html/introduction-to-html/getting-started/index.html',
-    fileType: 'pdf',
-    fileName: 'Web-Fundamentals-Workshop-01-Slides.pdf',
-    fileSize: '٢٫٤ MB',
-    workshopName: 'Web Fundamentals',
-    color: '#4285F4',
-    uploadedBy: 'قيادة مسار الويب',
-    uploadedAt: '2026-10-30',
-  },
-  {
-    id: 'res-css-grid-cheat',
-    title: 'مرجع الأكواد السريع: دليلك العملي لـ CSS Flexbox & Grid',
-    description: 'ورقة مرجعية سريعة تلخص جميع خصائص المحاذاة والشبكات مع أمثلة مرئية لأحدث مواصفات تخطيط الواجهات.',
-    category: 'cheatsheet',
-    fileUrl: 'https://css-tricks.com/snippets/css/a-guide-to-flexbox/',
-    fileType: 'code',
-    fileName: 'Modern-CSS-Flexbox-Grid-CheatSheet.pdf',
-    fileSize: '١٫١ MB',
-    workshopName: 'Web Fundamentals',
-    color: '#34A853',
-    uploadedBy: 'قيادة مسار الويب',
-    uploadedAt: '2026-10-31',
-  },
-  {
-    id: 'res-web-dev-guide',
-    title: 'دليل مطور الويب الشامل: الأدوات والممارسات القياسية',
-    description: 'حقيبة الأدوات الأساسية: إعداد بيئة VS Code، ملحقات المتصفح لفحص الأداء، ومعايير كتابة الكود النظيف.',
-    category: 'guide',
-    fileUrl: 'https://developer.mozilla.org/en-US/docs/Learn',
-    fileType: 'doc',
-    fileName: 'Full-Web-Developer-Guide-2026.pdf',
-    fileSize: '٣٫٢ MB',
-    workshopName: 'عام',
-    color: '#F9AB00',
-    uploadedBy: 'إشراف مسار الويب',
-    uploadedAt: '2026-11-01',
-  },
-];
+// قائمة الملفات الإثرائية المعتمدة لمسار الويب (فارغة افتراضياً حتى يضيفها القادة بأنفسهم)
+export const INITIAL_TRACK_RESOURCES: TrackResource[] = [];
 
 // الورش الرسمية المعتمدة (فارغة افتراضياً حتى يضيفها القادة)
 export const INITIAL_WORKSHOPS: Workshop[] = [];
@@ -1624,8 +1581,24 @@ class StoreManager {
       localStorage.setItem(STORAGE_KEYS.CUSTOM_LAB_CHALLENGES, JSON.stringify([]));
     }
     if (!localStorage.getItem(STORAGE_KEYS.RESOURCES)) {
-      localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(INITIAL_TRACK_RESOURCES));
+      localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify([]));
     }
+    // تنظيف فوري لأي ملفات إثرائية تجريبية أو وهمية متبقية في localStorage
+    try {
+      const existingRes = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESOURCES) || '[]');
+      if (Array.isArray(existingRes)) {
+        const cleaned = existingRes.filter((r: any) =>
+          r &&
+          r.id !== 'res-ws-1-slides' &&
+          r.id !== 'res-css-grid-cheat' &&
+          r.id !== 'res-web-dev-guide' &&
+          !r.title?.includes('سلايدات الورشة 01') &&
+          !r.title?.includes('مرجع الأكواد السريع') &&
+          !r.title?.includes('دليل مطور الويب الشامل')
+        );
+        localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(cleaned));
+      }
+    } catch {}
 
     this.initAuth();
   }
@@ -3958,15 +3931,21 @@ class StoreManager {
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          list = parsed.map((r: any) => ({
-            ...r,
-            fileUrl: (r.fileUrl || '').replace(/^https?:\/\/blob:/i, 'blob:'),
-          }));
+          const mockResourceIds = ['res-ws-1-slides', 'res-css-grid-cheat', 'res-web-dev-guide'];
+          const mockTitles = ['سلايدات الورشة 01', 'مرجع الأكواد السريع', 'دليل مطور الويب الشامل'];
+          list = parsed
+            .filter((r: any) => {
+              if (!r) return false;
+              if (mockResourceIds.includes(r.id)) return false;
+              if (mockTitles.some((t) => (r.title || '').includes(t))) return false;
+              return true;
+            })
+            .map((r: any) => ({
+              ...r,
+              fileUrl: (r.fileUrl || '').replace(/^https?:\/\/blob:/i, 'blob:'),
+            }));
         }
       } catch {}
-    }
-    if (list.length === 0) {
-      list = [...INITIAL_TRACK_RESOURCES];
     }
     return list;
   }
