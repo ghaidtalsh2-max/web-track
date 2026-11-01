@@ -4,21 +4,22 @@ import { GDGLogo } from '../brand/GDGLogo';
 export const Footer: React.FC = () => {
   return (
     <footer
-      className="mt-20 transition-colors text-right"
+      className="mt-28 sm:mt-36 transition-colors text-right"
       style={{
         backgroundColor: 'var(--bg-card)',
       }}
     >
       {/* الفاصل بين الصفحة والتذييل: خطوط ألوان رفيعة لهوية Google */}
       <div className="w-full flex flex-col" style={{ gap: '2px' }} aria-hidden="true">
-        <div style={{ height: '2px', backgroundColor: '#4285F4', width: '100%' }} />
-        <div style={{ height: '2px', backgroundColor: '#EA4335', width: '100%' }} />
-        <div style={{ height: '2px', backgroundColor: '#FBBC04', width: '100%' }} />
-        <div style={{ height: '2px', backgroundColor: '#34A853', width: '100%' }} />
+        <div style={{ height: '2.5px', backgroundColor: '#4285F4', width: '100%' }} />
+        <div style={{ height: '2.5px', backgroundColor: '#EA4335', width: '100%' }} />
+        <div style={{ height: '2.5px', backgroundColor: '#FBBC04', width: '100%' }} />
+        <div style={{ height: '2.5px', backgroundColor: '#34A853', width: '100%' }} />
       </div>
 
-      <div className="container pt-12 pb-10">
-        <div className="footer-grid mb-10">
+      {/* مسافة واسعة ومريحة لنزول محتوى التذييل بعد الخطوط الملونة */}
+      <div className="container pt-20 pb-12 sm:pt-24 sm:pb-14">
+        <div className="footer-grid mb-12">
           {/* العمود الأول (اليمين): قادة النادي */}
           <div className="footer-col-leads flex flex-col gap-3">
             <h4
@@ -72,10 +73,24 @@ export const Footer: React.FC = () => {
               قادة المجال :
             </h4>
             <div className="flex flex-col gap-2.5 text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-              <div className="flex items-center gap-2.5">
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#34A853', flexShrink: 0, display: 'inline-block' }} />
-                <span>غيداء تركي الشريف</span>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2.5">
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#34A853', flexShrink: 0, display: 'inline-block' }} />
+                  <span className="font-bold">غيداء تركي الشريف</span>
+                </div>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: '#1A73E8',
+                    fontWeight: 700,
+                    marginRight: '18px',
+                    letterSpacing: '0.3px',
+                  }}
+                >
+                  Created by Ghaidaa ✨
+                </span>
               </div>
+
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FBBC04', flexShrink: 0, display: 'inline-block' }} />
                 <span>ريتال القثامي</span>
@@ -122,17 +137,30 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        {/* سطر الحقوق السفلي بدون رموز الألوان وبفواصل دقيقة */}
+        {/* سطر الحقوق السفلي مع توقيع Created by Ghaidaa */}
         <div
-          className="footer-bottom-row pt-6 border-t text-xs font-medium"
+          className="footer-bottom-row pt-6 border-t text-xs font-medium flex flex-wrap justify-between items-center gap-4"
           style={{
             borderColor: 'var(--border-light)',
             color: 'var(--text-muted)',
           }}
         >
-          <div>
-            © 2026 نادي قوقل للطلبة المطورين — جامعة الطائف. جميع الحقوق محفوظة.
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span>© 2026 نادي قوقل للطلبة المطورين — جامعة الطائف. جميع الحقوق محفوظة.</span>
+            <span className="hidden sm:inline" style={{ opacity: 0.4 }}>•</span>
+            <span
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-bold"
+              style={{
+                backgroundColor: 'rgba(66, 133, 244, 0.08)',
+                color: '#1A73E8',
+                border: '1px solid rgba(66, 133, 244, 0.22)',
+              }}
+            >
+              <span>Created by Ghaidaa</span>
+              <span>✨</span>
+            </span>
           </div>
+
           <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
             Google Developer Groups on Campus — Taif University
           </div>
