@@ -2198,7 +2198,6 @@ class StoreManager {
     const retalAttendedKeywords = [
       'بشرى محمد العتيبي',
       'نوره خالد العتيبي',
-      'فيصل خالد الغامدي',
       'ريوف عبداللطيف العمري',
       'دانه عبدالله الشهري',
       'دانه محسن الذبياني',
@@ -2212,7 +2211,6 @@ class StoreManager {
       'رهف الخماش',
       'ريوف سعد',
       'ليان خالد',
-      'ريما عبدالعزيز',
     ];
 
     const profileNameById = new Map<string, string>();
@@ -2326,11 +2324,20 @@ class StoreManager {
       'شذى الحارثي',
       'شهد الحارثي',
       'ليان الحربي',
+      'فيصل خالد الغامدي',
+      'فيصل خالد',
+      'فيصل الغامدي',
+      'ريما عبدالعزيز العتيبي',
+      'ريما عبدالعزيز',
       'ريما العتيبي',
       'ريما عتيبي',
       'ريما مصلح',
     ];
-    const filteredMembers = mappedMembers.filter((m) => !deletedPatterns.some((p) => m.fullName.includes(p)));
+    const filteredMembers = mappedMembers.filter((m) => {
+      if (m.fullName.startsWith('ريما ') && !m.fullName.includes('ريماس')) return false;
+      if (m.fullName.startsWith('فيصل ')) return false;
+      return !deletedPatterns.some((p) => m.fullName.includes(p));
+    });
 
     this.members = filteredMembers.length > 0 ? filteredMembers : [me];
     const fresh = this.members.find((m) => m.id === me.id);
@@ -2463,8 +2470,21 @@ class StoreManager {
   }
 
   public getMembers(): UserProfile[] {
-    const deletedPatterns = ['شذى', 'ليان غانم', 'ريما العتيبي', 'ريما عتيبي', 'ريما مصلح'];
-    return this.members.filter((m) => !deletedPatterns.some((p) => m.fullName.includes(p)));
+    const deletedPatterns = [
+      'شذى',
+      'ليان غانم',
+      'فيصل خالد',
+      'فيصل الغامدي',
+      'ريما عبدالعزيز',
+      'ريما العتيبي',
+      'ريما عتيبي',
+      'ريما مصلح',
+    ];
+    return this.members.filter((m) => {
+      if (m.fullName.startsWith('ريما ') && !m.fullName.includes('ريماس')) return false;
+      if (m.fullName.startsWith('فيصل ')) return false;
+      return !deletedPatterns.some((p) => m.fullName.includes(p));
+    });
   }
 
   public getMemberById(id: string): UserProfile | undefined {
