@@ -62,14 +62,21 @@ const GooglePinwheelIcon: React.FC<{ size?: number }> = ({ size = 80 }) => (
 );
 
 export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
-  // صلاحية إدارة الخانات للقادة والمشرفين
+  // صلاحية إدارة الخانات واعتماد الورش لقادة المجال (غيداء، ريتال، سلمان) والمشرفين
   const isLeader =
     currentUser.role === 'track_leader' ||
     currentUser.role === 'co_leader' ||
-    currentUser.role === 'supervisor';
+    currentUser.role === 'supervisor' ||
+    currentUser.fullName?.includes('غيداء') ||
+    currentUser.fullName?.includes('ريتال') ||
+    currentUser.fullName?.includes('سلمان') ||
+    currentUser.username?.toLowerCase().includes('ghaidaa') ||
+    currentUser.username?.toLowerCase().includes('retal') ||
+    currentUser.username?.toLowerCase().includes('salman');
 
   const [projects, setProjects] = useState<ShowcaseCardItem[]>(() => store.getShowcaseProjects());
   const [slots, setSlots] = useState<ShowcaseSlot[]>(() => store.getShowcaseSlots());
+  const [adminWorkshops, setAdminWorkshops] = useState(() => store.getAdminScheduledWorkshops());
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'in_review'>('all');
 
   // مزامنة حية
@@ -77,9 +84,34 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
     const unsub = store.subscribe(() => {
       setProjects(store.getShowcaseProjects());
       setSlots(store.getShowcaseSlots());
+      setAdminWorkshops(store.getAdminScheduledWorkshops());
     });
     return unsub;
   }, []);
+
+  // توليد خانات الورش المعتمدة باسم كل ورشة (لا تظهر للأعضاء إلا بعد اعتمادها من غيداء أو ريتال أو سلمان)
+  const workshopSlots: (ShowcaseSlot & { isWorkshop?: boolean; workshopId?: string; isPublished?: boolean; orderNumber?: number })[] =
+    adminWorkshops
+      .filter((ws) => isLeader || ws.isPublished)
+      .map((ws) => ({
+        id: `slot-ws-${ws.id}`,
+        title: `تطبيقات ورشة ${ws.orderNumber}: ${ws.titleAr}`,
+        description: `المهمة البرمجية: ${ws.taskNumber} (${ws.taskTitle}) — ${ws.taskDescription}`,
+        stageName: `المرحلة 0${Math.min(3, Math.ceil(ws.orderNumber / 3))}`,
+        category: 'workshop' as const,
+        color: ['#4285F4', '#EA4335', '#F9AB00', '#34A853'][(ws.orderNumber - 1) % 4],
+        createdBy: 'admin',
+        createdByName: ws.presenter,
+        createdAt: ws.publishedAt || new Date().toISOString(),
+        isWorkshop: true,
+        workshopId: ws.id,
+        isPublished: ws.isPublished,
+        orderNumber: ws.orderNumber,
+      }));
+
+  // الخانات المخصصة مثل معرض الفضاء وتسجيل الدخول بقوقل والخانات التي ينشئها القادة
+  const customSlots = slots.filter((s) => s.id !== 'slot-workshop-tasks' && !s.id.startsWith('slot-ws-'));
+  const activeDisplaySlots = [...workshopSlots, ...customSlots];
 
   // نافذة إنشاء خانة جديدة (خاصة بالقائد 👑)
   const [isSlotModalOpen, setIsSlotModalOpen] = useState(false);
@@ -93,7 +125,7 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
 
   // نافذة تسليم مشروع (يستخدمها الأعضاء والقادة 🚀)
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
-  const [activeSlotId, setActiveSlotId] = useState<string>('slot-workshop-tasks');
+  const [activeSlotId, setActiveSlotId] = useState<string>(() => activeDisplaySlots[0]?.id || 'slot-space-arvr');
   const [memberProjTitle, setMemberProjTitle] = useState('');
   const [memberGithub, setMemberGithub] = useState('');
   const [memberLive, setMemberLive] = useState('');
@@ -102,6 +134,18 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
   const [attachedFileName, setAttachedFileName] = useState('');
   const [isSubmittingProj, setIsSubmittingProj] = useState(false);
   const [submitSuccessMsg, setSubmitSuccessMsg] = useState('');
+
+  // اعتماد ونشر ورشة وتاسك للأعضاء فوراً (لغيداء، ريتال، سلمان)
+  const handlePublishWorkshop = (workshopId: string) => {
+    const ws = adminWorkshops.find((w) => w.id === workshopId);
+    if (!ws) return;
+    const ok = window.confirm(`هل أنتِ متأكدة من اعتماد ونشر ورشة «${ws.titleAr}» وتاسك «${ws.taskTitle}» للأعضاء الآن؟`);
+    if (!ok) return;
+    store.publishAdminScheduledWorkshop(workshopId);
+    setAdminWorkshops(store.getAdminScheduledWorkshops());
+    setSlots(store.getShowcaseSlots());
+    confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
+  };
 
   // فتح نافذة إنشاء خانة للقائد
   const openCreateSlotModal = (cat: 'workshop' | 'general' = 'workshop') => {
@@ -118,8 +162,8 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
   const openMemberSubmitModal = (slot?: ShowcaseSlot) => {
     if (slot) {
       setActiveSlotId(slot.id);
-    } else if (slots.length > 0) {
-      setActiveSlotId(slots[0].id);
+    } else if (activeDisplaySlots.length > 0) {
+      setActiveSlotId(activeDisplaySlots[0].id);
     } else {
       setActiveSlotId('general');
     }
@@ -168,7 +212,7 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
     if (!memberProjTitle.trim() || !memberGithub.trim()) return;
 
     setIsSubmittingProj(true);
-    const targetSlot = slots.find((s) => s.id === activeSlotId);
+    const targetSlot = activeDisplaySlots.find((s) => s.id === activeSlotId);
     const assignedColor = targetSlot?.color || GDG_COLORS[projects.length % GDG_COLORS.length].value;
 
     let fileAttachmentInfo: any = undefined;
@@ -270,23 +314,35 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
 
       {/* ================= 3. أقسام الخانات والتاسكات (عنوان كل خانة وتحته الأيقونات التي تنسحب) ================= */}
       <div className="space-y-12 mb-16">
-        {slots.map((slot) => {
+        {activeDisplaySlots.map((slot) => {
           // جلب المشاريع المسلمة في هذه الخانة بالاسم أو بالمعرف
-          const slotProjects = validProjects.filter(
-            (p) =>
+          const isWsSlot = Boolean((slot as any).isWorkshop);
+          const wsId = (slot as any).workshopId;
+          const ws = wsId ? adminWorkshops.find((w) => w.id === wsId) : undefined;
+          const isPublished = isWsSlot ? Boolean((slot as any).isPublished) : true;
+
+          const slotProjects = validProjects.filter((p) => {
+            if (isWsSlot && ws) {
+              if (p.slotId === slot.id || p.slotId === `slot-${ws.id}`) return true;
+              if (p.workshopTaskName?.includes(ws.titleAr) || p.workshopTaskName?.includes(ws.taskTitle)) return true;
+              if (p.title?.includes(ws.titleAr) || p.title?.includes(ws.taskTitle)) return true;
+              if (ws.orderNumber === 1 && (p.isWorkshopTask || p.slotId === 'slot-workshop-tasks')) return true;
+              return false;
+            }
+            return (
               p.slotId === slot.id ||
               p.workshopTaskName === slot.title ||
-              (slot.title.includes('ورش') && p.isWorkshopTask) ||
               (slot.title.includes('فضاء') && (p.title.includes('فضاء') || p.workshopTaskName?.includes('فضاء'))) ||
               (slot.title.includes('قوقل') && (p.title.includes('قوقل') || p.workshopTaskName?.includes('قوقل') || p.title.toLowerCase().includes('google')))
-          );
+            );
+          });
 
           return (
             <section key={slot.id} className="space-y-4">
               {/* شريط عنوان الخانة مع زر إضافة العمل وزر الحذف للقائد */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                     <span
                       style={{
                         display: 'inline-block',
@@ -311,6 +367,23 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                     >
                       {slotProjects.length} {slotProjects.length === 1 ? 'مشروع معروض' : 'مشاريع معروضة'}
                     </span>
+
+                    {/* تنبيه إذا كانت الورشة مسودة وغير معتمدة بعد (يظهر للقادة فقط) */}
+                    {isWsSlot && !isPublished && (
+                      <span
+                        style={{
+                          backgroundColor: '#FEF3C7',
+                          color: '#B45309',
+                          padding: '3px 10px',
+                          borderRadius: '99px',
+                          fontSize: '12px',
+                          fontWeight: 800,
+                          border: '1px solid #FCD34D',
+                        }}
+                      >
+                        🔒 مسودة — لم تُعتمد للأعضاء بعد
+                      </span>
+                    )}
                   </div>
                   {slot.description && (
                     <p style={{ fontSize: '14px', color: '#5f6673', margin: '4px 0 0' }}>
@@ -319,7 +392,28 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                   )}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  {isWsSlot && !isPublished && isLeader && ws && (
+                    <button
+                      type="button"
+                      onClick={() => handlePublishWorkshop(ws.id)}
+                      className="b-proto"
+                      style={{
+                        padding: '6px 16px',
+                        fontSize: '13px',
+                        minHeight: '36px',
+                        backgroundColor: '#10B981',
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <Sparkles size={14} />
+                      <span>اعتماد ونشر الورشة والتاسك للأعضاء ✨</span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => openMemberSubmitModal(slot)}
@@ -340,7 +434,7 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                     <span>+ أضف عملك في هذه الخانة</span>
                   </button>
 
-                  {isLeader && (
+                  {isLeader && !isWsSlot && (
                     <button
                       type="button"
                       onClick={() => handleDeleteSlot(slot.id, slot.title)}
@@ -1000,9 +1094,9 @@ export const ShowcaseView: React.FC<ShowcaseViewProps> = ({ currentUser }) => {
                         cursor: 'pointer',
                       }}
                     >
-                      {slots.map((s) => (
+                      {activeDisplaySlots.map((s) => (
                         <option key={s.id} value={s.id}>
-                          {s.title}
+                          {s.title} {(s as any).isWorkshop && !(s as any).isPublished ? '(مسودة بانتظار الاعتماد 🔒)' : ''}
                         </option>
                       ))}
                       <option value="general">المعرض العام لجميع المشاريع</option>

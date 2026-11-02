@@ -31,11 +31,11 @@ export const Footer: React.FC = () => {
             <div className="flex flex-col gap-2.5 text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4285F4', flexShrink: 0, display: 'inline-block' }} />
-                <span>وجد العتيبي</span>
+                <span>قائدة النادي: وجد العتيبي</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EA4335', flexShrink: 0, display: 'inline-block' }} />
-                <span>ثامر الشنبري</span>
+                <span>قائد النادي: ثامر الشنبري</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#9C27B0', flexShrink: 0, display: 'inline-block' }} />
@@ -73,22 +73,9 @@ export const Footer: React.FC = () => {
               قادة المجال :
             </h4>
             <div className="flex flex-col gap-2.5 text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2.5">
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#34A853', flexShrink: 0, display: 'inline-block' }} />
-                  <span className="font-bold">غيداء تركي الشريف</span>
-                </div>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    color: '#1A73E8',
-                    fontWeight: 700,
-                    marginRight: '18px',
-                    letterSpacing: '0.3px',
-                  }}
-                >
-                  Created by Ghaidaa ✨
-                </span>
+              <div className="flex items-center gap-2.5">
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#34A853', flexShrink: 0, display: 'inline-block' }} />
+                <span className="font-bold">غيداء تركي الشريف</span>
               </div>
 
               <div className="flex items-center gap-2.5">
@@ -137,31 +124,21 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        {/* سطر الحقوق السفلي مع توقيع Created by Ghaidaa */}
+        {/* سطر الحقوق السفلي الموحد في المنتصف مع توقيع Created by Ghaidaa */}
         <div
-          className="footer-bottom-row pt-6 border-t text-xs font-medium flex flex-wrap justify-between items-center gap-4"
+          className="pt-6 border-t text-xs font-medium flex flex-col items-center justify-center text-center gap-2.5"
           style={{
             borderColor: 'var(--border-light)',
             color: 'var(--text-muted)',
           }}
         >
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <span>© 2026 نادي قوقل للطلبة المطورين — جامعة الطائف. جميع الحقوق محفوظة.</span>
-            <span className="hidden sm:inline" style={{ opacity: 0.4 }}>•</span>
-            <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-bold"
-              style={{
-                backgroundColor: 'rgba(66, 133, 244, 0.08)',
-                color: '#1A73E8',
-                border: '1px solid rgba(66, 133, 244, 0.22)',
-              }}
-            >
-              <span>Created by Ghaidaa</span>
-              <span>✨</span>
-            </span>
+            <span style={{ opacity: 0.4 }}>•</span>
+            <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Created by Ghaidaa ✨</span>
           </div>
 
-          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-[11px]" style={{ color: 'var(--text-muted)', opacity: 0.85 }}>
             Google Developer Groups on Campus — Taif University
           </div>
         </div>

@@ -88,7 +88,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
         }
         return;
       }
-      setAwardErrorMsg('صلاحية رصد النقاط محصورة بقادة المجال (غيداء وريتال).');
+      setAwardErrorMsg('صلاحية رصد النقاط محصورة بقادة المجال (غيداء، ريتال، سلمان).');
       return;
     }
 

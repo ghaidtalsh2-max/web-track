@@ -21,6 +21,7 @@ import {
   Check,
   X,
   Search,
+  Trash2,
 } from 'lucide-react';
 
 interface LeaderWorkshopsSheetProps {

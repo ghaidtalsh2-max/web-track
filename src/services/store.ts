@@ -1882,38 +1882,54 @@ class StoreManager {
     return !!this.session && !!this.profile;
   }
 
+  private isTrackLeadUser(): boolean {
+    const r = this.profile?.role;
+    const n = this.profile?.fullName || '';
+    const u = (this.profile?.username || '').toLowerCase();
+    return (
+      r === 'track_leader' ||
+      r === 'co_leader' ||
+      n.includes('غيداء') ||
+      n.includes('ريتال') ||
+      n.includes('سلمان') ||
+      u.includes('ghaidaa') ||
+      u.includes('retal') ||
+      u.includes('salman')
+    );
+  }
+
   public isStaff(): boolean {
-    return this.profile?.role === 'track_leader' || this.profile?.role === 'co_leader' || this.profile?.role === 'supervisor';
+    return this.isTrackLeadUser() || this.profile?.role === 'supervisor';
   }
 
-  /** قادة المجال: غيداء تركي الشريف وريتال القثامي (صلاحيات كاملة) */
+  /** قادة المجال: غيداء تركي الشريف، ريتال القثامي، سلمان الغامدي (صلاحيات كاملة) */
   public canManageAll(): boolean {
-    return this.profile?.role === 'track_leader';
+    return this.isTrackLeadUser();
   }
 
-  /** إضافة وتعديل الورش: غيداء وريتال فقط (سلمان والإشراف ممنوعون) */
+  /** إضافة وتعديل واعتماد الورش: غيداء وريتال وسلمان */
   public canManageWorkshops(): boolean {
-    return this.profile?.role === 'track_leader';
+    return this.isTrackLeadUser();
   }
 
-  /** تعديل وإدارة المحتوى: غيداء وريتال فقط (سلمان والإشراف ممنوعون) */
+  /** تعديل وإدارة المحتوى: غيداء وريتال وسلمان */
   public canManageContent(): boolean {
-    return this.profile?.role === 'track_leader';
+    return this.isTrackLeadUser();
   }
 
-  /** اعتماد ومنح النقاط: غيداء وريتال فقط */
+  /** اعتماد ومنح النقاط: غيداء وريتال وسلمان */
   public canAwardPoints(): boolean {
-    return this.profile?.role === 'track_leader';
+    return this.isTrackLeadUser();
   }
 
   /** اعتماد التسليمات: قادة المجال والنائب */
   public canApproveSubmissions(): boolean {
-    return this.profile?.role === 'track_leader' || this.profile?.role === 'co_leader';
+    return this.isTrackLeadUser();
   }
 
   /** خانة التحضير (ورش + مناسبات وفعاليات): القادة والنائب والإشراف */
   public canTakeAttendance(): boolean {
-    return this.profile?.role === 'track_leader' || this.profile?.role === 'co_leader' || this.profile?.role === 'supervisor';
+    return this.isTrackLeadUser() || this.profile?.role === 'supervisor';
   }
 
   /** الإشراف: أثير (قائدة المجالات)، عامر (نائب قائدة المجالات)، رنا (مستشارة النادي) */
@@ -1998,17 +2014,27 @@ class StoreManager {
     let role: UserProfile['role'] =
       p.role === 'track_leader' || p.role === 'co_leader' || p.role === 'supervisor' ? p.role : 'member';
 
+    // تصحيح الاسم إن وجد خطأ مطبعي (رياد -> ريناد)
+    let cleanFullName = (p.full_name || 'عضو مسار').trim();
+    if (cleanFullName.includes('رياد')) {
+      cleanFullName = cleanFullName.replace(/رياد/g, 'ريناد');
+    }
+
+    const uLower = (p.username || '').toLowerCase();
+
     // تعيين تلقائي لرتبة نائب قائد المجال لسلمان الغامدي
     if (
-      p.username === 'salman_m.web26' ||
-      p.username === 'salman.lead' ||
-      p.username === 'salman.deputy' ||
-      (p.full_name && p.full_name.includes('سلمان الغامدي') && p.role !== 'track_leader')
+      uLower === 'salman_m.web26' ||
+      uLower === 'salman.lead' ||
+      uLower === 'salman.deputy' ||
+      (cleanFullName.includes('سلمان الغامدي') && role !== 'track_leader')
     ) {
       role = 'co_leader';
     }
 
-    const uLower = (p.username || '').toLowerCase();
+    if (cleanFullName.includes('ريتال القثامي') && role === 'member') {
+      role = 'track_leader';
+    }
 
     // تعيين تلقائي لحسابات الإشراف
     if (
@@ -2017,28 +2043,29 @@ class StoreManager {
       uLower === 'rana.super' ||
       uLower.includes('wajd') ||
       uLower.includes('thamer') ||
-      (p.full_name && (p.full_name.includes('وجد العتيبي') || p.full_name.includes('ثامر الشنبري')))
+      cleanFullName.includes('وجد العتيبي') ||
+      cleanFullName.includes('ثامر الشنبري')
     ) {
       role = 'supervisor';
     }
 
-    // تحديد المسمى الدقيق للرتبة
+    // تحديد المسمى الدقيق للرتبة (وجد = قائدة النادي، ثامر = قائد النادي)
     let roleTitle = p.role_title;
-    if (!roleTitle || roleTitle === 'عضو مسار الويب 🚀' || roleTitle === 'عضو مسار') {
+    if (uLower.includes('wajd') || cleanFullName.includes('وجد')) {
+      roleTitle = 'قائدة النادي 👑';
+    } else if (uLower.includes('thamer') || cleanFullName.includes('ثامر')) {
+      roleTitle = 'قائد النادي 👑';
+    } else if (p.username === 'atheer.super') {
+      roleTitle = 'قائدة المجالات 👑';
+    } else if (p.username === 'amer.super') {
+      roleTitle = 'نائب قائدة المجالات 🌟';
+    } else if (p.username === 'rana.super') {
+      roleTitle = 'مستشارة النادي 💎';
+    } else if (!roleTitle || roleTitle === 'عضو مسار الويب 🚀' || roleTitle === 'عضو مسار') {
       if (role === 'co_leader') {
         roleTitle = 'نائب قائد المجال 🚀';
       } else if (role === 'track_leader') {
         roleTitle = 'قائدة مجال الويب 🌟';
-      } else if (uLower.includes('wajd') || p.full_name?.includes('وجد العتيبي')) {
-        roleTitle = 'قائدة النادي 👑';
-      } else if (uLower.includes('thamer') || p.full_name?.includes('ثامر الشنبري')) {
-        roleTitle = 'قائد النادي 👑';
-      } else if (p.username === 'atheer.super') {
-        roleTitle = 'قائدة المجالات 👑';
-      } else if (p.username === 'amer.super') {
-        roleTitle = 'نائب قائدة المجالات 🌟';
-      } else if (p.username === 'rana.super') {
-        roleTitle = 'مستشارة النادي 💎';
       } else if (role === 'supervisor') {
         roleTitle = 'إشراف النادي 🔍';
       } else {
@@ -2047,18 +2074,18 @@ class StoreManager {
     }
 
     // فحص وتحديد دقيق للجنس (ذكر / أنثى)
-    const maleNames = ['سلمان', 'فيصل', 'عبدالعزيز', 'عبد العزيز', 'عامر', 'ثامر', 'ثانر', 'رياد', 'أحمد', 'احمد', 'سلطان', 'محمد', 'طارق', 'خالد', 'فهد', 'عبدالله', 'سعود', 'علي', 'عمر'];
+    const maleNames = ['سلمان', 'فيصل', 'عبدالعزيز', 'عبد العزيز', 'عامر', 'ثامر', 'ثانر', 'أحمد', 'احمد', 'سلطان', 'محمد', 'طارق', 'خالد', 'فهد', 'عبدالله', 'سعود', 'علي', 'عمر'];
     let gender: 'female' | 'male' = p.gender || 'female';
-    if (!p.gender && p.full_name) {
-      const first = p.full_name.trim().split(/\s+/)[0];
-      if (maleNames.some((m) => p.full_name.includes(m) || first.includes(m))) {
+    if (!p.gender && cleanFullName) {
+      const first = cleanFullName.split(/\s+/)[0];
+      if (maleNames.some((m) => cleanFullName.includes(m) || first.includes(m))) {
         gender = 'male';
       }
     }
-    if (uLower.includes('thamer') || p.full_name?.includes('ثامر')) {
+    if (uLower.includes('thamer') || cleanFullName.includes('ثامر')) {
       gender = 'male';
     }
-    if (uLower.includes('wajd') || p.full_name?.includes('وجد')) {
+    if (uLower.includes('wajd') || cleanFullName.includes('وجد') || cleanFullName.includes('ريناد') || uLower.includes('renad')) {
       gender = 'female';
     }
 
@@ -2067,7 +2094,7 @@ class StoreManager {
     const avatarUrl = p.avatar_url || p.settings?.avatarUrl || '';
     return {
       id: p.id,
-      fullName: p.full_name || 'عضو مسار',
+      fullName: cleanFullName,
       username: p.username || '',
       gender,
       role,
@@ -2215,7 +2242,17 @@ class StoreManager {
       }
     }
 
-    const deletedPatterns = ['شذى بندر الحارثي', 'شهد سعد الحارثي', 'ليان غانم الحربي', 'شذى الحارثي', 'شهد الحارثي', 'ليان الحربي'];
+    const deletedPatterns = [
+      'شذى بندر الحارثي',
+      'شهد سعد الحارثي',
+      'ليان غانم الحربي',
+      'شذى الحارثي',
+      'شهد الحارثي',
+      'ليان الحربي',
+      'ريما العتيبي',
+      'ريما عتيبي',
+      'ريما مصلح',
+    ];
     const filteredMembers = mappedMembers.filter((m) => !deletedPatterns.some((p) => m.fullName.includes(p)));
 
     this.members = filteredMembers.length > 0 ? filteredMembers : [me];
@@ -2284,7 +2321,8 @@ class StoreManager {
   }
 
   public getMembers(): UserProfile[] {
-    return this.members;
+    const deletedPatterns = ['شذى', 'ليان غانم', 'ريما العتيبي', 'ريما عتيبي', 'ريما مصلح'];
+    return this.members.filter((m) => !deletedPatterns.some((p) => m.fullName.includes(p)));
   }
 
   public getMemberById(id: string): UserProfile | undefined {
