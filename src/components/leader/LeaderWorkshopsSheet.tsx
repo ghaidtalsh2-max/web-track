@@ -63,6 +63,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
   const [successMsg, setSuccessMsg] = useState('');
   const [searchMember, setSearchMember] = useState('');
   const [isAttendanceEditMode, setIsAttendanceEditMode] = useState(false);
+  const [attendanceVersion, setAttendanceVersion] = useState(0);
 
   // اشتراك في store
   useEffect(() => {
@@ -70,6 +71,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
       setAdminWorkshops(store.getAdminScheduledWorkshops());
       setMembers(store.getMembers());
       setAttendanceEvents(store.getAttendanceEvents());
+      setAttendanceVersion((v) => v + 1);
     });
     return unsub;
   }, []);
@@ -133,7 +135,13 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
 
   // تبديل حالة التحضير لعضو ومزامنته مركزياً
   const handleToggleAttendance = async (memberId: string, currentStatus: boolean) => {
+    setIsAttendanceEditMode(true);
     await store.toggleAttendance(selectedWorkshopId, memberId, !currentStatus);
+    setAttendanceVersion((v) => v + 1);
+    const targetMember = members.find((m) => m.id === memberId);
+    const memberName = targetMember ? targetMember.fullName.split(' ')[0] : 'العضو';
+    setSuccessMsg(!currentStatus ? `تم تحضير ${memberName} بنجاح (+20 نقطة) ✓` : `تم تسجيل غياب ${memberName} وتعديل النقاط ✓`);
+    setTimeout(() => setSuccessMsg(''), 2500);
   };
 
   // تحضير جميع الأعضاء دفعة واحدة
@@ -142,6 +150,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
     for (const m of regularMembers) {
       await store.toggleAttendance(selectedWorkshopId, m.id, true);
     }
+    setAttendanceVersion((v) => v + 1);
     setSuccessMsg(`تم تحضير جميع الأعضاء (${regularMembers.length} عضو) ورصد نقاط الحضور وتثبيتها بنجاح ✓`);
     setTimeout(() => setSuccessMsg(''), 3500);
   };
@@ -578,10 +587,11 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                           <button
                             type="button"
                             onClick={() => handleToggleAttendance(m.id, isAttended)}
-                            className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer border ${
+                            title={isAttended ? 'انقري لتسجيله غائباً' : 'انقري لتحضيره (+20 نقطة)'}
+                            className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer border shadow-2xs active:scale-95 ${
                               isAttended
-                                ? 'bg-emerald-100 text-emerald-900 border-emerald-300 shadow-2xs hover:bg-emerald-200'
-                                : 'bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200'
+                                ? 'bg-emerald-100 text-emerald-900 border-emerald-300 hover:bg-emerald-200'
+                                : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'
                             }`}
                           >
                             {isAttended ? 'حاضر ✓' : 'غائب ✗'}

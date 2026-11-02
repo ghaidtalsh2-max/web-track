@@ -5124,6 +5124,8 @@ class StoreManager {
     if (typeof window === 'undefined') return false;
     const all = this.getAttendanceMap();
     const currentLeader = this.profile?.fullName || 'القائد';
+    const leaderId = this.profile?.id || '1734f887-f9f3-4d6c-a963-d00f767d86e6';
+    const key = `${workshopId}_${memberId}`;
     const record: WorkshopAttendanceRecord = {
       workshopId,
       memberId,
@@ -5142,29 +5144,14 @@ class StoreManager {
 
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(all));
 
-    // مزامنة حالة التحضير إلى Supabase في جدول submissions لترتبط مركزياً ويراها كل القادة فوراً
-    try {
-      await supabase.from('submissions').upsert({
-        id: `att_${workshopId}_${memberId}`,
-        task_id: workshopId,
-        profile_id: memberId,
-        status: attended ? 'approved' : 'rejected',
-        notes: 'attendance_record',
-        repo_url: 'attendance',
-        live_url: 'attendance',
-      }, { onConflict: 'id' });
-    } catch (e) {
-      console.warn('Could not sync attendance to submissions:', e);
-    }
-
-    // إذا تم التحضير، منح نقاط الحضور (+20 نقطة)؛ وإذا تم الغياب، إزالة قيد الحضور
+    // إذا تم التحضير، منح نقاط الحضور (+20 نقطة) وتوثيقه في دفتر القيود؛ وإذا تم الغياب، إزالة قيد الحضور
     if (attended) {
       try {
         await this.awardPoints(
           memberId,
           20,
           `حضور: ${workshopId === 'orientation-session' || workshopId === 'evt-intro' ? 'اللقاء التعريفي' : 'ورشة عمل تطبيقية'} 🎯`,
-          undefined,
+          leaderId,
           `att_${workshopId}_${memberId}`
         );
       } catch (e) {
@@ -5178,7 +5165,7 @@ class StoreManager {
           .eq('profile_id', memberId)
           .or(`activity_key.eq.att_${workshopId}_${memberId},reason.ilike.%حضور%`);
         
-        // خصم فوري من كائن العضو محلياً
+        // خصم فوري من كائن العضو محلياً وتحديث Supabase
         const m = this.members.find((u) => u.id === memberId);
         if (m && m.points >= 20) {
           m.points -= 20;
