@@ -320,7 +320,7 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
               <div className="flex-1 text-right">
                 <div className="text-xs sm:text-sm font-black text-amber-950 mb-1 flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-gray-950 shadow-xs" />
-                  <span>تحدي وتاسك · {tasks && tasks.length > 0 ? `+${tasks[0].pointsReward || 50} نقطة` : 'في انتظار الطرح'}</span>
+                  <span>تحدي وتاسك · {tasks && tasks.length > 0 ? `+${tasks[0].pointsReward ?? tasks[0].points ?? 25} نقطة` : 'في انتظار الطرح'}</span>
                 </div>
                 <h3 className="text-2xl sm:text-3xl font-black text-gray-950">
                   {tasks && tasks.length > 0 ? tasks[0].title : 'المهمة والتحدي القادم 🎯'}

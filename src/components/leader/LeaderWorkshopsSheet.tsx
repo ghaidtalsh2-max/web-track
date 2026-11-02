@@ -614,7 +614,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                                     : 'bg-amber-50 text-amber-800 border border-amber-200'
                                 }`}
                               >
-                                {sub.status === 'approved' ? 'معتمد (+50)' : 'قيد المراجعة'}
+                                {sub.status === 'approved' ? 'معتمد (+25)' : 'قيد المراجعة'}
                               </span>
                               {sub.githubUrl && (
                                 <a

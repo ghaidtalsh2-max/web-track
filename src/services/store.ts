@@ -2337,7 +2337,11 @@ class StoreManager {
     const fresh = this.members.find((m) => m.id === me.id);
     if (fresh) this.profile = fresh;
 
-    this.tasks = tasksRes.data || [];
+    this.tasks = (tasksRes.data || []).map((t: any) => ({
+      ...t,
+      pointsReward: t.points_reward ?? t.points ?? 25,
+      points: t.points ?? t.points_reward ?? 25,
+    }));
     const byId = new Map(this.members.map((m) => [m.id, m]));
     const taskById = new Map(this.tasks.map((t: any) => [t.id, t]));
     this.submissions = (subsRes.data || []).map((s: any) => ({
@@ -5040,7 +5044,7 @@ class StoreManager {
         id: `task-${ws.id}`,
         title: `${ws.taskNumber} — ${ws.taskTitle}`,
         description: `واش التاسك: ${ws.taskDescription}`,
-        pointsReward: 50,
+        pointsReward: 25,
         due_date: ws.dateStr,
         workshop_id: ws.id,
         is_active: true,
