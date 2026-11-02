@@ -2166,7 +2166,7 @@ class StoreManager {
       const list = skillsByProfile.get(pid) || [];
 
       // فحص ما إذا كانت المهارة معتمدة في قاعدة البيانات أو محلياً
-      let isApproved = row.status === 'approved' || row.progress_percent === 100;
+      let isApproved = row.status === 'approved' && row.progress_percent === 100;
       try {
         const savedApproved: string[] = JSON.parse(localStorage.getItem(`gdg_approved_skills_${pid}`) || '[]');
         if (savedApproved.includes(row.skill_name)) {
@@ -2174,11 +2174,10 @@ class StoreManager {
         }
       } catch {}
 
-      const isSurvey = !isApproved && (row.source === 'survey_registration' || row.source === 'survey_form' || (!row.git_url && row.source !== 'git_submission'));
       list.push({
         id: row.id,
         name: row.skill_name,
-        progressPercent: isApproved ? 100 : (row.progress_percent ?? 80),
+        progressPercent: isApproved ? 100 : (row.progress_percent ?? 0),
         status: isApproved ? 'approved' : 'in_progress',
         source: isApproved ? (row.source || 'approved_by_leader') : 'survey_registration',
         awardedAt: row.awarded_at,

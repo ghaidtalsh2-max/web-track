@@ -105,6 +105,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
   // حالة إضافة مهارة شخصية جديدة
   const [newSkillName, setNewSkillName] = useState('');
   const [isAddingSkill, setIsAddingSkill] = useState(false);
+  const [showAllSkills, setShowAllSkills] = useState(false);
 
   // حالة نافذة تسليم إثبات المهارة (استبيان / رابط تطبيق / كويز / رابط قيت)
   const [selectedSkillForProof, setSelectedSkillForProof] = useState<MemberSkillItem | null>(null);
@@ -325,15 +326,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
     }
   };
 
-  // مهارات العضو المفصلة من قاعدة البيانات والاستبيان
   const skillsList: MemberSkillItem[] =
     displayedMember.detailedSkills && displayedMember.detailedSkills.length > 0
       ? displayedMember.detailedSkills
       : (displayedMember.skills || []).map((s) => ({
           name: s,
-          progressPercent: 100,
-          status: 'approved',
-          source: 'approved_by_leader',
+          progressPercent: 0,
+          status: 'in_progress',
+          source: 'survey_registration',
         }));
 
   return (
@@ -942,7 +942,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
 
                 {/* رقائق المهارات الصغيرة (Chips) مع إمكانية النقر لاختيار أي مهارة */}
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  {skillsList.slice(0, 10).map((skill, idx) => {
+                  {(showAllSkills ? skillsList : skillsList.slice(0, 10)).map((skill, idx) => {
                     const isApproved = skill.status === 'approved';
                     return (
                       <span
@@ -956,44 +956,49 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                             : gText(isFemale, 'انقري لتسليم إثبات هذه المهارة', 'انقر لتسليم إثبات هذه المهارة')
                         }
                         style={{
-                          background: isApproved ? '#FEF9C3' : '#fff',
-                          border: isApproved ? '2px solid #EAB308' : '2px dashed #9AA0A6',
+                          background: isApproved ? '#FEF9C3' : '#FFFFFF',
+                          border: isApproved ? '2px solid #EAB308' : '2px dashed #94A3B8',
                           padding: '8px 16px',
-                          fontSize: '16px',
-                          fontFamily: 'Arimo',
+                          fontSize: '15px',
                           borderRadius: '99px',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '6px',
-                          color: isApproved ? '#78350F' : '#0F172A',
+                          color: isApproved ? '#713F12' : '#1E293B',
                           fontWeight: 700,
                           cursor: isViewingSelf ? (isApproved ? 'default' : 'pointer') : 'default',
                           boxShadow: isApproved ? '0 1px 3px rgba(234, 179, 8, 0.25)' : 'none',
+                          transition: 'all 0.2s ease',
                         }}
                       >
                         {isApproved && <Check size={16} strokeWidth={3} className="text-[#CA8A04]" />}
                         <span>{skill.name}</span>
-                        {isApproved && (
+                        {isApproved ? (
                           <span
                             style={{
                               fontSize: '11px',
                               background: '#FDE047',
                               color: '#713F12',
-                              padding: '1px 6px',
+                              padding: '1px 7px',
                               borderRadius: '99px',
                               fontWeight: 800,
                             }}
                           >
                             معتمدة
                           </span>
-                        )}
+                        ) : null}
                       </span>
                     );
                   })}
                   {skillsList.length > 10 && (
-                    <span className="t-proto" style={{ padding: '8px 16px', background: '#E8F0FE', fontFamily: 'Arimo', fontSize: '16px', fontWeight: 700 }}>
-                      +{skillsList.length - 10}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowAllSkills(!showAllSkills)}
+                      className="t-proto hover:bg-blue-100 transition-colors cursor-pointer border-none"
+                      style={{ padding: '8px 16px', background: '#E8F0FE', fontSize: '14px', fontWeight: 700 }}
+                    >
+                      {showAllSkills ? 'عرض أقل ▴' : `+${skillsList.length - 10} المزيد`}
+                    </button>
                   )}
                 </div>
               </div>
