@@ -234,9 +234,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
 
   // فتح نافذة تقديم إثبات للمهارة
   const handleOpenProofModal = (skill: MemberSkillItem) => {
+    if (skill.status === 'approved') {
+      alert(`مهارة «${skill.name}» معتمدة ومثبتة رسمياً في ملفك الشخصي! 🌟`);
+      return;
+    }
     setSelectedSkillForProof(skill);
     setProofValue(skill.gitUrl || '');
     setProofFeedback(null);
+    setQuizStep('intro');
+    setQuizAnswers({});
     if (skill.source === 'survey_registration') {
       setProofType('app_link');
     } else {
@@ -944,10 +950,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                         onClick={() => {
                           if (isViewingSelf) handleOpenProofModal(skill);
                         }}
-                        title={isApproved ? 'مهارة معتمدة' : gText(isFemale, 'انقري لتسليم إثبات هذه المهارة', 'انقر لتسليم إثبات هذه المهارة')}
+                        title={
+                          isApproved
+                            ? 'مهارة معتمدة ومثبتة رسمياً ✓'
+                            : gText(isFemale, 'انقري لتسليم إثبات هذه المهارة', 'انقر لتسليم إثبات هذه المهارة')
+                        }
                         style={{
-                          background: isApproved ? '#E6F4EA' : '#fff',
-                          border: isApproved ? '2px solid #34A853' : '2px dashed #9AA0A6',
+                          background: isApproved ? '#FEF9C3' : '#fff',
+                          border: isApproved ? '2px solid #EAB308' : '2px dashed #9AA0A6',
                           padding: '8px 16px',
                           fontSize: '16px',
                           fontFamily: 'Arimo',
@@ -955,13 +965,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '6px',
-                          color: isApproved ? '#137333' : '#0F172A',
-                          fontWeight: 600,
-                          cursor: isViewingSelf ? 'pointer' : 'default',
+                          color: isApproved ? '#78350F' : '#0F172A',
+                          fontWeight: 700,
+                          cursor: isViewingSelf ? (isApproved ? 'default' : 'pointer') : 'default',
+                          boxShadow: isApproved ? '0 1px 3px rgba(234, 179, 8, 0.25)' : 'none',
                         }}
                       >
-                        {isApproved && <Check size={16} strokeWidth={3} className="text-[#34A853]" />}
+                        {isApproved && <Check size={16} strokeWidth={3} className="text-[#CA8A04]" />}
                         <span>{skill.name}</span>
+                        {isApproved && (
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              background: '#FDE047',
+                              color: '#713F12',
+                              padding: '1px 6px',
+                              borderRadius: '99px',
+                              fontWeight: 800,
+                            }}
+                          >
+                            معتمدة
+                          </span>
+                        )}
                       </span>
                     );
                   })}
@@ -979,8 +1004,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                   <button
                     type="button"
                     onClick={() => {
-                      const unverified = skillsList.find((s) => s.status !== 'approved') || skillsList[0];
-                      if (unverified) handleOpenProofModal(unverified);
+                      const unverified = skillsList.find((s) => s.status !== 'approved');
+                      if (unverified) {
+                        handleOpenProofModal(unverified);
+                      } else {
+                        alert('🎉 تبارك الله! جميع مهاراتك معتمدة ومثبتة بنجاح.');
+                      }
                     }}
                     className="b-proto y"
                   >
@@ -1220,33 +1249,41 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                       📌 <strong>ملاحظة الاعتماد:</strong> مهارات الاستبيان تُعتمد بعد تسليم رابط تطبيق عملي أنجزته أو تقديم طلب لحل كويز المسار ليتم رصد النقاط لك.
                     </div>
 
-                    {/* قائمة منسدلة لاختيار المهارة بحرية كاملة */}
+                    {/* قائمة منسدلة لاختيار المهارة غير المعتمدة فقط (المهارات المعتمدة لا تظهر في الخيارات) */}
                     <div>
                       <label className="block font-bold text-gray-800 mb-1.5">
                         {gText(isFemale, 'اختاري المهارة التي تودين تسليم إثبات لها:', 'اختار المهارة التي تود تسليم إثبات لها:')}
                       </label>
-                      <select
-                        value={selectedSkillForProof.name}
-                        onChange={(e) => {
-                          const chosen = skillsList.find((s) => s.name === e.target.value);
-                          if (chosen) {
-                            setSelectedSkillForProof(chosen);
-                            setProofValue(chosen.gitUrl || '');
-                            if (chosen.source === 'survey_registration') {
-                              setProofType('app_link');
-                            } else {
-                              setProofType('git_url');
+                      {skillsList.filter((s) => s.status !== 'approved').length > 0 ? (
+                        <select
+                          value={selectedSkillForProof.name}
+                          onChange={(e) => {
+                            const chosen = skillsList.find((s) => s.name === e.target.value);
+                            if (chosen) {
+                              setSelectedSkillForProof(chosen);
+                              setProofValue(chosen.gitUrl || '');
+                              if (chosen.source === 'survey_registration') {
+                                setProofType('app_link');
+                              } else {
+                                setProofType('git_url');
+                              }
                             }
-                          }
-                        }}
-                        className="w-full p-2.5 rounded-xl border border-gray-300 bg-white font-bold text-gray-900 focus:outline-none focus:border-blue-500 text-xs shadow-xs"
-                      >
-                        {skillsList.map((s, idx) => (
-                          <option key={idx} value={s.name}>
-                            {s.name} {s.status === 'approved' ? '✓ (معتمدة)' : '⏳ (بانتظار الإثبات)'}
-                          </option>
-                        ))}
-                      </select>
+                          }}
+                          className="w-full p-2.5 rounded-xl border border-gray-300 bg-white font-bold text-gray-900 focus:outline-none focus:border-blue-500 text-xs shadow-xs"
+                        >
+                          {skillsList
+                            .filter((s) => s.status !== 'approved')
+                            .map((s, idx) => (
+                              <option key={idx} value={s.name}>
+                                {s.name} ⏳ (بانتظار الإثبات)
+                              </option>
+                            ))}
+                        </select>
+                      ) : (
+                        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold text-center">
+                          🎉 تبارك الله! جميع مهاراتك معتمدة ومثبتة رسمياً.
+                        </div>
+                      )}
                     </div>
 
                     <div>

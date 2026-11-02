@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { store, CURRENT_MISSION } from './services/store';
-import { UserProfile, NavTab } from './types';
+import { UserProfile, NavTab, BroadcastAnnouncement } from './types';
 import confetti from 'canvas-confetti';
 import { EntrySequence } from './components/intro/EntrySequence';
 import { LoginCard } from './components/auth/LoginCard';
@@ -25,6 +25,7 @@ import { LeaderDashboard } from './components/leader/LeaderDashboard';
 import { ResourcesView } from './components/resources/ResourcesView';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { WelcomeCelebrationModal } from './components/notifications/WelcomeCelebrationModal';
+import { BroadcastAnnouncementModal } from './components/notifications/BroadcastAnnouncementModal';
 import { selectWelcomePhrase } from './services/welcomePhrases';
 
 export const App: React.FC = () => {
@@ -84,6 +85,7 @@ export const App: React.FC = () => {
   const [welcomePhraseText, setWelcomePhraseText] = useState('');
   const [showStarsCelebrationAlert, setShowStarsCelebrationAlert] = useState(false);
   const welcomeShownRef = React.useRef(false);
+  const [activeBroadcast, setActiveBroadcast] = useState<BroadcastAnnouncement | null>(null);
 
   const [showNotificationsModal, setShowNotificationsModal] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -201,6 +203,43 @@ export const App: React.FC = () => {
     setCurrentUser(store.getCurrentUser());
   };
 
+  // مراقبة إعلانات البث الفورية عند إضافة ورش أو مهام أو ملفات إثرائية لجميع الحسابات (قادة وأعضاء)
+  useEffect(() => {
+    if (!currentUser || showWelcomeModal || showIntro || mustChangePassword) return;
+
+    const checkBroadcast = () => {
+      const broadcasts = store.getBroadcastAnnouncements();
+      const unseen = broadcasts.find((b) => {
+        const key = `gdg_seen_broadcast_${b.id}_${currentUser.id}`;
+        return typeof localStorage !== 'undefined' && !localStorage.getItem(key);
+      });
+      if (unseen) {
+        setActiveBroadcast(unseen);
+      }
+    };
+
+    const timer = setTimeout(checkBroadcast, 700);
+    const unsubscribe = store.subscribe(checkBroadcast);
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [currentUser, showWelcomeModal, showIntro, mustChangePassword]);
+
+  const handleCloseBroadcast = () => {
+    if (activeBroadcast && currentUser) {
+      try {
+        localStorage.setItem(`gdg_seen_broadcast_${activeBroadcast.id}_${currentUser.id}`, 'true');
+      } catch {}
+    }
+    setActiveBroadcast(null);
+  };
+
+  const handleNavigateBroadcast = (targetTab: string) => {
+    handleCloseBroadcast();
+    setCurrentTab(targetTab as NavTab);
+  };
+
   // 1. الافتتاحية الترحيبية عند طلبها أو عند الزيارة الأولى
   if (showIntro) {
     return <EntrySequence onComplete={handleIntroComplete} />;
@@ -251,6 +290,15 @@ export const App: React.FC = () => {
           currentUser={currentUser}
           phraseText={welcomePhraseText}
           onComplete={() => setShowWelcomeModal(false)}
+        />
+      )}
+
+      {/* نافذة الإعلان المنبثق الاحتفالي الفوري لجميع الحسابات عند إضافة ورشة أو مهمة أو ملف إثرائي */}
+      {activeBroadcast && !showWelcomeModal && (
+        <BroadcastAnnouncementModal
+          announcement={activeBroadcast}
+          onClose={handleCloseBroadcast}
+          onNavigate={handleNavigateBroadcast}
         />
       )}
       {/* نافذة التنبيهات المعتمدة (تظهر عند النقر على زر تنبيهات ٣) */}

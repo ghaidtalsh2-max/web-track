@@ -31,6 +31,7 @@ import {
   WorkshopAttendanceRecord,
   AttendanceEvent,
   ShowcaseSlot,
+  BroadcastAnnouncement,
 } from '../types';
 import { supabase } from './supabase';
 import type { Session } from '@supabase/supabase-js';
@@ -2163,16 +2164,26 @@ class StoreManager {
     for (const row of ((skillsRes as any)?.data || [])) {
       const pid = row.profile_id;
       const list = skillsByProfile.get(pid) || [];
-      const isSurvey = row.source === 'survey_registration' || row.source === 'survey_form' || (!row.git_url && row.source !== 'git_submission');
+
+      // فحص ما إذا كانت المهارة معتمدة في قاعدة البيانات أو محلياً
+      let isApproved = row.status === 'approved' || row.progress_percent === 100;
+      try {
+        const savedApproved: string[] = JSON.parse(localStorage.getItem(`gdg_approved_skills_${pid}`) || '[]');
+        if (savedApproved.includes(row.skill_name)) {
+          isApproved = true;
+        }
+      } catch {}
+
+      const isSurvey = !isApproved && (row.source === 'survey_registration' || row.source === 'survey_form' || (!row.git_url && row.source !== 'git_submission'));
       list.push({
         id: row.id,
         name: row.skill_name,
-        progressPercent: row.progress_percent ?? 80,
-        status: isSurvey ? 'in_progress' : (row.status || 'approved'),
-        source: isSurvey ? 'survey_registration' : (row.source || 'approved_by_leader'),
+        progressPercent: isApproved ? 100 : (row.progress_percent ?? 80),
+        status: isApproved ? 'approved' : 'in_progress',
+        source: isApproved ? (row.source || 'approved_by_leader') : 'survey_registration',
         awardedAt: row.awarded_at,
         gitUrl: row.git_url,
-        verificationNotes: isSurvey ? 'مأخوذة من استبيان التسجيل — بانتظار الاعتماد بتسليم رابط تطبيق عملي أو اجتياز كويز المسار' : undefined,
+        verificationNotes: isApproved ? 'مهارة معتمدة ومثبتة في المسار ✓' : 'مأخوذة من استبيان التسجيل — بانتظار الاعتماد بتسليم رابط تطبيق عملي أو اجتياز كويز المسار',
       });
       skillsByProfile.set(pid, list);
     }
@@ -2723,7 +2734,38 @@ class StoreManager {
       console.warn('Could not record quiz points in Supabase:', e);
     }
 
+    // حفظ محلي فوري يضمن ثبات المهارة كمعتمدة دائماً
+    try {
+      const storageKey = `gdg_approved_skills_${userId}`;
+      const saved: string[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      if (!saved.includes(skillName)) {
+        saved.push(skillName);
+        localStorage.setItem(storageKey, JSON.stringify(saved));
+      }
+    } catch {}
+
     // 3. الكويزات معتمدة في بروفايل العضو فقط ونقاطه ولا تُرسل كـ Submission للمعرض
+    await this.refreshData();
+    this.notify();
+    return true;
+  }
+
+  public async approveUserSkill(userId: string, skillName: string): Promise<boolean> {
+    try {
+      const storageKey = `gdg_approved_skills_${userId}`;
+      const saved: string[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      if (!saved.includes(skillName)) {
+        saved.push(skillName);
+        localStorage.setItem(storageKey, JSON.stringify(saved));
+      }
+      await supabase
+        .from('member_skills')
+        .update({ status: 'approved', progress_percent: 100, awarded_at: new Date().toISOString() })
+        .eq('profile_id', userId)
+        .ilike('skill_name', skillName);
+    } catch (e) {
+      console.warn('approveUserSkill error:', e);
+    }
     await this.refreshData();
     this.notify();
     return true;
@@ -3089,7 +3131,7 @@ class StoreManager {
     const raw = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
     const notifs: NotificationItem[] = raw ? JSON.parse(raw) : INITIAL_NOTIFICATIONS;
     if (!userId) return notifs;
-    return notifs.filter((n) => n.userId === userId);
+    return notifs.filter((n) => n.userId === userId || n.userId === 'all' || !n.userId);
   }
 
   public getUnreadCount(userId: string): number {
@@ -3098,7 +3140,7 @@ class StoreManager {
 
   public markAllNotificationsAsRead(userId: string) {
     const notifs = this.getNotifications().map((n) => {
-      if (n.userId === userId) {
+      if (n.userId === userId || n.userId === 'all' || !n.userId) {
         return { ...n, read: true };
       }
       return n;
@@ -3117,6 +3159,37 @@ class StoreManager {
     const notifs = [newNotif, ...this.getNotifications()];
     localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifs));
     this.notify();
+  }
+
+  // --- Broadcast Announcements (إعلانات المسار التفاعلية للجميع) ---
+  public getBroadcastAnnouncements(): BroadcastAnnouncement[] {
+    if (typeof window === 'undefined') return [];
+    const raw = localStorage.getItem('gdg_webtrack_broadcast_announcements');
+    return raw ? JSON.parse(raw) : [];
+  }
+
+  public addBroadcastAnnouncement(ann: Omit<BroadcastAnnouncement, 'id' | 'createdAt'>): BroadcastAnnouncement {
+    const newAnn: BroadcastAnnouncement = {
+      ...ann,
+      id: `ann-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      createdAt: new Date().toISOString(),
+    };
+    const current = this.getBroadcastAnnouncements();
+    const updated = [newAnn, ...current.slice(0, 19)];
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('gdg_webtrack_broadcast_announcements', JSON.stringify(updated));
+    }
+    // إرسال تنبيه في جرس التنبيهات أيضاً لجميع الحسابات
+    this.addNotification({
+      userId: 'all',
+      type: ann.type === 'workshop' ? 'workshop' : ann.type === 'task' ? 'challenge' : 'resource',
+      title: ann.title,
+      description: ann.description,
+      badgeText: ann.badge || 'إعلان مسار الويب',
+      targetTab: ann.targetTab || 'home',
+    });
+    this.notify();
+    return newAnn;
   }
 
   // --- Action Items ("ينتظرك") ---
@@ -3224,17 +3297,15 @@ class StoreManager {
     // 5. إعادة تحميل الأرقام الفعلية لمزامنة كافة واجهات النظام
     await this.loadRoleData();
 
-    if (reason) {
-      this.addNotification({
-        userId,
-        type: 'points',
-        title: 'نقاط جديدة!',
-        description: reason,
-        badgeText: `+${amount}`,
-        pointsAmount: amount,
-        targetTab: 'home',
-      });
-    }
+    this.addNotification({
+      userId,
+      type: 'points',
+      title: 'رصد نقاط جديدة في رصيدك! 🎉',
+      description: reason ? `${reason} (+${amount} نقطة)` : `حصلت على +${amount} نقطة مكافأة في مسار الويب!`,
+      badgeText: `+${amount}`,
+      pointsAmount: amount,
+      targetTab: 'home',
+    });
 
     this.notify();
     return true;
@@ -4084,6 +4155,16 @@ class StoreManager {
     } catch (e) {
       console.warn('Error saving resources to localStorage:', e);
     }
+
+    this.addBroadcastAnnouncement({
+      type: 'resource',
+      title: `تم رفع ملف إثرائي جديد: ${newRes.title} 📚`,
+      subtitle: newRes.category === 'slides' ? 'عرض تقديمي (سلايدات)' : 'مستند إثرائي للمسار',
+      description: `تمت إضافة مستند جديد في قسم الملفات الإثرائية (${newRes.fileType.toUpperCase()}) متاح لجميع الأعضاء والقادة.`,
+      targetTab: 'resources',
+      badge: 'ملف إثرائي',
+    });
+
     this.notify();
     return newRes;
   }
@@ -4418,6 +4499,15 @@ class StoreManager {
     } catch (e) {
       console.warn('Challenge sync note:', e);
     }
+
+    this.addBroadcastAnnouncement({
+      type: 'task',
+      title: `تم إطلاق مهمة وتحدي برمجي جديد: ${newGroup.title} 🚀`,
+      subtitle: newGroup.category === 'workshop' ? 'تاسك الورشة' : 'مهمة وتحدي المسار',
+      description: `متاح للتسليم (${newGroup.dueDate}) · سلّم مشروعك البرمجي واحصد النقاط والتقييمات المعتمدة.`,
+      targetTab: 'home',
+      badge: 'مهمة جديدة',
+    });
 
     this.notify();
     return newGroup;
@@ -4839,8 +4929,17 @@ class StoreManager {
         title: `ورشة معتمدة: ${ws.titleAr}`,
         description: `المقدّم: ${ws.presenter} · ${ws.dateStr} · تم تفعيل التحدي وخانة التسليم`,
         badgeText: 'ورشة',
-        targetTab: 'home',
+        targetTab: 'content',
       });
+    });
+
+    this.addBroadcastAnnouncement({
+      type: 'workshop',
+      title: `تم اعتماد ونشر ورشة: ${ws.titleAr} 🎯`,
+      subtitle: `${ws.titleEn} — المهمة: ${ws.taskTitle}`,
+      description: `المقدّم: ${ws.presenter} · ${ws.dateStr} · تم تفعيل التحدي وخانة تسليم المشاريع في المعرض لجميع الأعضاء والقادة.`,
+      targetTab: 'content',
+      badge: 'ورشة معتمدة',
     });
 
     this.notify();

@@ -472,3 +472,15 @@ export interface ShowcaseSlot {
   createdBy?: string;
   createdByName?: string;
 }
+
+export interface BroadcastAnnouncement {
+  id: string;
+  type: 'workshop' | 'task' | 'resource' | 'points';
+  title: string;
+  subtitle?: string;
+  description: string;
+  targetTab?: string;
+  badge?: string;
+  createdAt: string;
+}
+

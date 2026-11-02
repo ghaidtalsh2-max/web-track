@@ -82,6 +82,11 @@ export const Footer: React.FC = () => {
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FBBC04', flexShrink: 0, display: 'inline-block' }} />
                 <span>ريتال القثامي</span>
               </div>
+
+              <div className="flex items-center gap-2.5">
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4285F4', flexShrink: 0, display: 'inline-block' }} />
+                <span>نائب القادة: سلمان الغامدي</span>
+              </div>
             </div>
           </div>
 
