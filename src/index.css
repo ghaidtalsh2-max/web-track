@@ -2065,6 +2065,53 @@ body {
   color: #64748B;
 }
 
+/* Podium & Leaderboard Custom Rich Shapes */
+.podium-card {
+  border: 2.5px solid #0F172A !important;
+  border-radius: 28px !important;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  padding: 18px 12px 14px !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: visible !important;
+}
+
+.podium-card:hover {
+  transform: translateY(-6px);
+}
+
+.podium-card-first {
+  background: linear-gradient(180deg, #FFFBEB 0%, #FEF3C7 50%, #FDE68A 100%) !important;
+  border-color: #D97706 !important;
+  border-width: 3px !important;
+  box-shadow: 0 16px 32px rgba(245, 158, 11, 0.22), 0 4px 12px rgba(15, 23, 42, 0.08) !important;
+  height: 310px;
+  z-index: 2;
+}
+
+.podium-card-second {
+  background: linear-gradient(180deg, #F8FAFC 0%, #EEF2F6 50%, #E2E8F0 100%) !important;
+  border-color: #64748B !important;
+  border-width: 2.5px !important;
+  box-shadow: 0 12px 24px rgba(100, 116, 139, 0.18), 0 4px 10px rgba(15, 23, 42, 0.06) !important;
+  height: 255px;
+  z-index: 1;
+}
+
+.podium-card-third {
+  background: linear-gradient(180deg, #FFF7ED 0%, #FFEDD5 50%, #FED7AA 100%) !important;
+  border-color: #EA580C !important;
+  border-width: 2.5px !important;
+  box-shadow: 0 10px 20px rgba(234, 88, 12, 0.18), 0 4px 10px rgba(15, 23, 42, 0.06) !important;
+  height: 235px;
+  z-index: 1;
+}
+
+
 
 
 

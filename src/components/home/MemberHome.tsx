@@ -653,195 +653,131 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                     margin: '0 auto',
                   }}
                 >
-                  {/* المركز الثاني (اليمين): 230px #E8F0FE */}
-                  <div
-                    className="k"
-                    style={{
-                      flex: 1,
-                      height: '230px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'flex-end',
-                      alignItems: 'center',
-                      gap: '6px',
-                      background: '#E8F0FE',
-                      textAlign: 'center',
-                      padding: '18px 10px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        background: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontFamily: 'Arimo',
-                        fontWeight: 700,
-                        fontSize: '20px',
-                        color: '#0F172A',
-                      }}
-                    >
-                      2
+                  {/* المركز الثاني (اليمين - الفضي): 255px */}
+                  <div className="podium-card podium-card-second flex-1">
+                    <div className="w-full flex flex-col items-center">
+                      {/* شارة الترتيب الفضية مع أيقونة الميدالية */}
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-200/90 border border-slate-300 text-slate-800 text-[11px] font-black shadow-2xs mb-2">
+                        <span>🥈</span>
+                        <span>المركز 2</span>
+                      </div>
+
+                      {/* الصورة الرمزية مع إطار فضي لامع */}
+                      <div className="relative my-1">
+                        <div className="p-1 rounded-full bg-gradient-to-tr from-slate-400 via-white to-blue-200 shadow-md">
+                          <UserAvatar
+                            letter={top2?.avatarLetter}
+                            name={top2?.fullName}
+                            avatarUrl={top2?.avatarUrl}
+                            color="#3B82F6"
+                            size="md"
+                          />
+                        </div>
+                      </div>
+
+                      <b className="text-sm sm:text-base font-black text-gray-950 mt-1.5 truncate max-w-[130px] block">
+                        {top2 ? top2.fullName : 'بانتظار المتصدر'}
+                      </b>
+
+                      <span className="px-3 py-0.5 rounded-full text-xs font-black text-slate-700 bg-white/90 border border-slate-200 shadow-2xs mt-1">
+                        {top2 ? `${top2.points} نقطة` : '٠ نقطة'}
+                      </span>
                     </div>
-                    <div
-                      style={{
-                        flex: 'none',
-                        width: '56px',
-                        height: '56px',
-                        borderRadius: '50%',
-                        background: '#fff',
-                        border: '4px solid #fff',
-                        boxShadow: '0 0 0 3px #fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: top2 ? '28px' : '22px',
-                        color: '#0F172A',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {top2 ? (top2.avatarLetter || top2.fullName[0]) : '🥈'}
+
+                    {/* قاعدة المنصة الفضية */}
+                    <div className="w-full py-1.5 rounded-xl bg-slate-300/80 text-slate-900 font-black text-xs border border-slate-400 shadow-2xs mt-3 flex items-center justify-center gap-1">
+                      <span>🥈</span>
+                      <span>منصة الفضة #2</span>
                     </div>
-                    <b style={{ fontSize: '18px', color: '#0F172A' }} className="truncate max-w-[140px]">
-                      {top2 ? top2.fullName : 'بانتظار المتصدر'}
-                    </b>
-                    <span style={{ fontFamily: 'Arimo', fontSize: '16px', color: '#0F172A', fontWeight: 600 }}>
-                      {top2 ? `${top2.points} نقطة` : '٠ نقطة'}
-                    </span>
                   </div>
 
-                  {/* المركز الأول (المنتصف - الأطول): 280px #FFF1CC */}
-                  <div
-                    className="k"
-                    style={{
-                      flex: 1,
-                      height: '280px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'flex-end',
-                      alignItems: 'center',
-                      gap: '6px',
-                      background: '#FFF1CC',
-                      textAlign: 'center',
-                      padding: '18px 10px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        background: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontFamily: 'Arimo',
-                        fontWeight: 700,
-                        fontSize: '20px',
-                        color: '#0F172A',
-                      }}
-                    >
-                      1
+                  {/* المركز الأول (المنتصف - الذهبي الأطول والأبهى): 310px */}
+                  <div className="podium-card podium-card-first flex-1">
+                    <div className="w-full flex flex-col items-center">
+                      {/* التاج الذهبي الملكي والشارة الذهبية */}
+                      <div className="flex items-center gap-1 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-400 to-yellow-400 border border-amber-500 text-amber-950 text-xs font-black shadow-sm mb-1.5">
+                        <span className="text-sm">👑</span>
+                        <span>المركز 1 · المتصدر</span>
+                      </div>
+
+                      {/* الصورة الرمزية الكبرى مع هالة ذهبية ثلاثية الأبعاد */}
+                      <div className="relative my-1.5">
+                        <div className="p-1.5 rounded-full bg-gradient-to-tr from-amber-500 via-yellow-200 to-amber-600 shadow-lg ring-4 ring-amber-300/60">
+                          <UserAvatar
+                            letter={top1?.avatarLetter}
+                            name={top1?.fullName}
+                            avatarUrl={top1?.avatarUrl}
+                            color="#F59E0B"
+                            size="lg"
+                          />
+                        </div>
+                      </div>
+
+                      <b className="text-base sm:text-lg font-black text-gray-950 mt-1 truncate max-w-[155px] block">
+                        {top1 ? top1.fullName : 'بانتظار المتصدر'}
+                      </b>
+
+                      <span className="px-3.5 py-1 rounded-full text-sm font-black text-amber-950 bg-amber-400/30 border border-amber-500/40 shadow-2xs mt-1">
+                        {top1 ? `${top1.points} نقطة` : '٠ نقطة'}
+                      </span>
                     </div>
-                    <div
-                      style={{
-                        flex: 'none',
-                        width: '56px',
-                        height: '56px',
-                        borderRadius: '50%',
-                        background: '#fff',
-                        border: '4px solid #fff',
-                        boxShadow: '0 0 0 3px #fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: top1 ? '28px' : '22px',
-                        color: '#0F172A',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {top1 ? (top1.avatarLetter || top1.fullName[0]) : '👑'}
+
+                    {/* قاعدة المنصة الذهبية الملكية */}
+                    <div className="w-full py-2 rounded-xl bg-amber-400 text-gray-950 font-black text-xs border-2 border-amber-600 shadow-sm mt-3 flex items-center justify-center gap-1.5">
+                      <span>🏆</span>
+                      <span>منصة الذهب #1</span>
                     </div>
-                    <b style={{ fontSize: '19px', color: '#0F172A' }} className="truncate max-w-[140px]">
-                      {top1 ? top1.fullName : 'بانتظار المتصدر'}
-                    </b>
-                    <span style={{ fontFamily: 'Arimo', fontSize: '16px', color: '#0F172A', fontWeight: 700 }}>
-                      {top1 ? `${top1.points} نقطة` : '٠ نقطة'}
-                    </span>
                   </div>
 
-                  {/* المركز الثالث (اليسار): 200px #E6F4EA */}
-                  <div
-                    className="k"
-                    style={{
-                      flex: 1,
-                      height: '200px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'flex-end',
-                      alignItems: 'center',
-                      gap: '6px',
-                      background: '#E6F4EA',
-                      textAlign: 'center',
-                      padding: '18px 10px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        background: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontFamily: 'Arimo',
-                        fontWeight: 700,
-                        fontSize: '20px',
-                        color: '#0F172A',
-                      }}
-                    >
-                      3
+                  {/* المركز الثالث (اليسار - البرونزي): 235px */}
+                  <div className="podium-card podium-card-third flex-1">
+                    <div className="w-full flex flex-col items-center">
+                      {/* شارة الترتيب البرونزية مع أيقونة الميدالية */}
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-200/90 border border-orange-300 text-orange-950 text-[11px] font-black shadow-2xs mb-2">
+                        <span>🥉</span>
+                        <span>المركز 3</span>
+                      </div>
+
+                      {/* الصورة الرمزية مع إطار برونزي دافئ */}
+                      <div className="relative my-1">
+                        <div className="p-1 rounded-full bg-gradient-to-tr from-orange-400 via-amber-100 to-orange-500 shadow-md">
+                          <UserAvatar
+                            letter={top3?.avatarLetter}
+                            name={top3?.fullName}
+                            avatarUrl={top3?.avatarUrl}
+                            color="#F97316"
+                            size="md"
+                          />
+                        </div>
+                      </div>
+
+                      <b className="text-sm sm:text-base font-black text-gray-950 mt-1.5 truncate max-w-[130px] block">
+                        {top3 ? top3.fullName : 'بانتظار المتصدر'}
+                      </b>
+
+                      <span className="px-3 py-0.5 rounded-full text-xs font-black text-orange-950 bg-white/90 border border-orange-200 shadow-2xs mt-1">
+                        {top3 ? `${top3.points} نقطة` : '٠ نقطة'}
+                      </span>
                     </div>
-                    <div
-                      style={{
-                        flex: 'none',
-                        width: '56px',
-                        height: '56px',
-                        borderRadius: '50%',
-                        background: '#fff',
-                        border: '4px solid #fff',
-                        boxShadow: '0 0 0 3px #fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: top3 ? '28px' : '22px',
-                        color: '#0F172A',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {top3 ? (top3.avatarLetter || top3.fullName[0]) : '🥉'}
+
+                    {/* قاعدة المنصة البرونزية */}
+                    <div className="w-full py-1.5 rounded-xl bg-orange-300/80 text-orange-950 font-black text-xs border border-orange-400 shadow-2xs mt-3 flex items-center justify-center gap-1">
+                      <span>🥉</span>
+                      <span>منصة البرونز #3</span>
                     </div>
-                    <b style={{ fontSize: '18px', color: '#0F172A' }} className="truncate max-w-[140px]">
-                      {top3 ? top3.fullName : 'بانتظار المتصدر'}
-                    </b>
-                    <span style={{ fontFamily: 'Arimo', fontSize: '16px', color: '#0F172A', fontWeight: 600 }}>
-                      {top3 ? `${top3.points} نقطة` : '٠ نقطة'}
-                    </span>
                   </div>
                 </div>
 
                 {/* بطاقة «الأقرب لك» تحت المنصة مباشرة في نفس العمود */}
-                <div className="k" style={{ marginTop: '18px', maxWidth: '760px', margin: '18px auto 0' }}>
-                  <b style={{ fontSize: '20px', display: 'block', marginBottom: '8px', color: '#0F172A' }}>
-                    الأقرب لك
-                  </b>
+                <div className="k" style={{ marginTop: '20px', maxWidth: '760px', margin: '20px auto 0' }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <b style={{ fontSize: '20px', color: '#0F172A' }}>
+                      الأقرب لك في الترتيب 🎯
+                    </b>
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                      لوحة المنافسة المباشرة
+                    </span>
+                  </div>
 
                   {rankedClosest.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '16px 10px', color: '#5f6673' }}>
@@ -856,41 +792,32 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '14px',
-                          padding: '10px 0',
+                          gap: '12px',
+                          padding: '10px 4px',
                           borderTop: '1px solid #E8EAED',
                         }}
                       >
-                        <b style={{ fontFamily: 'Arimo', width: '28px', fontSize: '18px', color: '#0F172A' }}>
-                          {m.rank}
-                        </b>
-                        <div
-                          style={{
-                            flex: 'none',
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            background: '#4285F4',
-                            border: '4px solid #fff',
-                            boxShadow: '0 0 0 3px #4285F4',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 700,
-                            fontSize: '20px',
-                            color: '#fff',
-                          }}
-                        >
-                          {m.letter}
-                        </div>
-                        <span style={{ width: '110px', fontSize: '17px', color: '#0F172A' }} className="truncate">
+                        <span className="w-8 h-8 rounded-xl bg-gray-100 border border-gray-300 text-gray-800 font-black text-xs flex items-center justify-center font-mono shrink-0 shadow-2xs">
+                          #{m.rank}
+                        </span>
+
+                        <UserAvatar
+                          letter={m.letter}
+                          name={m.name}
+                          color="#4285F4"
+                          size="sm"
+                        />
+
+                        <span style={{ width: '130px', fontSize: '15px', fontWeight: 800, color: '#0F172A' }} className="truncate">
                           {m.name}
                         </span>
-                        <div className="bar-proto" style={{ flex: 1, height: '12px' }}>
-                          <i style={{ width: `${m.pct}%`, height: '12px', background: '#4285F4' }} />
+
+                        <div className="bar-proto" style={{ flex: 1, height: '10px' }}>
+                          <i style={{ width: `${m.pct}%`, height: '10px', background: '#4285F4' }} />
                         </div>
-                        <span style={{ fontFamily: 'Arimo', width: '36px', textAlign: 'left', fontSize: '16px', color: '#0F172A' }}>
-                          {m.pts}
+
+                        <span className="px-2.5 py-1 rounded-xl bg-blue-50 text-blue-900 font-black text-xs font-mono shrink-0 border border-blue-200">
+                          {m.pts} نقطة
                         </span>
                       </div>
                     ))
@@ -901,49 +828,42 @@ export const MemberHome: React.FC<MemberHomeProps> = ({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '14px',
-                      marginTop: '6px',
+                      gap: '12px',
+                      marginTop: '8px',
                       padding: '10px 14px',
-                      borderRadius: '18px',
-                      background: '#E6F4EA',
+                      borderRadius: '20px',
+                      background: 'linear-gradient(135deg, #E6F4EA 0%, #CEEAD6 100%)',
+                      border: '2px solid #34A853',
+                      boxShadow: '0 4px 12px rgba(52, 168, 83, 0.15)',
                     }}
                   >
-                    <b style={{ fontFamily: 'Arimo', width: '28px', fontSize: '18px', color: '#0F172A' }}>
-                      {userPoints > 0 ? userRank : '—'}
-                    </b>
-                    <div
-                      style={{
-                        flex: 'none',
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        background: '#34A853',
-                        border: '4px solid #fff',
-                        boxShadow: '0 0 0 3px #34A853',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: '20px',
-                        color: '#fff',
-                      }}
-                    >
-                      {currentUser.avatarLetter || currentUser.fullName[0] || 'م'}
+                    <span className="w-8 h-8 rounded-xl bg-[#34A853] text-white font-black text-xs flex items-center justify-center font-mono shrink-0 shadow-xs">
+                      #{userPoints > 0 ? userRank : '—'}
+                    </span>
+
+                    <UserAvatar
+                      letter={currentUser?.avatarLetter}
+                      name={currentUser?.fullName}
+                      avatarUrl={currentUser?.avatarUrl}
+                      color="#34A853"
+                      size="sm"
+                    />
+
+                    <div className="flex items-center gap-2" style={{ width: '130px' }}>
+                      <span style={{ fontSize: '15px', fontWeight: 900, color: '#137333' }} className="truncate">
+                        {isFemale ? 'أنتِ' : 'أنت'}
+                      </span>
+                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-emerald-600 text-white">
+                        أنت 🌟
+                      </span>
                     </div>
-                    <b style={{ width: '110px', fontSize: '17px', color: '#0F172A' }}>
-                      {isFemale ? 'أنتِ' : 'أنت'}
-                    </b>
-                    <div className="bar-proto" style={{ flex: 1, height: '12px', background: '#fff' }}>
-                      <i
-                        style={{
-                          width: `${userPct}%`,
-                          height: '12px',
-                          background: '#34A853',
-                        }}
-                      />
+
+                    <div className="bar-proto" style={{ flex: 1, height: '10px', background: '#ffffff' }}>
+                      <i style={{ width: `${userPct}%`, height: '10px', background: '#34A853' }} />
                     </div>
-                    <span style={{ fontFamily: 'Arimo', width: '36px', textAlign: 'left', fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
-                      {userPoints}
+
+                    <span className="px-3 py-1 rounded-xl bg-white text-emerald-900 font-black text-xs font-mono shrink-0 border border-emerald-300 shadow-2xs">
+                      {userPoints} نقطة
                     </span>
                   </div>
                 </div>
