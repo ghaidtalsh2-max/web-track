@@ -31,15 +31,15 @@ export const Footer: React.FC = () => {
             <div className="flex flex-col gap-2.5 text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4285F4', flexShrink: 0, display: 'inline-block' }} />
-                <span>قائدة النادي: وجد العتيبي</span>
+                <span>وجد العتيبي</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EA4335', flexShrink: 0, display: 'inline-block' }} />
-                <span>قائد النادي: ثامر الشنبري</span>
+                <span>ثامر الشنبري</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#9C27B0', flexShrink: 0, display: 'inline-block' }} />
-                <span>نائبة ومستشارة القادة: رنا أمين</span>
+                <span>رنا أمين (نائبة ومستشارة القادة)</span>
               </div>
             </div>
           </div>
@@ -59,7 +59,7 @@ export const Footer: React.FC = () => {
               </div>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EA4335', flexShrink: 0, display: 'inline-block' }} />
-                <span>نائب القائدة: عامر الحارثي</span>
+                <span>عامر الحارثي (نائب القائدة)</span>
               </div>
             </div>
           </div>
@@ -75,7 +75,7 @@ export const Footer: React.FC = () => {
             <div className="flex flex-col gap-2.5 text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#34A853', flexShrink: 0, display: 'inline-block' }} />
-                <span className="font-bold">غيداء تركي الشريف</span>
+                <span className="font-bold">غيداء الشريف</span>
               </div>
 
               <div className="flex items-center gap-2.5">
@@ -85,13 +85,13 @@ export const Footer: React.FC = () => {
 
               <div className="flex items-center gap-2.5">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4285F4', flexShrink: 0, display: 'inline-block' }} />
-                <span>نائب القادة: سلمان الغامدي</span>
+                <span>سلمان الغامدي (نائب القادة)</span>
               </div>
             </div>
           </div>
 
-          {/* العمود الرابع (اليسار): الشعار المصغر والوصف */}
-          <div className="footer-col-left flex flex-col gap-3">
+          {/* العمود الرابع (اليسار): الشعار المصغر والوصف مع مسافة جمالية مريحة بعد الخطوط الملونة */}
+          <div className="footer-col-left flex flex-col gap-3 pt-6 sm:pt-7">
             <div className="flex items-center">
               <GDGLogo variant="full" size="sm" />
             </div>
@@ -129,22 +129,24 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        {/* سطر الحقوق السفلي الموحد في المنتصف مع توقيع Created by Ghaidaa */}
+        {/* سطر الحقوق السفلي في خط واحد يمين ويسار بدون إيموجي */}
         <div
-          className="pt-6 border-t text-xs font-medium flex flex-col items-center justify-center text-center gap-2.5"
+          className="pt-6 border-t text-xs font-medium flex flex-col sm:flex-row items-center justify-between gap-3 text-right"
           style={{
             borderColor: 'var(--border-light)',
             color: 'var(--text-muted)',
           }}
         >
-          <div className="flex flex-wrap items-center justify-center gap-2">
+          <div className="flex flex-col sm:flex-row items-center gap-2 text-center sm:text-right">
             <span>© 2026 نادي قوقل للطلبة المطورين — جامعة الطائف. جميع الحقوق محفوظة.</span>
-            <span style={{ opacity: 0.4 }}>•</span>
-            <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Created by Ghaidaa ✨</span>
+            <span className="hidden sm:inline" style={{ opacity: 0.4 }}>•</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-muted)', opacity: 0.85 }}>
+              Google Developer Groups on Campus — Taif University
+            </span>
           </div>
 
-          <div className="text-[11px]" style={{ color: 'var(--text-muted)', opacity: 0.85 }}>
-            Google Developer Groups on Campus — Taif University
+          <div style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>
+            تم الإنشاء بواسطة : غيداء
           </div>
         </div>
       </div>

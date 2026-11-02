@@ -1500,7 +1500,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                   مقدار النقاط:
                 </label>
                 <div className="flex flex-wrap items-center gap-2 mb-3">
-                  {[10, 20, 50, 100].map((num) => {
+                  {[5, 20, 25, 30, 100].map((num) => {
                     const isSelected = awardCustomInput === String(num);
                     return (
                       <button

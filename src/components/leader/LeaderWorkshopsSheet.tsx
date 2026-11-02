@@ -128,18 +128,18 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
     setTimeout(() => setSuccessMsg(''), 3000);
   };
 
-  // تبديل حالة التحضير لعضو
-  const handleToggleAttendance = (memberId: string, currentStatus: boolean) => {
-    store.toggleAttendance(selectedWorkshopId, memberId, !currentStatus);
+  // تبديل حالة التحضير لعضو ومزامنته مركزياً
+  const handleToggleAttendance = async (memberId: string, currentStatus: boolean) => {
+    await store.toggleAttendance(selectedWorkshopId, memberId, !currentStatus);
   };
 
   // تحضير جميع الأعضاء دفعة واحدة
-  const handleMarkAllAttended = () => {
+  const handleMarkAllAttended = async () => {
     const regularMembers = members.filter((m) => m.role === 'member');
-    regularMembers.forEach((m) => {
-      store.toggleAttendance(selectedWorkshopId, m.id, true);
-    });
-    setSuccessMsg(`تم تحضير جميع الأعضاء (${regularMembers.length} عضو) ورصد نقاط الحضور بنجاح ✓`);
+    for (const m of regularMembers) {
+      await store.toggleAttendance(selectedWorkshopId, m.id, true);
+    }
+    setSuccessMsg(`تم تحضير جميع الأعضاء (${regularMembers.length} عضو) ورصد نقاط الحضور وتثبيتها بنجاح ✓`);
     setTimeout(() => setSuccessMsg(''), 3500);
   };
 

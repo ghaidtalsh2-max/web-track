@@ -2215,6 +2215,19 @@ class StoreManager {
       }).catch((err) => console.warn('Could not clean up duplicate ledger rows:', err));
     }
 
+    // تصحيح نقاط المهارات المسلمة لتكون 25 نقطة وتصحيح قيود عبد العزيز العصيمي من (50 و 110) إلى 25 نقطة
+    for (const l of dedupedLedger) {
+      if (
+        (l.reason?.includes('مهارة') || l.reason?.includes('كويز') || l.reason?.includes('إثبات')) &&
+        (Number(l.points_amount) === 50 || Number(l.points_amount) === 110)
+      ) {
+        l.points_amount = 25;
+        try {
+          supabase.from('points_ledger').update({ points_amount: 25 }).eq('id', l.id).then();
+        } catch {}
+      }
+    }
+
     // احتساب إجمالي النقاط الفعلي من دفتر القيود (المصدر الوحيد للحقيقة)
     const ledgerPointsByProfile = new Map<string, number>();
     for (const row of dedupedLedger) {
@@ -2317,6 +2330,90 @@ class StoreManager {
       memberName: byId.get(l.profile_id)?.fullName || '—',
       approverName: byId.get(l.approved_by)?.fullName || '—',
     }));
+
+    // مزامنة سجلات التحضير عبر Supabase بين جميع القادة (غيداء، ريتال، سلمان)
+    try {
+      const currentAttendance = this.getAttendanceMap();
+      let attendanceChanged = false;
+
+      // 1. قراءة التحضيرات المسجلة في submissions
+      for (const sub of (subsRes.data || [])) {
+        if (sub.id?.startsWith('att_') || sub.notes === 'attendance_record') {
+          const parts = sub.id.replace('att_', '').split('_');
+          const wsId = sub.task_id || parts[0];
+          const mId = sub.profile_id || parts[1];
+          if (wsId && mId) {
+            const key = `${wsId}_${mId}`;
+            const isAtt = sub.status === 'approved';
+            if (!currentAttendance[key] || currentAttendance[key].attended !== isAtt) {
+              currentAttendance[key] = {
+                workshopId: wsId,
+                memberId: mId,
+                attended: isAtt,
+                markedAt: sub.created_at || new Date().toISOString(),
+              };
+              attendanceChanged = true;
+            }
+          }
+        }
+      }
+
+      // 2. مزامنة التحضير من نقاط الحضور المقيدة في points_ledger
+      for (const l of dedupedLedger) {
+        if (l.reason?.includes('حضور') || l.activity_key?.startsWith('att_')) {
+          const mId = l.profile_id;
+          const wsId = l.activity_key?.startsWith('att_')
+            ? l.activity_key.split('_')[1]
+            : 'orientation-session';
+          if (mId && wsId) {
+            const keys = [`${wsId}_${mId}`, `orientation-session_${mId}`, `evt-intro_${mId}`];
+            keys.forEach((k) => {
+              if (!currentAttendance[k] || !currentAttendance[k].attended) {
+                currentAttendance[k] = {
+                  workshopId: wsId,
+                  memberId: mId,
+                  attended: true,
+                  markedAt: l.created_at || new Date().toISOString(),
+                };
+                attendanceChanged = true;
+              }
+            });
+          }
+        }
+      }
+
+      // 3. تأكيد وتثبيت تحضير اللقاء التعريفي (الذي أجرته ريتال) لجميع أعضاء المسار
+      const activeMembers = this.members.filter((m) => m.role === 'member');
+      for (const m of activeMembers) {
+        const k1 = `orientation-session_${m.id}`;
+        const k2 = `evt-intro_${m.id}`;
+        if (!currentAttendance[k1]) {
+          currentAttendance[k1] = {
+            workshopId: 'orientation-session',
+            memberId: m.id,
+            attended: true,
+            markedAt: new Date().toISOString(),
+          };
+          attendanceChanged = true;
+        }
+        if (!currentAttendance[k2]) {
+          currentAttendance[k2] = {
+            workshopId: 'evt-intro',
+            memberId: m.id,
+            attended: true,
+            markedAt: new Date().toISOString(),
+          };
+          attendanceChanged = true;
+        }
+      }
+
+      if (attendanceChanged && typeof localStorage !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(currentAttendance));
+      }
+    } catch (attErr) {
+      console.warn('Attendance sync error in loadRoleData:', attErr);
+    }
+
     this.dataLoaded = true;
     this.notify();
   }
@@ -4956,29 +5053,68 @@ class StoreManager {
   public getWorkshopAttendance(workshopId: string): Record<string, WorkshopAttendanceRecord> {
     const all = this.getAttendanceMap();
     const result: Record<string, WorkshopAttendanceRecord> = {};
+    const isIntro = workshopId === 'orientation-session' || workshopId === 'evt-intro';
+
     Object.entries(all).forEach(([key, rec]) => {
-      if (rec.workshopId === workshopId) {
+      if (
+        rec.workshopId === workshopId ||
+        (isIntro && (rec.workshopId === 'orientation-session' || rec.workshopId === 'evt-intro'))
+      ) {
         result[rec.memberId] = rec;
       }
     });
     return result;
   }
 
-  public toggleAttendance(workshopId: string, memberId: string, attended: boolean): boolean {
+  public async toggleAttendance(workshopId: string, memberId: string, attended: boolean): Promise<boolean> {
     if (typeof window === 'undefined') return false;
     const all = this.getAttendanceMap();
     const key = `${workshopId}_${memberId}`;
-    all[key] = {
+    const record: WorkshopAttendanceRecord = {
       workshopId,
       memberId,
       attended,
       markedAt: new Date().toISOString(),
     };
+    all[key] = record;
+
+    // توحيد مفتاح اللقاء التعريفي بين orientation-session و evt-intro
+    if (workshopId === 'orientation-session') {
+      all[`evt-intro_${memberId}`] = { ...record, workshopId: 'evt-intro' };
+    } else if (workshopId === 'evt-intro') {
+      all[`orientation-session_${memberId}`] = { ...record, workshopId: 'orientation-session' };
+    }
+
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(all));
+
+    // مزامنة حالة التحضير إلى Supabase في جدول submissions لترتبط مركزياً ويراها كل القادة فوراً
+    try {
+      await supabase.from('submissions').upsert({
+        id: `att_${workshopId}_${memberId}`,
+        task_id: workshopId,
+        profile_id: memberId,
+        status: attended ? 'approved' : 'rejected',
+        notes: 'attendance_record',
+        repo_url: 'attendance',
+        live_url: 'attendance',
+      }, { onConflict: 'id' });
+    } catch (e) {
+      console.warn('Could not sync attendance to submissions:', e);
+    }
 
     // إذا تم التحضير، منح نقاط الحضور (+20 نقطة)
     if (attended) {
-      this.awardPoints(memberId, 20, 'حضور ورشة عمل تطبيقية 🎯');
+      try {
+        await this.awardPoints(
+          memberId,
+          20,
+          `حضور: ${workshopId === 'orientation-session' || workshopId === 'evt-intro' ? 'اللقاء التعريفي' : 'ورشة عمل تطبيقية'} 🎯`,
+          undefined,
+          `att_${workshopId}_${memberId}`
+        );
+      } catch (e) {
+        console.warn('awardPoints for attendance warning:', e);
+      }
     }
 
     this.notify();
@@ -5001,12 +5137,12 @@ class StoreManager {
     }
   }
 
-  public addAttendanceEvent(
+  public async addAttendanceEvent(
     titleOrObj: string | Partial<AttendanceEvent>,
     type: 'workshop' | 'meeting' | 'other' = 'workshop',
     dateStr: string = 'نوفمبر 2026',
     pointsReward: number = 20
-  ): AttendanceEvent {
+  ): Promise<AttendanceEvent> {
     let newEvt: AttendanceEvent;
     if (typeof titleOrObj === 'object' && titleOrObj !== null) {
       newEvt = {
@@ -5030,6 +5166,20 @@ class StoreManager {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEYS.ATTENDANCE_EVENTS, JSON.stringify(updated));
     }
+
+    try {
+      await supabase.from('tasks').upsert({
+        id: newEvt.id,
+        title: newEvt.title,
+        target_level: 'attendance_event',
+        due_date: newEvt.dateStr,
+        points: newEvt.pointsReward,
+        is_active: true,
+      }, { onConflict: 'id' });
+    } catch (e) {
+      console.warn('Could not sync attendance event to tasks:', e);
+    }
+
     this.notify();
     return newEvt;
   }
@@ -5040,7 +5190,15 @@ class StoreManager {
     const attended = events.filter((evt) => {
       const key = `${evt.id}_${memberId}`;
       const fallbackKey = `${evt.id.replace('evt-', 'plan-')}_${memberId}`;
-      return map[key]?.attended || map[fallbackKey]?.attended;
+      const isIntro = evt.id === 'evt-intro' || evt.id === 'orientation-session';
+      const introKey = `orientation-session_${memberId}`;
+      const introKey2 = `evt-intro_${memberId}`;
+
+      return (
+        map[key]?.attended ||
+        map[fallbackKey]?.attended ||
+        (isIntro && (map[introKey]?.attended || map[introKey2]?.attended))
+      );
     }).length;
     const total = events.length;
     const rate = total > 0 ? Math.round((attended / total) * 100) : 100;
