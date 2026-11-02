@@ -22,6 +22,8 @@ import {
   X,
   Search,
   Trash2,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface LeaderWorkshopsSheetProps {
@@ -60,6 +62,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
 
   const [successMsg, setSuccessMsg] = useState('');
   const [searchMember, setSearchMember] = useState('');
+  const [isAttendanceEditMode, setIsAttendanceEditMode] = useState(false);
 
   // اشتراك في store
   useEffect(() => {
@@ -414,18 +417,38 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                 <Search size={13} className="absolute right-2.5 top-2.5 text-gray-400" />
               </div>
 
-              <button
-                type="button"
-                onClick={handleMarkAllAttended}
-                className="px-4 py-2 rounded-xl text-xs font-black text-white bg-[#4285F4] hover:bg-blue-600 transition-colors border-none cursor-pointer flex items-center gap-1.5 shadow-2xs whitespace-nowrap"
-              >
-                <Check size={13} />
-                <span>تحضير جميع الأعضاء ✓</span>
-              </button>
+              {isAttendanceEditMode ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleMarkAllAttended}
+                    className="px-3.5 py-2 rounded-xl text-xs font-black text-white bg-[#4285F4] hover:bg-blue-600 transition-colors border-none cursor-pointer flex items-center gap-1.5 shadow-2xs whitespace-nowrap"
+                  >
+                    <Check size={13} />
+                    <span>تحضير الكل ✓</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAttendanceEditMode(false)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-black text-white bg-[#0F1729] hover:bg-gray-800 transition-colors border-none cursor-pointer flex items-center gap-1.5 shadow-2xs whitespace-nowrap"
+                  >
+                    <span>قفل وحفظ ✓</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsAttendanceEditMode(true)}
+                  className="px-4 py-2 rounded-xl text-xs font-black text-gray-800 bg-white hover:bg-gray-100 transition-colors border border-gray-300 cursor-pointer flex items-center gap-1.5 shadow-2xs whitespace-nowrap"
+                >
+                  <Edit3 size={13} />
+                  <span>تعديل كشف التحضير</span>
+                </button>
+              )}
             </div>
           </div>
 
-          {/* شريط الإحصائية للورشة المحددة */}
+          {/* شريط الإحصائية وحالة إنجاز التحضير للورشة المحددة */}
           {(() => {
             let displayTitle = 'اللقاء التعريفي';
             let displayDate = 'الخميس 29 أكتوبر 2026';
@@ -446,13 +469,54 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
               }
             }
 
-            return (
+            const attendanceLead =
+              Object.values(attendanceMap).find((a) => a.markedBy)?.markedBy || 'ريتال القثامي';
+            const isCompleted = attendedCount > 0;
+
+            return isCompleted ? (
+              <div className="p-4 rounded-2xl bg-emerald-50/90 border-2 border-emerald-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-bold text-emerald-950 shadow-xs">
+                <div className="flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-base shadow-xs shrink-0">
+                    ✓
+                  </span>
+                  <div>
+                    <div className="text-sm font-black text-emerald-900 flex items-center gap-2">
+                      <span>تم إنجاز التحضير لهذا الحدث بنجاح</span>
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900">
+                        كشف معتمد
+                      </span>
+                    </div>
+                    <p className="text-xs text-emerald-800 font-medium mt-0.5">
+                      الحدث: <strong>{displayTitle}</strong> ({displayDate}) · تم التحضير بواسطة: <strong>{attendanceLead}</strong>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                  <span className="bg-white px-3 py-1.5 rounded-xl border border-emerald-300 text-emerald-900 font-black shadow-2xs">
+                    الحاضرون: {attendedCount} من {regularMembers.length} ({Math.round((attendedCount / (regularMembers.length || 1)) * 100)}%)
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsAttendanceEditMode(!isAttendanceEditMode)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border shadow-2xs ${
+                      isAttendanceEditMode
+                        ? 'bg-[#0F1729] text-white border-transparent hover:bg-gray-800'
+                        : 'bg-white text-emerald-900 border-emerald-300 hover:bg-emerald-100'
+                    }`}
+                  >
+                    {isAttendanceEditMode ? 'قفل وحفظ الكشف ✓' : '✏️ تعديل كشف التحضير'}
+                  </button>
+                </div>
+              </div>
+            ) : (
               <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200 flex items-center justify-between text-xs font-bold text-blue-950">
                 <span>
                   <strong>الحدث المحدد:</strong> {displayTitle} ({displayDate})
                 </span>
                 <span className="bg-white px-3 py-1 rounded-full border border-blue-300 text-blue-900 font-black">
-                  نسبة الحضور: {attendedCount} من {regularMembers.length} عضو ({Math.round((attendedCount / (regularMembers.length || 1)) * 100)}%)
+                  لم يتم إجراء التحضير بعد (0 من {regularMembers.length} عضو)
                 </span>
               </div>
             );
@@ -619,17 +683,85 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
               </div>
 
               <div>
-                <label className="block text-xs font-black text-gray-700 mb-1">
-                  رابط بوستر الورشة (صورة البوستر):
+                <label className="block text-xs font-black text-gray-700 mb-1.5">
+                  بوستر الورشة (صورة الغلاف):
                 </label>
+
+                {/* معاينة الصورة المرفوعة أو الرابط */}
+                {editPosterUrl ? (
+                  <div className="relative mb-2.5 rounded-2xl overflow-hidden border-2 border-gray-900 group bg-gray-100">
+                    <img
+                      src={editPosterUrl}
+                      alt="بوستر الورشة"
+                      className="w-full h-44 object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <label
+                        htmlFor="poster-file-upload-input"
+                        className="px-3 py-1.5 rounded-xl bg-white text-gray-900 text-xs font-black cursor-pointer shadow-md hover:bg-gray-100 transition-colors flex items-center gap-1"
+                      >
+                        <Upload size={13} />
+                        <span>تغيير الصورة</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setEditPosterUrl('')}
+                        className="px-3 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-black cursor-pointer shadow-md hover:bg-rose-700 border-none flex items-center gap-1"
+                      >
+                        <Trash2 size={13} />
+                        <span>حذف الصورة</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="poster-file-upload-input"
+                    className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50 hover:bg-blue-50/60 hover:border-blue-400 cursor-pointer transition-colors mb-2 text-center"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 text-[#4285F4] flex items-center justify-center mb-1.5">
+                      <Upload size={18} />
+                    </div>
+                    <span className="text-xs font-black text-gray-800">
+                      اضغط لرفع صورة البوستر من جهازك 🖼️
+                    </span>
+                    <span className="text-[10px] text-gray-500 font-bold mt-0.5">
+                      يدعم الصور من الجوال أو الكمبيوتر (PNG, JPG, WebP)
+                    </span>
+                  </label>
+                )}
+
                 <input
-                  type="url"
-                  placeholder="https://example.com/poster.jpg"
-                  value={editPosterUrl}
-                  onChange={(e) => setEditPosterUrl(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-xs font-bold text-gray-900 focus:outline-none text-left"
-                  dir="ltr"
+                  id="poster-file-upload-input"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (loadEvt) => {
+                        const res = loadEvt.target?.result as string;
+                        if (res) setEditPosterUrl(res);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
                 />
+
+                {/* خيار إضافي: رابط صورة مباشر إذا فضّل المستخدم ذلك */}
+                <div className="mt-1">
+                  <span className="text-[10px] text-gray-500 font-bold block mb-1">
+                    أو الصق رابط صورة خارجي (اختياري):
+                  </span>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/poster.jpg"
+                    value={editPosterUrl.startsWith('data:') ? '' : editPosterUrl}
+                    onChange={(e) => setEditPosterUrl(e.target.value)}
+                    className="w-full px-3.5 py-1.5 rounded-xl border border-gray-300 text-xs font-bold text-gray-900 focus:outline-none text-left"
+                    dir="ltr"
+                  />
+                </div>
               </div>
 
               <div>

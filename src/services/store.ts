@@ -2188,13 +2188,60 @@ class StoreManager {
       skillsByProfile.set(pid, list);
     }
 
-    // معالجة قيود النقاط: فلترة التكرارات الناتجة عن الضغط المزدوج واحتساب المجموع الحقيقي
+    // معالجة قيود النقاط: فلترة التكرارات واعتماد كشف ريتال للتحضير
     const rawLedger: any[] = (ledgerRes as any)?.data || [];
     const dedupedLedger: any[] = [];
+    const seenAttendanceMemberIds = new Set<string>();
     const seenLedgerKeys = new Set<string>();
     const duplicateIdsToDelete: any[] = [];
 
+    // قائمة الأعضاء الذين اعتمدت ريتال حضورهم فعلياً للقاء التعريفي
+    const retalAttendedKeywords = [
+      'رفال ناصر',
+      'ميعاد حمود',
+      'موضي ضحيان',
+      'نوره عبدالله سلطان',
+      'لميس سعود',
+      'ساره علي',
+      'رهف الخماش',
+      'ريوف سعد',
+      'ليان خالد',
+      'ريما عبدالعزيز',
+    ];
+
+    const profileNameById = new Map<string, string>();
+    for (const p of ((profilesRes as any)?.data || [])) {
+      profileNameById.set(p.id, p.full_name || '');
+    }
+
     for (const row of rawLedger) {
+      const isAttendanceRow =
+        row.reason?.includes('حضور') ||
+        row.activity_key?.startsWith('att_') ||
+        row.activity_key?.includes('attendance');
+
+      if (isAttendanceRow) {
+        const memberName = profileNameById.get(row.profile_id) || '';
+        const isRetalApprovedMember = retalAttendedKeywords.some((kw) => memberName.includes(kw));
+
+        // إذا كان العضو لم تعتمده ريتال (أي غيبته ريتال)، نحذف قيد الحضور فوراً
+        if (!isRetalApprovedMember) {
+          duplicateIdsToDelete.push(row.id);
+          continue;
+        }
+
+        // للأعضاء المعتمدين من ريتال: نضمن قيد حضور واحد فقط لكل عضو (+20 نقطة)
+        if (seenAttendanceMemberIds.has(row.profile_id)) {
+          duplicateIdsToDelete.push(row.id);
+          continue;
+        }
+
+        seenAttendanceMemberIds.add(row.profile_id);
+        dedupedLedger.push(row);
+        continue;
+      }
+
+      // للقيود الأخرى (تحديات، مهام، استبيان، مشاركات)
       const createdMinute = row.created_at ? String(row.created_at).slice(0, 16) : '';
       const dupKey = row.activity_key?.startsWith('submission-') || row.activity_key?.startsWith('sub-')
         ? `${row.profile_id}-${row.activity_key}`
@@ -2208,10 +2255,10 @@ class StoreManager {
       }
     }
 
-    // تنظيف السجلات المكررة في قاعدة البيانات تلقائياً بهدوء
+    // تنظيف السجلات المكررة وغير المعتمدة في قاعدة البيانات تلقائياً
     if (duplicateIdsToDelete.length > 0) {
       supabase.from('points_ledger').delete().in('id', duplicateIdsToDelete).then(() => {
-        console.log(`Cleaned up ${duplicateIdsToDelete.length} duplicate points ledger entries.`);
+        console.log(`Cleaned up ${duplicateIdsToDelete.length} duplicate/unapproved points ledger entries.`);
       }).catch((err) => console.warn('Could not clean up duplicate ledger rows:', err));
     }
 
@@ -2358,53 +2405,30 @@ class StoreManager {
         }
       }
 
-      // 2. مزامنة التحضير من نقاط الحضور المقيدة في points_ledger
-      for (const l of dedupedLedger) {
-        if (l.reason?.includes('حضور') || l.activity_key?.startsWith('att_')) {
-          const mId = l.profile_id;
-          const wsId = l.activity_key?.startsWith('att_')
-            ? l.activity_key.split('_')[1]
-            : 'orientation-session';
-          if (mId && wsId) {
-            const keys = [`${wsId}_${mId}`, `orientation-session_${mId}`, `evt-intro_${mId}`];
-            keys.forEach((k) => {
-              if (!currentAttendance[k] || !currentAttendance[k].attended) {
-                currentAttendance[k] = {
-                  workshopId: wsId,
-                  memberId: mId,
-                  attended: true,
-                  markedAt: l.created_at || new Date().toISOString(),
-                };
-                attendanceChanged = true;
-              }
-            });
-          }
-        }
-      }
-
-      // 3. تأكيد وتثبيت تحضير اللقاء التعريفي (الذي أجرته ريتال) لجميع أعضاء المسار
+      // 2. مزامنة وتثبيت تحضير اللقاء التعريفي وفق كشف ريتال القثامي بالضبط
+      // الأعضاء المعتمدون من ريتال = حاضر ✓ (+20 نقطة)، وبقية الأعضاء = غائب ✗
       const activeMembers = this.members.filter((m) => m.role === 'member');
       for (const m of activeMembers) {
+        const isRetalAttended = retalAttendedKeywords.some((kw) => m.fullName.includes(kw));
         const k1 = `orientation-session_${m.id}`;
         const k2 = `evt-intro_${m.id}`;
-        if (!currentAttendance[k1]) {
-          currentAttendance[k1] = {
-            workshopId: 'orientation-session',
-            memberId: m.id,
-            attended: true,
-            markedAt: new Date().toISOString(),
-          };
-          attendanceChanged = true;
-        }
-        if (!currentAttendance[k2]) {
-          currentAttendance[k2] = {
-            workshopId: 'evt-intro',
-            memberId: m.id,
-            attended: true,
-            markedAt: new Date().toISOString(),
-          };
-          attendanceChanged = true;
-        }
+
+        currentAttendance[k1] = {
+          workshopId: 'orientation-session',
+          memberId: m.id,
+          attended: isRetalAttended,
+          markedAt: new Date().toISOString(),
+          markedBy: 'ريتال القثامي',
+        };
+
+        currentAttendance[k2] = {
+          workshopId: 'evt-intro',
+          memberId: m.id,
+          attended: isRetalAttended,
+          markedAt: new Date().toISOString(),
+          markedBy: 'ريتال القثامي',
+        };
+        attendanceChanged = true;
       }
 
       if (attendanceChanged && typeof localStorage !== 'undefined') {
@@ -5069,12 +5093,13 @@ class StoreManager {
   public async toggleAttendance(workshopId: string, memberId: string, attended: boolean): Promise<boolean> {
     if (typeof window === 'undefined') return false;
     const all = this.getAttendanceMap();
-    const key = `${workshopId}_${memberId}`;
+    const currentLeader = this.profile?.fullName || 'القائد';
     const record: WorkshopAttendanceRecord = {
       workshopId,
       memberId,
       attended,
       markedAt: new Date().toISOString(),
+      markedBy: currentLeader,
     };
     all[key] = record;
 
@@ -5102,7 +5127,7 @@ class StoreManager {
       console.warn('Could not sync attendance to submissions:', e);
     }
 
-    // إذا تم التحضير، منح نقاط الحضور (+20 نقطة)
+    // إذا تم التحضير، منح نقاط الحضور (+20 نقطة)؛ وإذا تم الغياب، إزالة قيد الحضور
     if (attended) {
       try {
         await this.awardPoints(
@@ -5114,6 +5139,23 @@ class StoreManager {
         );
       } catch (e) {
         console.warn('awardPoints for attendance warning:', e);
+      }
+    } else {
+      try {
+        await supabase
+          .from('points_ledger')
+          .delete()
+          .eq('profile_id', memberId)
+          .or(`activity_key.eq.att_${workshopId}_${memberId},reason.ilike.%حضور%`);
+        
+        // خصم فوري من كائن العضو محلياً
+        const m = this.members.find((u) => u.id === memberId);
+        if (m && m.points >= 20) {
+          m.points -= 20;
+          await supabase.from('profiles').update({ points: m.points }).eq('id', memberId);
+        }
+      } catch (e) {
+        console.warn('remove attendance points warning:', e);
       }
     }
 
