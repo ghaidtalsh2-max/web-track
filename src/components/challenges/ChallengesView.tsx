@@ -73,7 +73,7 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
       name: '',
       description: '',
       requirements: '',
-      points: 50,
+      points: 25,
     },
   ]);
   const [createSuccessMsg, setCreateSuccessMsg] = useState('');
@@ -691,9 +691,48 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
                       setNewOptions(copy);
                     }}
                     placeholder="المطلوب بالتحديد بالتفصيل..."
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-gray-50 border border-gray-300"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-gray-50 border border-gray-300 mb-2"
                     required
                   />
+
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                      عدد النقاط الممنوحة عند الاعتماد:
+                    </label>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {[25, 20, 30, 50, 100].map((pts) => (
+                        <button
+                          key={pts}
+                          type="button"
+                          onClick={() => {
+                            const copy = [...newOptions];
+                            copy[0].points = pts;
+                            setNewOptions(copy);
+                          }}
+                          className={`px-3 py-1 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                            newOptions[0].points === pts
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                          }`}
+                        >
+                          +{pts}
+                        </button>
+                      ))}
+                      <input
+                        type="number"
+                        min="1"
+                        max="500"
+                        value={newOptions[0].points}
+                        onChange={(e) => {
+                          const copy = [...newOptions];
+                          copy[0].points = Number(e.target.value) || 25;
+                          setNewOptions(copy);
+                        }}
+                        className="w-16 px-2 py-1 text-xs rounded-xl bg-white border border-gray-300 text-center font-bold"
+                        placeholder="مخصص"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {createSuccessMsg && (
