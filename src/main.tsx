@@ -2,7 +2,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { store } from './services/store';
 import './index.css';
+
+if (typeof window !== 'undefined') {
+  (window as any).store = store;
+}
 
 function mountApp() {
   const rootElement = document.getElementById('root');

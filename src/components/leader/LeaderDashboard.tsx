@@ -157,6 +157,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
   const [replyModalOpen, setReplyModalOpen] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
   const [replyText, setReplyText] = useState('');
+  const [viewingSentModal, setViewingSentModal] = useState<any | null>(null);
 
   // استيراد ملف الإكسل
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -337,7 +338,22 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
       alert(err?.message || 'تعذّر تسجيل القرار.');
       return;
     }
-    setInquiries(store.getInquiries());
+    const inqId = selectedInquiry.id;
+    // تحديث فوري للحالة محلياً لإخفائها فوراً من قائمة "تنتظر مراجعتك"
+    setInquiries((prev) =>
+      prev.map((i) =>
+        i.id === inqId
+          ? {
+              ...i,
+              status: 'answered',
+              decision,
+              responseText: replyText.trim() || 'تم الرد والاعتماد',
+              respondedBy: currentUser.fullName,
+              respondedAt: 'الآن',
+            }
+          : i
+      )
+    );
     setReplyModalOpen(false);
     setSelectedInquiry(null);
     setReplyText('');
@@ -358,7 +374,62 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
 
   const leaderFirst = currentUser.fullName.split(' ')[0] || 'غيداء';
   const stats = store.getRealStats();
-  const unansweredInquiries = inquiries.filter((i) => i.status !== 'answered');
+  const unansweredInquiries = inquiries.filter((i: any) => {
+    // 1. لا تظهر للمُرسل نفسه أبداً (لو عامر أو أثير أو وجد أو ثامر أرسلوا للقائدة ما تبان عندهم في تنتظر مراجعتك)
+    const senderName = (i.userName || '').trim().toLowerCase();
+    const myName = (currentUser.fullName || '').trim().toLowerCase();
+
+    const isMe =
+      i.userId === currentUser.id ||
+      i.profile_id === currentUser.id ||
+      (myName && senderName && senderName === myName) ||
+      (i.title && currentUser.fullName && i.title.includes(`(${currentUser.fullName})`)) ||
+      (i.details && currentUser.fullName && i.details.includes(`طلب المشرف/ة: ${currentUser.fullName}`)) ||
+      (currentUser.fullName.includes('عامر') && (senderName.includes('عامر') || (i.title || '').includes('عامر'))) ||
+      (currentUser.fullName.includes('أثير') && (senderName.includes('أثير') || (i.title || '').includes('أثير'))) ||
+      (currentUser.fullName.includes('وجد') && (senderName.includes('وجد') || (i.title || '').includes('وجد'))) ||
+      (currentUser.fullName.includes('ثامر') && (senderName.includes('ثامر') || (i.title || '').includes('ثامر')));
+
+    if (isMe) return false;
+
+    // 2. إذا كان المُستخدم مشرفاً (عامر، أثير، رنا) والطلب هو "طلب اعتماد من الإشراف" أو موجه للقيادة:
+    // المشرف لا يراجع طلبات زملائه المشرفين الموجهة للقيادة
+    const isSupervisorRole = currentUser.role === 'supervisor';
+    const isLeadershipRequest = (i.title || '').includes('إشراف') || (i.title || '').includes('اعتماد') || (i.targetRecipient === 'leader');
+    if (isSupervisorRole && isLeadershipRequest) return false;
+
+    // 3. أي استفسار تم الرد عليه أو اعتماده أو رفضه لا يظهر في تنتظر مراجعتك
+    if (i.status === 'answered' || i.status === 'approved' || i.status === 'rejected') return false;
+    if (Boolean(i.responseText) || Boolean(i.response_text) || Boolean(i.decision) || Boolean(i.respondedBy) || Boolean(i.answered_by)) return false;
+
+    // 4. استبعاد أي كويز أو اختبار آلي نهائياً (الكويزات تظهر في بروفايل العضو فقط)
+    const isQuizInq =
+      (i.title || '').includes('كويز') ||
+      (i.title || '').toLowerCase().includes('quiz') ||
+      (i.details || '').includes('كويز') ||
+      (i.details || '').toLowerCase().includes('quiz');
+    if (isQuizInq) return false;
+
+    return true;
+  });
+
+  // الطلبات والاستفسارات التي أرسلها المستخدم الحالي للقيادة (مثل عامر أو أثير أو وجد أو ثامر)
+  const mySentRequests = inquiries.filter((inq: any) => {
+    const senderName = (inq.userName || '').trim().toLowerCase();
+    const myName = (currentUser.fullName || '').trim().toLowerCase();
+
+    return (
+      inq.userId === currentUser.id ||
+      inq.profile_id === currentUser.id ||
+      (myName && senderName && senderName === myName) ||
+      (inq.title && currentUser.fullName && inq.title.includes(`(${currentUser.fullName})`)) ||
+      (inq.details && currentUser.fullName && inq.details.includes(currentUser.fullName)) ||
+      (currentUser.fullName.includes('عامر') && (senderName.includes('عامر') || (inq.title || '').includes('عامر'))) ||
+      (currentUser.fullName.includes('أثير') && (senderName.includes('أثير') || (inq.title || '').includes('أثير'))) ||
+      (currentUser.fullName.includes('وجد') && (senderName.includes('وجد') || (inq.title || '').includes('وجد'))) ||
+      (currentUser.fullName.includes('ثامر') && (senderName.includes('ثامر') || (inq.title || '').includes('ثامر')))
+    );
+  });
 
   return (
     <div className="container py-8 sm:py-12 text-right">
@@ -566,6 +637,93 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
             {/* الصندوق 2 (اليسار): موجة المسار الرسمية الديناميكية */}
             <PathWave percent={stats.completionRate !== undefined && stats.completionRate !== null ? stats.completionRate : null} />
           </div>
+
+          {/* قسم طلباتك المُرسلة للقيادة وتحديثات الرد (يظهر لعامر، أثير، وجد، ثامر ولأي مشرف/قائد أرسل طلباً للقيادة) */}
+          {mySentRequests.length > 0 && (
+            <div className="mt-8 p-6 sm:p-7 rounded-3xl bg-white border-2 border-[#0F1729] shadow-xs text-right">
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-4 flex-wrap gap-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">📬</span>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-gray-900 leading-tight">
+                      طلباتك واستفساراتك المُرسلة للقيادة وتحديثات الرد
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5 font-medium">
+                      متابعة قرارات القيادة، ردود الملاحظات، وتفعيل الصلاحيات
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-gray-500">
+                  {mySentRequests.length} طلبات
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {mySentRequests.map((inq: any) => {
+                  const isApproved = inq.status === 'approved' || inq.decision === 'approved';
+                  const isRejected = inq.status === 'rejected' || inq.decision === 'rejected';
+                  const hasReply = Boolean(inq.responseText || inq.response_text || inq.decisionNotes);
+
+                  return (
+                    <div
+                      key={inq.id}
+                      className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 hover:border-gray-400 transition-all"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <span className="text-sm font-black text-gray-900">
+                            {inq.title || 'طلب إشراف / اعتماد'}
+                          </span>
+                          {isApproved && (
+                            <span className="px-3 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              تمت الموافقة والاعتماد بنجاح ✅
+                            </span>
+                          )}
+                          {isRejected && (
+                            <span className="px-3 py-0.5 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300">
+                              مرفوض ❌
+                            </span>
+                          )}
+                          {!isApproved && !isRejected && (
+                            <span className="px-3 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-300">
+                              قيد المراجعة والدراسة ⏳
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-gray-600 line-clamp-2 mb-2 font-medium">
+                          {inq.details || 'تفاصيل مسجلة'}
+                        </p>
+
+                        {hasReply ? (
+                          <div className="mt-2 p-3 rounded-xl bg-white border border-emerald-200 text-xs text-gray-800 shadow-2xs">
+                            <span className="font-black text-emerald-800 block mb-1">
+                              💬 رد وملاحظات القيادة ({inq.respondedBy || inq.answered_by || 'القيادة'}):
+                            </span>
+                            <p className="font-medium whitespace-pre-wrap leading-relaxed text-gray-900">
+                              {inq.responseText || inq.response_text || inq.decisionNotes}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-400 mt-1">
+                            طلبك مسجل وبانتظار رد وملاحظات القيادة.
+                          </p>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setViewingSentModal(inq)}
+                        className="px-4 py-2 rounded-xl text-xs font-black bg-gray-900 text-white hover:bg-black transition-all cursor-pointer whitespace-nowrap shadow-xs flex items-center gap-1.5 self-end md:self-center"
+                      >
+                        <span>👁️ شاهد الرد</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* لوحة اعتماد نجوم الأسبوع وعضو الشهر (تحديث السبت الدوري) */}
           <div className="mt-8 p-6 sm:p-7 rounded-3xl bg-white border-2 border-[#0F1729] shadow-xs">
@@ -1737,6 +1895,78 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                     ✅ موافقة واعتماد وتفعيل
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* نافذة تفاصيل ومشاهدة الرد للطلب المُرسل من قبل المشرف/القائد */}
+      <AnimatePresence>
+        {viewingSentModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-gray-900 text-right"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
+                <div>
+                  <h3 className="text-lg font-black text-gray-900">
+                    تفاصيل الرد والقرار: {viewingSentModal.title || 'طلب إشراف / اعتماد'}
+                  </h3>
+                  <span className="text-xs text-gray-500 font-semibold">
+                    المُرسل: {viewingSentModal.userName}
+                  </span>
+                </div>
+                {(viewingSentModal.status === 'approved' || viewingSentModal.decision === 'approved') ? (
+                  <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    معتمد ومقبول ✅
+                  </span>
+                ) : (viewingSentModal.status === 'rejected' || viewingSentModal.decision === 'rejected') ? (
+                  <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300">
+                    مرفوض ❌
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-300">
+                    قيد المراجعة والدراسة ⏳
+                  </span>
+                )}
+              </div>
+
+              <div className="text-xs text-gray-800 bg-gray-50 p-4 rounded-2xl border border-gray-200 mb-4 whitespace-pre-wrap leading-relaxed">
+                <p className="font-bold text-gray-900 mb-1">تفاصيل طلبك المُرسل:</p>
+                {viewingSentModal.details || 'تفاصيل الطلب مسجلة في النظام.'}
+              </div>
+
+              {(viewingSentModal.responseText || viewingSentModal.response_text || viewingSentModal.decisionNotes) ? (
+                <div className="mb-5 p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-950">
+                  <p className="text-xs font-black mb-1.5 flex items-center gap-1.5 text-emerald-900">
+                    <span>💬 رد وملاحظات القيادة</span>
+                    <span>({viewingSentModal.respondedBy || viewingSentModal.answered_by || 'غيداء تركي الشريف'}):</span>
+                  </p>
+                  <p className="text-xs font-semibold whitespace-pre-wrap leading-relaxed bg-white/80 p-3 rounded-xl border border-emerald-200 text-gray-900">
+                    {viewingSentModal.responseText || viewingSentModal.response_text || viewingSentModal.decisionNotes}
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-5 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                  <p className="font-black mb-1">⏳ قيد المراجعة</p>
+                  <p className="text-amber-800">
+                    طلبك وصل إلى القيادة بنجاح وهو قيد المراجعة الآن. ستظهر الملاحظات والقرار هنا فور اعتماده.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setViewingSentModal(null)}
+                  className="px-6 py-2.5 rounded-xl text-xs font-black text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all cursor-pointer"
+                >
+                  إغلاق
+                </button>
               </div>
             </motion.div>
           </div>

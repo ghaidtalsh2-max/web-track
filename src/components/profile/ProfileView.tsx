@@ -5,6 +5,7 @@ import { UserProfile, MemberSkillItem, BadgeItem, UserStats } from '../../types'
 import { store } from '../../services/store';
 import { UserAvatar } from '../common/UserAvatar';
 import { isFemaleUser, gText, genderVocab } from '../../utils/gender';
+import { getQuizQuestionsForSkill } from '../../data/skillQuizBanks';
 import {
   Award,
   Shield,
@@ -129,47 +130,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
     setQuizFeedback(null);
   }, [selectedSkillForProof, proofType]);
 
-  const SKILL_QUIZ_QUESTIONS = [
-    {
-      id: 1,
-      question: 'في CSS Flexbox، ما الخاصية المسؤولة عن محاذاة العناصر على المحور الثانوي (Cross Axis)؟',
-      options: ['align-items', 'justify-content', 'flex-direction', 'align-self-all'],
-      correctIndex: 0,
-    },
-    {
-      id: 2,
-      question: 'ما هو الفرق الجوهري بين localStorage و sessionStorage في متصفح الويب؟',
-      options: [
-        'بيانات localStorage تدوم بعد إغلاق المتصفح، بينما sessionStorage تُمسح بإغلاق التبويب',
-        'sessionStorage يخزن بيانات مشفرة تلقائياً فقط',
-        'localStorage محدود بحجم 5 كيلوبايت فقط',
-        'لا يوجد أي فرق بينهما في آلية الصلاحية',
-      ],
-      correctIndex: 0,
-    },
-    {
-      id: 3,
-      question: 'في CSS Grid، كيف ننشئ شبكة متجاوبة تملأ السطر بأعمدة لا يقل عرضها عن 240px وتتوزع تلقائياً؟',
-      options: [
-        'grid-template-columns: repeat(auto-fit, minmax(240px, 1fr))',
-        'grid-columns: flex-auto(240px, 100%)',
-        'grid-template-rows: repeat(auto-fill, 240px)',
-        'display: flex-grid(minmax(240px))',
-      ],
-      correctIndex: 0,
-    },
-    {
-      id: 4,
-      question: 'عند كتابة JavaScript لمعالجة حدث إرسال النموذج onsubmit، ما فائدة استدعاء event.preventDefault()؟',
-      options: [
-        'منع إعادة تحميل الصفحة الافتراضية للتعامل مع البيانات بسلاسة عبر JS',
-        'حذف جميع البيانات المدخلة في حقول النموذج',
-        'إغلاق نافذة المتصفح فوراً',
-        'إرسال البيانات مباشرة إلى السيرفر دون تشفير',
-      ],
-      correctIndex: 0,
-    },
-  ];
+  // بنك الأسئلة المخصص والمطابق للمهارة المحددة (Git، VS Code، HTML، CSS، إلخ)
+  const currentSkillQuizQuestions = getQuizQuestionsForSkill(selectedSkillForProof?.name || '');
 
   // جلب إحصائيات وشارات وتسليمات العضو المختار
   const userStats: UserStats = store.getUserStats(displayedMember.id);
@@ -329,13 +291,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
   };
 
   const handleNextQuizQuestion = async () => {
-    if (currentQuestionIndex < SKILL_QUIZ_QUESTIONS.length - 1) {
+    if (currentQuestionIndex < currentSkillQuizQuestions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
       setTimeLeft(60);
     } else {
       // نهاية الكويز وحساب النتيجة
       let score = 0;
-      SKILL_QUIZ_QUESTIONS.forEach((q) => {
+      currentSkillQuizQuestions.forEach((q) => {
         if (quizAnswers[q.id] === q.correctIndex) {
           score++;
         }
@@ -712,19 +674,21 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                   flexWrap: 'wrap',
                 }}
               >
-                <span
-                  className="t"
-                  style={{
-                    background: '#E8F0FE',
-                    color: '#0F172A',
-                    borderRadius: '99px',
-                    padding: '4px 14px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                  }}
-                >
-                  مستوى الاستبيان: {displayedMember.webLevel === 'advanced' ? 'متقدم' : displayedMember.webLevel === 'intermediate' ? 'متوسط' : 'مبتدئ'}
-                </span>
+                {isStaff && (
+                  <span
+                    className="t"
+                    style={{
+                      background: '#E8F0FE',
+                      color: '#0F172A',
+                      borderRadius: '99px',
+                      padding: '4px 14px',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    مستوى الاستبيان: {displayedMember.webLevel === 'advanced' ? 'متقدم' : displayedMember.webLevel === 'intermediate' ? 'متوسط' : 'مبتدئ'}
+                  </span>
+                )}
 
                 <span
                   className="t"
@@ -848,10 +812,25 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
           </div>
 
           {/* قسم متابعة طلبات العضو وتحديثات الاعتماد (موافقة / رفض / شاهد الرد) */}
+          {/* قسم متابعة طلبات العضو وتحديثات الاعتماد (موافقة / رفض / شاهد الرد) */}
           {(() => {
             const memberInquiries = store
               .getInquiries()
-              .filter((inq) => inq.userId === displayedMember.id);
+              .filter((inq: any) => {
+                const senderName = (inq.userName || '').trim().toLowerCase();
+                const myName = (displayedMember.fullName || '').trim().toLowerCase();
+                return (
+                  inq.userId === displayedMember.id ||
+                  inq.profile_id === displayedMember.id ||
+                  (myName && senderName && senderName === myName) ||
+                  (inq.title && displayedMember.fullName && inq.title.includes(`(${displayedMember.fullName})`)) ||
+                  (inq.details && displayedMember.fullName && inq.details.includes(displayedMember.fullName)) ||
+                  (displayedMember.fullName.includes('عامر') && (senderName.includes('عامر') || (inq.title || '').includes('عامر'))) ||
+                  (displayedMember.fullName.includes('أثير') && (senderName.includes('أثير') || (inq.title || '').includes('أثير'))) ||
+                  (displayedMember.fullName.includes('وجد') && (senderName.includes('وجد') || (inq.title || '').includes('وجد'))) ||
+                  (displayedMember.fullName.includes('ثامر') && (senderName.includes('ثامر') || (inq.title || '').includes('ثامر')))
+                );
+              });
             if (memberInquiries.length === 0) return null;
 
             return (
@@ -870,17 +849,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
 
                 <div className="space-y-3">
                   {memberInquiries.map((inq: any) => {
-                    const isApproved = inq.status === 'approved';
-                    const isRejected = inq.status === 'rejected';
+                    const isApproved = inq.status === 'approved' || inq.decision === 'approved';
+                    const isRejected = inq.status === 'rejected' || inq.decision === 'rejected';
                     const isPending = !isApproved && !isRejected;
+                    const hasReply = Boolean(inq.responseText || inq.response_text || inq.decisionNotes);
 
                     return (
                       <div
                         key={inq.id}
-                        className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-gray-400 transition-all"
+                        className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 hover:border-gray-400 transition-all"
                       >
-                        <div>
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                             <span className="text-sm font-black text-gray-900">
                               {inq.title || 'طلب اعتماد / استفسار'}
                             </span>
@@ -900,15 +880,26 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-600 line-clamp-1">
+                          <p className="text-xs text-gray-600 line-clamp-2 font-medium">
                             {inq.details || 'لا توجد تفاصيل إضافية'}
                           </p>
+
+                          {hasReply && (
+                            <div className="mt-2.5 p-3 rounded-xl bg-white border border-emerald-200 text-xs text-gray-800 shadow-2xs">
+                              <span className="font-black text-emerald-800 block mb-1">
+                                💬 رد وملاحظات القيادة ({inq.respondedBy || inq.answered_by || 'غيداء تركي الشريف'}):
+                              </span>
+                              <p className="font-semibold whitespace-pre-wrap leading-relaxed text-gray-900">
+                                {inq.responseText || inq.response_text || inq.decisionNotes}
+                              </p>
+                            </div>
+                          )}
                         </div>
 
                         <button
                           type="button"
                           onClick={() => setViewingInquiryModal(inq)}
-                          className="px-4 py-2 rounded-xl text-xs font-black bg-gray-900 text-white hover:bg-black transition-all cursor-pointer whitespace-nowrap shadow-xs flex items-center gap-1.5"
+                          className="px-4 py-2 rounded-xl text-xs font-black bg-gray-900 text-white hover:bg-black transition-all cursor-pointer whitespace-nowrap shadow-xs flex items-center gap-1.5 self-end md:self-center"
                         >
                           <span>👁️ شاهد الرد والتفاصيل</span>
                         </button>
@@ -1352,7 +1343,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                         )}
 
                         {quizStep === 'question' && (() => {
-                          const q = SKILL_QUIZ_QUESTIONS[currentQuestionIndex];
+                          const q = currentSkillQuizQuestions[currentQuestionIndex];
                           const hasAnswer = quizAnswers[q.id] !== undefined;
 
                           return (
@@ -1361,12 +1352,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                               <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-200">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-black text-gray-900">
-                                    السؤال {currentQuestionIndex + 1} من {SKILL_QUIZ_QUESTIONS.length}
+                                    السؤال {currentQuestionIndex + 1} من {currentSkillQuizQuestions.length}
                                   </span>
                                   <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                                     <div
                                       className="h-full bg-blue-600 transition-all duration-300"
-                                      style={{ width: `${((currentQuestionIndex + 1) / SKILL_QUIZ_QUESTIONS.length) * 100}%` }}
+                                      style={{ width: `${((currentQuestionIndex + 1) / currentSkillQuizQuestions.length) * 100}%` }}
                                     />
                                   </div>
                                 </div>
@@ -1425,7 +1416,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                 }`}
                               >
-                                {currentQuestionIndex < SKILL_QUIZ_QUESTIONS.length - 1 ? (
+                                {currentQuestionIndex < currentSkillQuizQuestions.length - 1 ? (
                                   <>
                                     <span>السؤال التالي</span>
                                     <span>←</span>
@@ -1555,71 +1546,81 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-gray-900 text-right"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
-                <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
-                  <span>تفاصيل ورد القيادة</span>
-                </h3>
-                {viewingInquiryModal.status === 'approved' && (
-                  <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    معتمد ومقبول بنجاح ✅
-                  </span>
-                )}
-                {viewingInquiryModal.status === 'rejected' && (
-                  <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300">
-                    مرفوض ❌
-                  </span>
-                )}
-                {viewingInquiryModal.status !== 'approved' && viewingInquiryModal.status !== 'rejected' && (
-                  <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-300">
-                    قيد المراجعة ⏳
-                  </span>
-                )}
-              </div>
+              {(() => {
+                const isApproved = viewingInquiryModal.status === 'approved' || viewingInquiryModal.decision === 'approved';
+                const isRejected = viewingInquiryModal.status === 'rejected' || viewingInquiryModal.decision === 'rejected';
 
-              {/* بطاقة الطلب الأصلي */}
-              <div className="mb-4 p-4 rounded-2xl bg-gray-50 border border-gray-200">
-                <p className="text-xs font-bold text-gray-500 mb-1">الطلب المُرسل:</p>
-                <b className="text-sm text-gray-900 block mb-2">{viewingInquiryModal.title}</b>
-                <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
-                  {viewingInquiryModal.details}
-                </p>
-              </div>
+                return (
+                  <>
+                    <div className="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
+                      <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                        <span>تفاصيل ورد القيادة</span>
+                      </h3>
+                      {isApproved && (
+                        <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          معتمد ومقبول بنجاح ✅
+                        </span>
+                      )}
+                      {isRejected && (
+                        <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300">
+                          مرفوض ❌
+                        </span>
+                      )}
+                      {!isApproved && !isRejected && (
+                        <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-300">
+                          قيد المراجعة ⏳
+                        </span>
+                      )}
+                    </div>
 
-              {/* بطاقة رد القيادة الرسمي */}
-              <div className={`mb-6 p-4 rounded-2xl border ${
-                viewingInquiryModal.status === 'approved'
-                  ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
-                  : viewingInquiryModal.status === 'rejected'
-                  ? 'bg-rose-50 border-rose-300 text-rose-950'
-                  : 'bg-amber-50 border-amber-300 text-amber-950'
-              }`}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-black flex items-center gap-1.5">
-                    {viewingInquiryModal.status === 'approved' && '✅ قرار القيادة: تمت الموافقة والاعتماد'}
-                    {viewingInquiryModal.status === 'rejected' && '❌ قرار القيادة: نعتذر، لم يتم الاعتماد'}
-                    {viewingInquiryModal.status !== 'approved' && viewingInquiryModal.status !== 'rejected' && '⏳ قيد المراجعة والدراسة'}
-                  </span>
-                  {viewingInquiryModal.respondedBy && (
-                    <span className="text-[11px] font-bold opacity-80">
-                      بواسطة: {viewingInquiryModal.respondedBy}
-                    </span>
-                  )}
-                </div>
+                    {/* بطاقة الطلب الأصلي */}
+                    <div className="mb-4 p-4 rounded-2xl bg-gray-50 border border-gray-200">
+                      <p className="text-xs font-bold text-gray-500 mb-1">الطلب المُرسل:</p>
+                      <b className="text-sm text-gray-900 block mb-2">{viewingInquiryModal.title}</b>
+                      <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
+                        {viewingInquiryModal.details}
+                      </p>
+                    </div>
 
-                <p className="text-xs leading-relaxed whitespace-pre-wrap font-medium">
-                  {viewingInquiryModal.responseText ||
-                    viewingInquiryModal.decisionNotes ||
-                    (viewingInquiryModal.status === 'approved'
-                      ? 'تم اعتماد طلبك رسمياً وتفعيل الصلاحية/النقاط في حسابك بنجاح.'
-                      : 'طلبك قيد المتابعة من قِبل إدارة المسار.')}
-                </p>
+                    {/* بطاقة رد القيادة الرسمي */}
+                    <div className={`mb-6 p-4 rounded-2xl border ${
+                      isApproved
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                        : isRejected
+                        ? 'bg-rose-50 border-rose-300 text-rose-950'
+                        : 'bg-amber-50 border-amber-300 text-amber-950'
+                    }`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-black flex items-center gap-1.5">
+                          {isApproved && '✅ قرار القيادة: تمت الموافقة والاعتماد'}
+                          {isRejected && '❌ قرار القيادة: نعتذر، لم يتم الاعتماد'}
+                          {!isApproved && !isRejected && '⏳ قيد المراجعة والدراسة'}
+                        </span>
+                        {viewingInquiryModal.respondedBy && (
+                          <span className="text-[11px] font-bold opacity-80">
+                            بواسطة: {viewingInquiryModal.respondedBy}
+                          </span>
+                        )}
+                      </div>
 
-                {viewingInquiryModal.status === 'approved' && (
-                  <div className="mt-3 pt-2 border-t border-emerald-200 text-[11px] font-bold text-emerald-800">
-                    ⭐ الأثر: تم تفعيل الصلاحية أو رصد نقاط الإنجاز لحسابك تلقائياً.
-                  </div>
-                )}
-              </div>
+                      <p className="text-xs leading-relaxed whitespace-pre-wrap font-medium">
+                        {viewingInquiryModal.responseText ||
+                          viewingInquiryModal.response_text ||
+                          viewingInquiryModal.decisionNotes ||
+                          (isApproved
+                            ? 'تم اعتماد طلبك رسمياً وتفعيل الصلاحية/النقاط في حسابك بنجاح.'
+                            : 'طلبك قيد المتابعة من قِبل إدارة المسار.')}
+                      </p>
+
+                      {isApproved && (
+                        <div className="mt-3 pt-2 border-t border-emerald-200 text-[11px] font-bold text-emerald-800">
+                          ⭐ الأثر: تم تفعيل الصلاحية أو رصد نقاط الإنجاز لحسابك تلقائياً.
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
 
               <div className="flex justify-end">
                 <button

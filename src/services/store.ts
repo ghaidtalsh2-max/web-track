@@ -30,9 +30,11 @@ import {
   AdminScheduledWorkshop,
   WorkshopAttendanceRecord,
   AttendanceEvent,
+  ShowcaseSlot,
 } from '../types';
 import { supabase } from './supabase';
 import type { Session } from '@supabase/supabase-js';
+import { deletePersistedLocalFile, persistLocalDataUrl } from './fileStorage';
 
 // البريد المشتق من اسم المستخدم (يطابق ما ينشئه scripts/provision_accounts.cjs)
 const AUTH_EMAIL_DOMAIN = 'members.gdgtu.local';
@@ -460,13 +462,50 @@ const STORAGE_KEYS = {
   ATTENDANCE_EVENTS: 'gdg_webtrack_attendance_events_v2',
   RESOURCES: 'gdg_webtrack_resources_v1',
   PROJECTS: 'gdg_webtrack_showcase_projects_v1',
+  SHOWCASE_SLOTS: 'gdg_webtrack_showcase_slots_v2',
 };
+
+export const DEFAULT_SHOWCASE_SLOTS: ShowcaseSlot[] = [
+  {
+    id: 'slot-workshop-tasks',
+    title: 'تطبيقات تاسكات الورش',
+    description: 'الخانات البرمجية المحددة للورش والتاسكات المعتمدة، مع تسليمات ومشاريع الأعضاء.',
+    stageName: 'المرحلة 01',
+    category: 'workshop',
+    color: '#4285F4',
+    createdBy: 'system',
+    createdByName: 'قادة المسار',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'slot-space-arvr',
+    title: 'مشاركات معرض الـفضاء / AR&VR',
+    description: 'إبداعات وأعمال الأعضاء في فعاليات ومعرض الفضاء وتقنيات الواقع المعزز والافتراضي.',
+    stageName: 'المرحلة 02',
+    category: 'workshop',
+    color: '#EA4335',
+    createdBy: 'system',
+    createdByName: 'قادة المسار',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'slot-google-auth',
+    title: 'مهمة تسجيل الدخول بحساب قوقل',
+    description: 'تطبيقات ومشاريع تكامل تسجيل الدخول عبر Google OAuth وFirebase Auth.',
+    stageName: 'المرحلة 02',
+    category: 'workshop',
+    color: '#34A853',
+    createdBy: 'system',
+    createdByName: 'قادة المسار',
+    createdAt: new Date().toISOString(),
+  },
+];
 
 // قائمة فعاليات وورش التحضير الأساسية المعتمدة
 export const INITIAL_ATTENDANCE_EVENTS: AttendanceEvent[] = [
   {
     id: 'evt-intro',
-    title: 'لقاء المجال التعريفي (أمس)',
+    title: 'اللقاء التعريفي',
     type: 'meeting',
     dateStr: 'الخميس 29 أكتوبر 2026',
     pointsReward: 20,
@@ -532,6 +571,8 @@ export const INITIAL_ATTENDANCE_EVENTS: AttendanceEvent[] = [
 // مجموعات التحديات والخيارات المعتمدة (فارغة حتى تطرحها القائدة)
 export const INITIAL_CHALLENGE_GROUPS: ChallengeGroup[] = [];
 
+// قائمة الملفات الإثرائية المعتمدة لمسار الويب (فارغة افتراضياً حتى يضيفها القادة بأنفسهم)
+export const INITIAL_TRACK_RESOURCES: TrackResource[] = [];
 
 // الورش الرسمية المعتمدة (فارغة افتراضياً حتى يضيفها القادة)
 export const INITIAL_WORKSHOPS: Workshop[] = [];
@@ -1577,6 +1618,25 @@ class StoreManager {
     if (!localStorage.getItem(STORAGE_KEYS.CUSTOM_LAB_CHALLENGES)) {
       localStorage.setItem(STORAGE_KEYS.CUSTOM_LAB_CHALLENGES, JSON.stringify([]));
     }
+    if (!localStorage.getItem(STORAGE_KEYS.RESOURCES)) {
+      localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify([]));
+    }
+    // تنظيف فوري لأي ملفات إثرائية تجريبية أو وهمية متبقية في localStorage
+    try {
+      const existingRes = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESOURCES) || '[]');
+      if (Array.isArray(existingRes)) {
+        const cleaned = existingRes.filter((r: any) =>
+          r &&
+          r.id !== 'res-ws-1-slides' &&
+          r.id !== 'res-css-grid-cheat' &&
+          r.id !== 'res-web-dev-guide' &&
+          !r.title?.includes('سلايدات الورشة 01') &&
+          !r.title?.includes('مرجع الأكواد السريع') &&
+          !r.title?.includes('دليل مطور الويب الشامل')
+        );
+        localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(cleaned));
+      }
+    } catch {}
 
     this.initAuth();
   }
@@ -2173,19 +2233,37 @@ class StoreManager {
       repoUrl: s.repo_url,
       submittedAt: s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('ar-SA') : '',
     }));
-    this.inquiries = (inqRes.data || []).map((r: any) => ({
-      id: r.id,
-      userId: r.profile_id,
-      userName: r.user_name,
-      userAvatar: (r.user_name || 'م').charAt(0),
-      title: r.title,
-      details: r.details,
-      status: r.status,
-      responseText: r.response_text || undefined,
-      respondedBy: r.answered_by || undefined,
-      respondedAt: r.answered_at ? new Date(r.answered_at).toLocaleDateString('ar-SA') : undefined,
-      createdAt: r.created_at ? new Date(r.created_at).toLocaleDateString('ar-SA') : '',
-    }));
+    let resolvedData: Record<string, any> = {};
+    try {
+      resolvedData = JSON.parse(localStorage.getItem('gdg_webtrack_resolved_inquiries_data') || '{}');
+    } catch {}
+    let resolvedInqIds: string[] = Object.keys(resolvedData);
+
+    this.inquiries = (inqRes.data || []).map((r: any) => {
+      const saved = resolvedData[r.id];
+      const isResolved =
+        Boolean(saved) ||
+        resolvedInqIds.includes(r.id) ||
+        r.status === 'answered' ||
+        r.status === 'approved' ||
+        r.status === 'rejected' ||
+        Boolean(r.response_text);
+
+      return {
+        id: r.id,
+        userId: r.profile_id,
+        userName: r.user_name,
+        userAvatar: (r.user_name || 'م').charAt(0),
+        title: r.title,
+        details: r.details,
+        status: saved?.status || (isResolved ? 'answered' : (r.status || 'new')),
+        decision: saved?.decision || (r.status === 'approved' ? 'approved' : r.status === 'rejected' ? 'rejected' : undefined),
+        responseText: saved?.responseText || r.response_text || (isResolved ? 'تم الرد والاعتماد' : undefined),
+        respondedBy: saved?.respondedBy || r.answered_by || undefined,
+        respondedAt: saved?.respondedAt || (r.answered_at ? new Date(r.answered_at).toLocaleDateString('ar-SA') : undefined),
+        createdAt: r.created_at ? new Date(r.created_at).toLocaleDateString('ar-SA') : '',
+      };
+    });
     this.pointsLedger = dedupedLedger.map((l: any) => ({
       ...l,
       memberName: byId.get(l.profile_id)?.fullName || '—',
@@ -2488,35 +2566,37 @@ class StoreManager {
         ? 'رابط تطبيق عملي'
         : 'رابط Git للمشروع';
 
-    // تسجيل التسليم كـ Submission رسمي للاعتماد وليس كاستفسار
-    const taskId = `skill-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-    try {
-      await supabase.from('tasks').upsert(
-        {
-          id: taskId,
-          title: `تسليم إثبات مهارة: ${skillName}`,
-          target_level: 'beginner',
-          due_date: new Date().toISOString(),
-          points: 25,
-          is_active: true,
-        },
-        { onConflict: 'id' }
-      );
+    // تسجيل التسليم كـ Submission رسمي للاعتماد فقط إذا كان تسليماً برابط حقيقي (وليس كويز)
+    if (proofType !== 'quiz' && proofValue.startsWith('http')) {
+      const taskId = `skill-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+      try {
+        await supabase.from('tasks').upsert(
+          {
+            id: taskId,
+            title: `تسليم إثبات مهارة: ${skillName}`,
+            target_level: 'beginner',
+            due_date: new Date().toISOString(),
+            points: 25,
+            is_active: true,
+          },
+          { onConflict: 'id' }
+        );
 
-      await supabase.from('submissions').upsert(
-        {
-          id: `sub-skill-${userId}-${taskId}`,
-          task_id: taskId,
-          profile_id: userId,
-          repo_url: proofValue.startsWith('http') ? proofValue : 'https://gdg-taif.dev',
-          live_url: proofValue.startsWith('http') ? proofValue : null,
-          notes: `إثبات مهارة (${proofLabel}): ${proofValue}`,
-          status: 'in_review',
-        },
-        { onConflict: 'id' }
-      );
-    } catch (e) {
-      console.warn('Submissions insert warning:', e);
+        await supabase.from('submissions').upsert(
+          {
+            id: `sub-skill-${userId}-${taskId}`,
+            task_id: taskId,
+            profile_id: userId,
+            repo_url: proofValue,
+            live_url: proofValue,
+            notes: `إثبات مهارة (${proofLabel}): ${proofValue}`,
+            status: 'in_review',
+          },
+          { onConflict: 'id' }
+        );
+      } catch (e) {
+        console.warn('Submissions insert warning:', e);
+      }
     }
 
     await this.refreshData();
@@ -2605,36 +2685,7 @@ class StoreManager {
       console.warn('Could not record quiz points in Supabase:', e);
     }
 
-    // 3. تسجيل التسليم في قائمة التسليمات الرسمية لقائدة المسار
-    const taskId = `skill-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-    try {
-      await supabase.from('tasks').upsert(
-        {
-          id: taskId,
-          title: `اجتياز كويز مهارة: ${skillName}`,
-          target_level: 'beginner',
-          due_date: new Date().toISOString(),
-          points: 25,
-          is_active: true,
-        },
-        { onConflict: 'id' }
-      );
-
-      await supabase.from('submissions').upsert(
-        {
-          id: `sub-quiz-${userId}-${taskId}`,
-          task_id: taskId,
-          profile_id: userId,
-          repo_url: 'https://gdg-taif.dev/quiz',
-          notes: `اجتياز كويز مهارة ${skillName} بنجاح (${score}/4) ✓`,
-          status: 'in_review',
-        },
-        { onConflict: 'id' }
-      );
-    } catch (e) {
-      console.warn('Submissions quiz insert warning:', e);
-    }
-
+    // 3. الكويزات معتمدة في بروفايل العضو فقط ونقاطه ولا تُرسل كـ Submission للمعرض
     await this.refreshData();
     this.notify();
     return true;
@@ -3255,7 +3306,7 @@ class StoreManager {
       await supabase
         .from('inquiries')
         .update({
-          status: decision,
+          status: 'answered',
           response_text: responseText,
           answered_by: leaderName,
           answered_at: now,
@@ -3270,16 +3321,31 @@ class StoreManager {
       if (inq.id === inquiryId) {
         return {
           ...inq,
-          status: decision,
+          status: 'answered',
           decision,
           decisionNotes: notes.trim(),
           responseText,
           respondedBy: leaderName,
           respondedAt: 'الآن',
+          answered_by: leaderName,
+          answered_at: now,
         };
       }
       return inq;
     });
+
+    // 2.1 حفظ كامل تفاصيل الرد والقرار في التخزين المحلي لضمان ظهورها للعضو دائماً
+    try {
+      const storedData = JSON.parse(localStorage.getItem('gdg_webtrack_resolved_inquiries_data') || '{}');
+      storedData[inquiryId] = {
+        status: 'answered',
+        decision,
+        responseText,
+        respondedBy: leaderName,
+        respondedAt: new Date().toLocaleDateString('ar-SA'),
+      };
+      localStorage.setItem('gdg_webtrack_resolved_inquiries_data', JSON.stringify(storedData));
+    } catch {}
 
     // 3. في حال الموافقة: تفعيل الصلاحيات والنقاط والمشاريع تلقائياً
     if (decision === 'approved' && targetInq) {
@@ -3329,16 +3395,23 @@ class StoreManager {
       }
     }
 
-    // 4. إشعار للمرسل
-    if (userId) {
+    // 4. إشعار فوري وتنبيه للمُرسل يظهر في شريط الإشعارات والجرس
+    let targetRecipientId = userId;
+    if (!targetRecipientId && targetInq?.userName) {
+      const found = this.members.find(
+        (m) =>
+          m.fullName.toLowerCase().includes(targetInq.userName.toLowerCase()) ||
+          targetInq.userName.toLowerCase().includes(m.fullName.toLowerCase())
+      );
+      if (found) targetRecipientId = found.id;
+    }
+
+    if (targetRecipientId) {
       try {
         this.addNotification({
-          userId,
+          userId: targetRecipientId,
           title: decision === 'approved' ? 'تهانينا! تمت الموافقة على طلبك ✅' : 'تحديث بشأن طلبك 📋',
-          message:
-            decision === 'approved'
-              ? `تمت الموافقة على طلبك (${targetInq?.title || 'طلبك'}) وتفعيل الصلاحية بنجاح.`
-              : `نعتذر، لم يتم اعتماد طلبك (${targetInq?.title || 'طلبك'}): ${responseText}`,
+          message: `رد القيادة (${leaderName}): ${responseText}`,
           type: decision === 'approved' ? 'success' : 'info',
         });
       } catch {}
@@ -3778,7 +3851,14 @@ class StoreManager {
       };
     }
     const members = this.getMembers().filter((m) => m.role === 'member');
-    const submissions = this.getSubmissions();
+    const submissions = this.getSubmissions().filter((s) => {
+      const t = (s.taskTitle || s.task?.title || s.notes || '').toLowerCase();
+      if (t.includes('كويز') || t.includes('quiz') || s.id?.includes('quiz') || (s.repo_url && s.repo_url.includes('quiz')) || (s.repoUrl && s.repoUrl.includes('quiz'))) return false;
+      const hasLink =
+        (s.repoUrl && s.repoUrl.startsWith('http') && !s.repoUrl.includes('quiz') && s.repoUrl !== 'https://github.com') ||
+        (s.live_url && s.live_url.startsWith('http') && !s.live_url.includes('quiz'));
+      return Boolean(hasLink);
+    });
     const pendingSubmissions = submissions.filter((s) => s.status === 'in_review' || s.status === 'pending');
     const tasks = this.getTasks().filter((t) => t.is_active !== false);
     const approvedSubmissions = submissions.filter((s) => s.status === 'approved');
@@ -3881,37 +3961,91 @@ class StoreManager {
     }
   }
 
-  // --- Resources & Enrichment Library (ملفات المسار والملفات الإثرائية) ---
+  // --- Resources & Enrichment Library (ملفات المسار والملفات الإثرائية المعتمدة) ---
   public getResources(): TrackResource[] {
     const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.RESOURCES) : null;
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
-      const mockResourceTitles = [
-        'دليل التعلم المعتمد',
-        'مرجع الأكواد السريعة',
-        'حقيبة أدوات المطور',
-      ];
-      return parsed.filter((r: any) => {
-        if (!r || r.id?.startsWith('res-guide-') || r.id?.startsWith('res-cheatsheet-') || r.id?.startsWith('res-slides-')) return false;
-        if (mockResourceTitles.some((t) => r.title?.includes(t))) return false;
-        return true;
-      });
-    } catch {
-      return [];
+    let list: TrackResource[] = [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const mockResourceIds = ['res-ws-1-slides', 'res-css-grid-cheat', 'res-web-dev-guide'];
+          const mockTitles = ['سلايدات الورشة 01', 'مرجع الأكواد السريع', 'دليل مطور الويب الشامل'];
+          let needsSanitization = false;
+          list = parsed
+            .filter((r: any) => {
+              if (!r) return false;
+              if (mockResourceIds.includes(r.id)) return false;
+              if (mockTitles.some((t) => (r.title || '').includes(t))) return false;
+              return true;
+            })
+            .map((r: any) => {
+              let url = r.fileUrl || '';
+              // إذا كان الملف يحتوي على DataURL قديم متضخم في localStorage، نرحله إلى IndexedDB وننظف localStorage
+              if (url.startsWith('data:') || (r.fileData && r.fileData.startsWith('data:'))) {
+                const data = r.fileData || url;
+                if (typeof window !== 'undefined') {
+                  persistLocalDataUrl(r.id, data, r.fileName, r.fileSize).catch(() => {});
+                }
+                url = `local://${r.id}`;
+                needsSanitization = true;
+              }
+              return {
+                ...r,
+                fileUrl: url.replace(/^https?:\/\/blob:/i, 'blob:'),
+                fileData: undefined,
+              };
+            });
+
+          // تحرير مساحة localStorage فوراً إذا وُجدت بيانات Base64 متضخمة
+          if (needsSanitization && typeof window !== 'undefined') {
+            try {
+              localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(list));
+            } catch {}
+          }
+        }
+      } catch {}
     }
+    return list;
   }
 
-  public addResource(resData: Omit<TrackResource, 'id' | 'uploadedAt'>): TrackResource {
+  public addResource(resData: Partial<TrackResource> & Omit<TrackResource, 'uploadedAt'>): TrackResource {
+    const assignedId = resData.id || `res-${Date.now()}`;
+    let cleanUrl = (resData.fileUrl || '').replace(/^https?:\/\/blob:/i, 'blob:');
+    if (cleanUrl.startsWith('data:')) {
+      cleanUrl = `local://${assignedId}`;
+    }
+
     const newRes: TrackResource = {
-      ...resData,
-      id: `res-${Date.now()}`,
+      id: assignedId,
       uploadedAt: new Date().toISOString().split('T')[0],
+      title: resData.title || 'ملف إثرائي',
+      description: resData.description || 'ملف إثرائي لمسار الويب',
+      category: resData.category || 'slides',
+      fileUrl: cleanUrl,
+      fileType: resData.fileType || 'pdf',
+      fileSize: resData.fileSize || '١٫٠ MB',
+      fileName: resData.fileName,
+      fileData: resData.fileData, // في الذاكرة الحالية للمعروضات الفورية
+      workshopName: resData.workshopName || 'عام',
+      color: resData.color || '#4285F4',
+      uploadedBy: resData.uploadedBy || 'قائد المسار',
     };
     const current = this.getResources();
     const updated = [newRes, ...current];
-    localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(updated));
+
+    // حفظ خفيف الوزن للغاية في localStorage ليتسع لمئات الملفات دون أي خطأ في المساحة (IndexedDB يحفظ الثنائيات)
+    const storageList = updated.map((r) => ({
+      ...r,
+      fileData: undefined,
+      fileUrl: (r.fileUrl && r.fileUrl.startsWith('data:')) ? `local://${r.id}` : r.fileUrl,
+    }));
+
+    try {
+      localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(storageList));
+    } catch (e) {
+      console.warn('Error saving resources to localStorage:', e);
+    }
     this.notify();
     return newRes;
   }
@@ -3919,7 +4053,10 @@ class StoreManager {
   public deleteResource(id: string): void {
     const current = this.getResources();
     const updated = current.filter((r) => r.id !== id);
-    localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(updated));
+    try {
+      localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(updated));
+    } catch {}
+    deletePersistedLocalFile(id).catch(() => {});
     this.notify();
   }
 
@@ -3945,7 +4082,12 @@ class StoreManager {
             if (!p || p.id?.startsWith('proj-demo-')) return false;
             if (mockTitles.some((t) => p.title?.includes(t))) return false;
             if (mockNames.some((n) => p.memberName?.includes(n))) return false;
-            return true;
+            if (p.title?.includes('كويز') || p.title?.toLowerCase().includes('quiz') || p.id?.includes('quiz')) return false;
+            const gh = (p.githubUrl || '').trim();
+            const lv = (p.liveUrl || '').trim();
+            const hasRealGh = gh.startsWith('http') && gh !== 'https://github.com' && !gh.includes('quiz') && !gh.includes('gdg-taif.dev');
+            const hasRealLv = lv.startsWith('http') && !lv.includes('quiz') && !lv.includes('gdg-taif.dev');
+            return hasRealGh || hasRealLv;
           });
         }
       } catch {}
@@ -3963,11 +4105,30 @@ class StoreManager {
       );
     };
 
-    // 1. جلب كل التسليمات الحقيقية التي تحتوي على روابط (المعتمدة وقيد المراجعة)
+    // 1. جلب كل التسليمات الحقيقية التي تحتوي على روابط (المعتمدة وقيد المراجعة) مع استبعاد الكويزات تماماً
     this.getSubmissions().forEach((s: any, idx: number) => {
       const repoUrl = s.repo_url || s.repoUrl;
       const liveUrl = s.live_url || s.liveUrl;
-      if (!repoUrl && !liveUrl) return;
+      const title = s.taskTitle || s.task?.title || '';
+      const notes = s.notes || '';
+
+      // الكويزات معتمدة في بروفايل العضو فقط ولا تظهر في المعرض
+      if (
+        title.includes('كويز') ||
+        title.toLowerCase().includes('quiz') ||
+        notes.includes('كويز') ||
+        notes.toLowerCase().includes('quiz') ||
+        s.id?.includes('quiz') ||
+        s.task_id?.includes('quiz') ||
+        (repoUrl && repoUrl.includes('quiz'))
+      ) {
+        return;
+      }
+
+      // المعرض فقط مشاريع بروابط حقيقية (GitHub أو رابط المعاينة)
+      const isRealRepo = repoUrl && repoUrl.startsWith('http') && repoUrl !== 'https://github.com' && !repoUrl.includes('quiz') && !repoUrl.includes('gdg-taif.dev');
+      const isRealLive = liveUrl && liveUrl.startsWith('http') && !liveUrl.includes('quiz') && !liveUrl.includes('gdg-taif.dev');
+      if (!isRealRepo && !isRealLive) return;
 
       if (hasProjectWithUrls(repoUrl, liveUrl)) return;
 
@@ -3976,21 +4137,26 @@ class StoreManager {
 
       projectItems.push({
         id: s.id || `sub-proj-${idx}`,
-        title: s.taskTitle || s.task?.title || 'مشروع تطبيقي للمسار',
+        title: title || 'مشروع تطبيقي للمسار',
         memberName,
         stageName: member?.webLevelTitle?.split(':')[1] || 'المرحلة 02',
         status: s.status === 'approved' ? 'approved' : 'in_review',
         color: gdgColors[projectItems.length % gdgColors.length],
-        githubUrl: repoUrl || 'https://github.com',
-        liveUrl: liveUrl || undefined,
-        category: (s.taskTitle || '').includes('ورشة') ? 'تطبيق ورشة' : 'المشاريع الحرة',
-        isWorkshopTask: Boolean((s.taskTitle || '').includes('ورشة') || (s.taskTitle || '').includes('تحدي')),
+        githubUrl: isRealRepo ? repoUrl : (isRealLive ? liveUrl : 'https://github.com'),
+        liveUrl: isRealLive ? liveUrl : undefined,
+        category: (title || '').includes('ورشة') ? 'تطبيق ورشة' : 'المشاريع الحرة',
+        isWorkshopTask: Boolean((title || '').includes('ورشة') || (title || '').includes('تحدي')),
       });
     });
 
     // 2. جلب اختيارات التحديات التي سلمها الأعضاء بروابط مباشرة
-    this.getChallengeChoices().forEach((c: any) => {
+    const choices = typeof this.getChallengeChoices === 'function' ? this.getChallengeChoices() : [];
+    choices.forEach((c: any) => {
       if (!c.repoUrl && !c.liveUrl) return;
+      const isRealRepo = c.repoUrl && c.repoUrl.startsWith('http') && c.repoUrl !== 'https://github.com' && !c.repoUrl.includes('quiz');
+      const isRealLive = c.liveUrl && c.liveUrl.startsWith('http') && !c.liveUrl.includes('quiz');
+      if (!isRealRepo && !isRealLive) return;
+
       if (hasProjectWithUrls(c.repoUrl, c.liveUrl)) return;
 
       const member = this.getMemberById(c.memberId);
@@ -4003,20 +4169,26 @@ class StoreManager {
         stageName: member?.webLevelTitle?.split(':')[1] || 'المرحلة 02',
         status: c.status === 'approved' ? 'approved' : 'in_review',
         color: gdgColors[projectItems.length % gdgColors.length],
-        githubUrl: c.repoUrl || 'https://github.com',
-        liveUrl: c.liveUrl || undefined,
+        githubUrl: isRealRepo ? c.repoUrl : (isRealLive ? c.liveUrl : 'https://github.com'),
+        liveUrl: isRealLive ? c.liveUrl : undefined,
         category: 'تطبيق ورشة',
         isWorkshopTask: true,
       });
     });
 
-    // 3. فحص استفسارات ورسائل الأعضاء في حال أرفق العضو رابط مشروعه (مثل إثباتات الروابط ورسائل عبدالعزيز)
+    // 3. فحص استفسارات ورسائل الأعضاء في حال أرفق العضو رابط مشروعه الحقيقي
     this.getInquiries().forEach((inq: any) => {
+      const rawTitle = inq.title || '';
+      if (rawTitle.includes('كويز') || rawTitle.toLowerCase().includes('quiz')) return;
+
       const details = inq.details || '';
       const urlMatches = details.match(/https?:\/\/[^\s]+/g);
       if (urlMatches && urlMatches.length > 0) {
-        const ghUrl = urlMatches.find((u: string) => u.includes('github.com')) || urlMatches[0];
-        const lvUrl = urlMatches.find(
+        const realUrls = urlMatches.filter((u: string) => !u.includes('quiz') && !u.includes('gdg-taif.dev'));
+        if (realUrls.length === 0) return;
+
+        const ghUrl = realUrls.find((u: string) => u.includes('github.com')) || realUrls[0];
+        const lvUrl = realUrls.find(
           (u: string) =>
             !u.includes('github.com') &&
             (u.includes('vercel.app') ||
@@ -4031,7 +4203,6 @@ class StoreManager {
 
         const member = this.getMemberById(inq.userId);
         const memberName = inq.userName || member?.fullName || 'عضو مسار الويب';
-        const rawTitle = inq.title || 'مشروع تطبيقي';
         const cleanTitle = rawTitle
           .replace('تسليم جديد:', '')
           .replace('طلب اعتماد', 'مشروع تطبيقي')
@@ -4045,7 +4216,7 @@ class StoreManager {
           stageName: member?.webLevelTitle?.split(':')[1] || 'المرحلة 02',
           status: inq.status === 'approved' ? 'approved' : 'in_review',
           color: gdgColors[projectItems.length % gdgColors.length],
-          githubUrl: ghUrl || 'https://github.com',
+          githubUrl: ghUrl || lvUrl || 'https://github.com',
           liveUrl: lvUrl || undefined,
           category: inq.title?.includes('ورشة') ? 'تطبيق ورشة' : 'المشاريع الحرة',
           isWorkshopTask: Boolean(inq.title?.includes('ورشة') || inq.title?.includes('تحدي')),
@@ -4053,12 +4224,112 @@ class StoreManager {
       }
     });
 
-    return projectItems;
+    // تصفية نهائية صارمة: المعرض فقط مشاريع بروابط حقيقية والكويزات تظهر في البروفايل فقط
+    return projectItems.filter((p) => {
+      const t = (p.title || '').toLowerCase();
+      if (t.includes('كويز') || t.includes('quiz') || p.id?.includes('quiz')) return false;
+      const gh = p.githubUrl || '';
+      const lv = p.liveUrl || '';
+      const isRealGh = gh.startsWith('http') && gh !== 'https://github.com' && !gh.includes('quiz') && !gh.includes('gdg-taif.dev');
+      const isRealLv = lv.startsWith('http') && !lv.includes('quiz') && !lv.includes('gdg-taif.dev');
+      return Boolean(isRealGh || isRealLv);
+    });
   }
 
   public getWorkshopShowcaseItems(): any[] {
     const all = this.getShowcaseProjects();
     return all.filter((p) => p.isWorkshopTask || p.category?.includes('ورشة') || p.category?.includes('مهمة') || p.category?.includes('تحدي'));
+  }
+
+  public getShowcaseSlots(): ShowcaseSlot[] {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.SHOWCASE_SLOTS) : null;
+    if (!raw) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.SHOWCASE_SLOTS, JSON.stringify(DEFAULT_SHOWCASE_SLOTS));
+      }
+      return DEFAULT_SHOWCASE_SLOTS;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      return DEFAULT_SHOWCASE_SLOTS;
+    } catch {
+      return DEFAULT_SHOWCASE_SLOTS;
+    }
+  }
+
+  public addShowcaseSlot(slotData: Omit<ShowcaseSlot, 'id' | 'createdAt'>): ShowcaseSlot {
+    const newSlot: ShowcaseSlot = {
+      ...slotData,
+      id: `slot-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    const current = this.getShowcaseSlots();
+    const updated = [newSlot, ...current];
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.SHOWCASE_SLOTS, JSON.stringify(updated));
+    }
+    this.notify();
+    return newSlot;
+  }
+
+  public deleteShowcaseSlot(id: string): void {
+    const current = this.getShowcaseSlots();
+    const updated = current.filter((s) => s.id !== id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.SHOWCASE_SLOTS, JSON.stringify(updated));
+    }
+    this.notify();
+  }
+
+  public submitProjectToSlot(submission: {
+    slotId?: string;
+    slotTitle?: string;
+    title: string;
+    githubUrl: string;
+    liveUrl?: string;
+    notes?: string;
+    memberId: string;
+    memberName: string;
+    stageName?: string;
+    color?: string;
+  }): any {
+    const newProj = {
+      id: `proj-${Date.now()}`,
+      slotId: submission.slotId,
+      title: submission.title.trim(),
+      memberName: submission.memberName.trim(),
+      memberId: submission.memberId,
+      stageName: submission.stageName || 'المرحلة 02',
+      status: 'approved',
+      color: submission.color || '#34A853',
+      githubUrl: submission.githubUrl.trim(),
+      liveUrl: submission.liveUrl?.trim() || undefined,
+      category: 'تطبيق ورشة',
+      workshopTaskName: submission.slotTitle || 'تطبيق ورشة',
+      isWorkshopTask: true,
+      createdAt: new Date().toISOString(),
+      notes: submission.notes,
+    };
+    const current = this.getShowcaseProjects();
+    const updated = [newProj, ...current];
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(updated));
+    }
+    try {
+      this.addInquiry({
+        userId: submission.memberId,
+        userName: submission.memberName,
+        title: `تسليم عمل للمعرض: ${submission.title}`,
+        category: 'project',
+        details: `تسليم عمل في خانة "${submission.slotTitle || 'المعرض'}":\nرابط GitHub: ${submission.githubUrl}\nرابط المعاينة: ${submission.liveUrl || 'لا يوجد'}\nملاحظات: ${submission.notes || 'لا يوجد'}`,
+        status: 'approved',
+      });
+    } catch (e) {
+      console.warn('Inquiry notice:', e);
+    }
+    this.notify();
+    return newProj;
   }
 
   public addShowcaseProject(projData: any): any {
@@ -4112,6 +4383,17 @@ class StoreManager {
 
     this.notify();
     return newGroup;
+  }
+
+  public getChallengeChoices(): ChallengeChoice[] {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.CHALLENGE_CHOICES) : null;
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   }
 
   public getMemberChallengeChoice(memberId: string, groupId: string): ChallengeChoice | null {
@@ -4440,12 +4722,68 @@ class StoreManager {
       localStorage.setItem(STORAGE_KEYS.WORKSHOPS, JSON.stringify(currentWorkshops));
     }
 
-    // إضافة التاسك كالمهمة المعتمدة
+    // 1. إضافة وتحديث التحدي التلقائي في مجموعات التحديات مع تفاصيل التاسك ومواعيد التسليم
+    const daysCount = ws.submissionDaysCount || 3;
+    const defaultDeliverySlots = ws.deliverySlots && ws.deliverySlots.length > 0
+      ? ws.deliverySlots
+      : [
+          { id: `slot-${ws.id}-d1-t1`, dayLabel: `اليوم 1 (${ws.dateStr.split(' ')[0] || 'اليوم'})`, timeLabel: '04:00 م - 06:00 م', capacity: 10, bookedCount: 0 },
+          { id: `slot-${ws.id}-d1-t2`, dayLabel: `اليوم 1 (${ws.dateStr.split(' ')[0] || 'اليوم'})`, timeLabel: '08:00 م - 10:00 م', capacity: 15, bookedCount: 0 },
+          { id: `slot-${ws.id}-d2-t1`, dayLabel: `اليوم 2 (اليوم التالي)`, timeLabel: '04:00 م - 06:00 م', capacity: 10, bookedCount: 0 },
+          { id: `slot-${ws.id}-d2-t2`, dayLabel: `اليوم 2 (اليوم التالي)`, timeLabel: '08:00 م - 10:00 م', capacity: 15, bookedCount: 0 },
+        ];
+
+    const currentChallengeGroups = this.getChallengeGroups();
+    const existingGroupIdx = currentChallengeGroups.findIndex((g) => g.workshopId === ws.id);
+    const challengeGroupPayload = {
+      id: existingGroupIdx >= 0 ? currentChallengeGroups[existingGroupIdx].id : `grp-${ws.id}`,
+      title: `تحدي ورشة ${ws.titleAr}: ${ws.taskTitle}`,
+      workshopId: ws.id,
+      category: 'workshop' as const,
+      dueDate: `متاح للتسليم لمدة ${daysCount} أيام (${ws.dateStr})`,
+      mode: 'mandatory' as const,
+      options: [
+        {
+          id: `opt-${ws.id}`,
+          name: `${ws.taskNumber}: ${ws.taskTitle}`,
+          description: `واش التاسك: ${ws.taskDescription}`,
+          requirements: `المطلوب: إنجاز المهمة البرمجية المعتمدة لورشة ${ws.titleAr} وفق المعايير والشروط المحددة وتسليمها عبر رابط GitHub أو المعاينة أو إرفاق ملف تطبيقي. متاح للتسليم لمدة ${daysCount} أيام وفق الفترات والمواعيد المحددة.`,
+          points: 50,
+          submissionDaysCount: daysCount,
+          deliverySlots: defaultDeliverySlots,
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    };
+
+    if (existingGroupIdx >= 0) {
+      currentChallengeGroups[existingGroupIdx] = challengeGroupPayload;
+    } else {
+      currentChallengeGroups.unshift(challengeGroupPayload);
+    }
+    localStorage.setItem(STORAGE_KEYS.CHALLENGE_GROUPS, JSON.stringify(currentChallengeGroups));
+
+    // 2. إنشاء خانة للمعرض تلقائياً لهذه الورشة والتاسك
+    const currentSlots = this.getShowcaseSlots();
+    const slotTitle = `تطبيقات ورشة ${ws.titleAr} (${ws.taskNumber})`;
+    if (!currentSlots.some((s) => s.title === slotTitle || s.id === `slot-${ws.id}`)) {
+      this.addShowcaseSlot({
+        title: slotTitle,
+        description: `واش التاسك (${ws.taskTitle}): ${ws.taskDescription}`,
+        stageName: `ورشة ${ws.orderNumber}`,
+        category: 'workshop',
+        color: ['#34A853', '#4285F4', '#EA4335', '#F9AB00'][ws.orderNumber % 4],
+        createdBy: 'admin',
+        createdByName: ws.presenter,
+      });
+    }
+
+    // 3. إضافة التاسك كالمهمة المعتمدة
     this.tasks = [
       {
         id: `task-${ws.id}`,
         title: `${ws.taskNumber} — ${ws.taskTitle}`,
-        description: ws.taskDescription,
+        description: `واش التاسك: ${ws.taskDescription}`,
         pointsReward: 50,
         due_date: ws.dateStr,
         workshop_id: ws.id,
@@ -4461,7 +4799,7 @@ class StoreManager {
         userId: m.id,
         type: 'workshop',
         title: `ورشة معتمدة: ${ws.titleAr}`,
-        description: `المقدّم: ${ws.presenter} · ${ws.dateStr}`,
+        description: `المقدّم: ${ws.presenter} · ${ws.dateStr} · تم تفعيل التحدي وخانة التسليم`,
         badgeText: 'ورشة',
         targetTab: 'home',
       });
@@ -4526,17 +4864,35 @@ class StoreManager {
     }
   }
 
-  public addAttendanceEvent(title: string, type: 'workshop' | 'meeting' | 'other' = 'workshop', dateStr: string = 'نوفمبر 2026', pointsReward: number = 20): AttendanceEvent {
-    const newEvt: AttendanceEvent = {
-      id: `evt-${Date.now()}`,
-      title: title.trim(),
-      type,
-      dateStr: dateStr.trim(),
-      pointsReward,
-    };
+  public addAttendanceEvent(
+    titleOrObj: string | Partial<AttendanceEvent>,
+    type: 'workshop' | 'meeting' | 'other' = 'workshop',
+    dateStr: string = 'نوفمبر 2026',
+    pointsReward: number = 20
+  ): AttendanceEvent {
+    let newEvt: AttendanceEvent;
+    if (typeof titleOrObj === 'object' && titleOrObj !== null) {
+      newEvt = {
+        id: titleOrObj.id || `evt-${Date.now()}`,
+        title: (titleOrObj.title || 'حدث جديد').trim(),
+        type: titleOrObj.type || type,
+        dateStr: (titleOrObj.dateStr || dateStr).trim(),
+        pointsReward: titleOrObj.pointsReward || pointsReward,
+      };
+    } else {
+      newEvt = {
+        id: `evt-${Date.now()}`,
+        title: String(titleOrObj || '').trim(),
+        type,
+        dateStr: dateStr.trim(),
+        pointsReward,
+      };
+    }
     const current = this.getAttendanceEvents();
     const updated = [...current, newEvt];
-    localStorage.setItem(STORAGE_KEYS.ATTENDANCE_EVENTS, JSON.stringify(updated));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.ATTENDANCE_EVENTS, JSON.stringify(updated));
+    }
     this.notify();
     return newEvt;
   }

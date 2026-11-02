@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserProfile, TrackResource } from '../../types';
 import { store } from '../../services/store';
@@ -9,8 +9,22 @@ import {
   Upload,
   Link as LinkIcon,
   CheckCircle2,
+  Eye,
+  Download,
+  ExternalLink,
+  FileText,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import {
+  openTrackFile,
+  downloadTrackFile,
+  persistLocalFile,
+  getPersistedLocalFile,
+  sanitizeViewUrl,
+  sanitizeDownloadUrl,
+} from '../../services/fileStorage';
 
 interface ResourcesViewProps {
   currentUser: UserProfile;
@@ -21,6 +35,15 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // اشتراك فوري في تحديثات المتجر لضمان ظهور الملفات المضافة مباشرة
+  useEffect(() => {
+    setResources(store.getResources());
+    const unsubscribe = store.subscribe(() => {
+      setResources(store.getResources());
+    });
+    return () => unsubscribe();
+  }, []);
+
   const isLeader =
     currentUser.role === 'track_leader' ||
     currentUser.role === 'supervisor' ||
@@ -28,7 +51,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
 
   // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [uploadMode, setUploadMode] = useState<'upload' | 'url'>('url');
+  const [uploadMode, setUploadMode] = useState<'upload' | 'url'>('upload');
   const [title, setTitle] = useState('');
   const [workshopName, setWorkshopName] = useState('Web Fundamentals');
   const [customWorkshop, setCustomWorkshop] = useState('');
@@ -38,33 +61,47 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
   const [fileFormat, setFileFormat] = useState('PDF');
   const [fileSize, setFileSize] = useState('١٫٥ MB');
   const [color, setColor] = useState('#4285F4');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileData, setFileData] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Handle local file selection
+  // Preview Modal State
+  const [previewResource, setPreviewResource] = useState<TrackResource | null>(null);
+  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+  // Handle local file selection with DataURL reading
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedFile(file);
       setFileName(file.name);
-      if (!title) {
+      if (!title.trim()) {
         setTitle(file.name.replace(/\.[^/.]+$/, ''));
       }
       const ext = file.name.split('.').pop()?.toUpperCase() || 'PDF';
       setFileFormat(ext);
       const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-      // Format arabic numerals
       const arSize = `${sizeMb.replace('.', '٫')} MB`;
       setFileSize(arSize);
 
-      // Create blob object URL for demo/preview
-      const blobUrl = URL.createObjectURL(file);
-      setFileUrl(blobUrl);
+      // قراءة الملف كـ DataURL دائم حتى لا يضيع الرابط بعد إعادة التحميل
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dUrl = reader.result as string;
+        setFileData(dUrl);
+        setFileUrl(dUrl);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleAddResource = (e: React.FormEvent) => {
+  const handleAddResource = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !fileUrl.trim()) return;
+    if (!title.trim()) return;
+    if (uploadMode === 'upload' && !fileData && !selectedFile) return;
+    if (uploadMode === 'url' && !fileUrl.trim()) return;
 
     setIsSubmitting(true);
     const finalWorkshop = workshopName === 'custom' ? customWorkshop.trim() || 'عام' : workshopName;
@@ -75,11 +112,32 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
     else if (finalWorkshop.includes('Git & GitHub')) itemColor = '#EA4335';
     else if (finalWorkshop.includes('عام')) itemColor = '#34A853';
 
-    store.addResource({
+    const resId = `res-${Date.now()}`;
+    let finalUrl = fileUrl.trim();
+    let savedFileData = fileData;
+
+    // حفظ الملف محلياً بصورة دائمة في IndexedDB
+    if (uploadMode === 'upload' && selectedFile) {
+      try {
+        const persisted = await persistLocalFile(resId, selectedFile);
+        savedFileData = persisted.dataUrl;
+        finalUrl = `local://${resId}`;
+      } catch (err) {
+        console.warn('Could not persist to indexedDB, fallback to in-memory dataUrl:', err);
+      }
+    } else if (uploadMode === 'url') {
+      finalUrl = sanitizeViewUrl(fileUrl);
+      savedFileData = undefined;
+    }
+
+    const newRes = store.addResource({
+      id: resId,
       title: title.trim(),
       description: `ملف إثرائي معتمد لمسار الويب · ${finalWorkshop}`,
       category,
-      fileUrl: fileUrl.trim(),
+      fileUrl: finalUrl,
+      fileName: fileName.trim() || `${title.trim()}.${fileFormat.toLowerCase()}`,
+      fileData: savedFileData,
       fileType: (fileFormat.toLowerCase() === 'pdf' ? 'pdf' : fileFormat.toLowerCase() === 'link' ? 'link' : 'code') as any,
       fileSize: fileSize.trim() || '١٫٠ MB',
       workshopName: finalWorkshop,
@@ -97,7 +155,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
       });
     }
 
-    setSuccessMsg('تمت إضافة الملف بنجاح وإتاحته للأعضاء! ✨');
+    setSuccessMsg('تمت إضافة الملف بنجاح وإتاحته للأعضاء للفتح والتحميل! ✨');
     setTimeout(() => {
       setIsSubmitting(false);
       setIsAddModalOpen(false);
@@ -105,6 +163,8 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
       setTitle('');
       setFileUrl('');
       setFileName('');
+      setFileData('');
+      setSelectedFile(null);
     }, 1100);
   };
 
@@ -113,6 +173,26 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
       store.deleteResource(id);
       setResources(store.getResources());
     }
+  };
+
+  // فتح الملف ومعاينته فوراً
+  const handleOpenFile = async (res: TrackResource) => {
+    let content = res.fileData;
+    if (!content || !content.startsWith('data:')) {
+      setIsPreviewLoading(true);
+      const persisted = await getPersistedLocalFile(res.id);
+      if (persisted && persisted.startsWith('data:')) {
+        content = persisted;
+      }
+      setIsPreviewLoading(false);
+    }
+    setPreviewResource(res);
+    setPreviewDataUrl(content || (res.fileUrl.startsWith('http') ? res.fileUrl : null));
+  };
+
+  // تحميل الملف المباشر على جهاز المستخدم
+  const handleDownloadFile = async (res: TrackResource) => {
+    await downloadTrackFile(res);
   };
 
   // Filter Logic
@@ -603,10 +683,9 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
 
                       {/* Action Buttons */}
                       <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <a
-                          href={res.fileUrl.startsWith('http') || res.fileUrl.startsWith('blob:') ? res.fileUrl : `https://${res.fileUrl}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => handleOpenFile(res)}
                           className="b cursor-pointer hover:bg-[#E8EAED] transition-colors"
                           style={{
                             background: '#F1F3F4',
@@ -617,20 +696,19 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
                             fontSize: '16px',
                             fontWeight: 700,
                             color: '#0F172A',
-                            textDecoration: 'none',
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
+                            gap: '6px',
                           }}
                         >
-                          فتح
-                        </a>
+                          <Eye size={17} />
+                          <span>فتح</span>
+                        </button>
 
-                        <a
-                          href={res.fileUrl.startsWith('http') || res.fileUrl.startsWith('blob:') ? res.fileUrl : `https://${res.fileUrl}`}
-                          download={res.title}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadFile(res)}
                           className="b cursor-pointer hover:opacity-95 transition-transform active:scale-95"
                           style={{
                             background: itemColor,
@@ -641,28 +719,15 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
                             fontSize: '16px',
                             fontWeight: 700,
                             color: '#0F172A',
-                            textDecoration: 'none',
                             display: 'inline-flex',
                             gap: '6px',
                             alignItems: 'center',
                             justifyContent: 'center',
                           }}
                         >
-                          <svg
-                            viewBox="0 0 24 24"
-                            width="18"
-                            height="18"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                          >
-                            <path d="M12 3v12M7 10l5 5 5-5M4 21h16"></path>
-                          </svg>
+                          <Download size={17} />
                           <span>تحميل</span>
-                        </a>
+                        </button>
 
                         {isLeader && (
                           <button
@@ -697,7 +762,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
 
       {/* Note under card */}
       <p style={{ marginTop: '14px', fontSize: '15px', color: '#5f6673' }}>
-        أسماء وأحجام تجريبية. «إضافة ملف» تفتح نافذة: رفع ملف أو رابط، ثم الورشة والنوع.
+        جميع الملفات الإثرائية المعتمدة لمسار الويب محفوظة ومتاحة للأعضاء للفتح المباشر والتحميل الفوري.
       </p>
 
       {/* Add Resource Modal */}
@@ -1097,7 +1162,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
 
                     <button
                       type="submit"
-                      disabled={isSubmitting || !title.trim() || !fileUrl.trim()}
+                      disabled={isSubmitting || !title.trim() || (uploadMode === 'upload' ? (!fileData && !selectedFile) : !fileUrl.trim())}
                       style={{
                         padding: '10px 30px',
                         borderRadius: '99px',
@@ -1106,16 +1171,269 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ currentUser }) => 
                         color: '#0F172A',
                         fontWeight: 800,
                         fontSize: '15px',
-                        cursor: isSubmitting || !title.trim() || !fileUrl.trim() ? 'not-allowed' : 'pointer',
-                        opacity: isSubmitting || !title.trim() || !fileUrl.trim() ? 0.6 : 1,
+                        cursor: isSubmitting || !title.trim() || (uploadMode === 'upload' ? (!fileData && !selectedFile) : !fileUrl.trim()) ? 'not-allowed' : 'pointer',
+                        opacity: isSubmitting || !title.trim() || (uploadMode === 'upload' ? (!fileData && !selectedFile) : !fileUrl.trim()) ? 0.6 : 1,
                         boxShadow: '0 4px 0 0 #0F172A',
                       }}
                     >
-                      {isSubmitting ? 'جاري الإضافة...' : 'نشر الملف للأعضاء ✨'}
+                      {isSubmitting ? 'جاري حفظ ونشر الملف...' : 'نشر الملف للأعضاء ✨'}
                     </button>
                   </div>
                 </form>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* File Preview Modal (معاينة وفتح وتحميل فوري دائم) */}
+      <AnimatePresence>
+        {previewResource && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 110,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+              backgroundColor: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(6px)',
+            }}
+            onClick={() => setPreviewResource(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: '#fff',
+                borderRadius: '24px',
+                padding: '24px',
+                maxWidth: '900px',
+                width: '100%',
+                maxHeight: '92vh',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                border: '2px solid #0F172A',
+                direction: 'rtl',
+              }}
+            >
+              {/* Header */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingBottom: '16px',
+                  borderBottom: '1px solid #E2E8F0',
+                }}
+              >
+                <div>
+                  <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                    {previewResource.title}
+                  </h3>
+                  <p style={{ fontSize: '13px', color: '#64748B', margin: '4px 0 0' }}>
+                    {previewResource.workshopName || 'مسار الويب'} · {previewResource.fileSize || 'ملف إثرائي'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPreviewResource(null)}
+                  style={{
+                    border: 'none',
+                    background: '#F1F5F9',
+                    borderRadius: '99px',
+                    width: '36px',
+                    height: '36px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Viewer Content */}
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  padding: '20px 0',
+                  minHeight: '380px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {isPreviewLoading ? (
+                  <div style={{ textAlign: 'center' }}>
+                    <Loader2 size={32} className="animate-spin text-blue-600 mx-auto mb-2" />
+                    <p style={{ fontSize: '14px', color: '#64748B' }}>جاري تحميل الملف...</p>
+                  </div>
+                ) : (previewDataUrl && previewDataUrl.startsWith('data:image/')) || previewResource.fileName?.match(/\.(png|jpg|jpeg|webp)$/i) ? (
+                  <img
+                    src={previewDataUrl || previewResource.fileUrl}
+                    alt={previewResource.title}
+                    style={{
+                      maxHeight: '60vh',
+                      maxWidth: '100%',
+                      objectFit: 'contain',
+                      borderRadius: '12px',
+                    }}
+                  />
+                ) : (previewDataUrl && (previewDataUrl.includes('pdf') || previewResource.fileType === 'pdf' || previewResource.fileName?.toLowerCase().endsWith('.pdf'))) || (previewResource.fileUrl && previewResource.fileUrl.endsWith('.pdf')) ? (
+                  <iframe
+                    src={previewDataUrl || (previewResource.fileUrl.startsWith('http') ? previewResource.fileUrl : '')}
+                    title={previewResource.title}
+                    style={{
+                      width: '100%',
+                      height: '60vh',
+                      borderRadius: '12px',
+                      border: '1px solid #CBD5E1',
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      padding: '40px 20px',
+                      background: '#F8FAFC',
+                      borderRadius: '16px',
+                      width: '100%',
+                      border: '2px dashed #CBD5E1',
+                    }}
+                  >
+                    <FileText size={48} className="text-blue-500 mx-auto mb-3" />
+                    <h4 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>
+                      {previewResource.title}
+                    </h4>
+                    <p style={{ fontSize: '14px', color: '#64748B', maxWidth: '420px', margin: '0 auto 20px' }}>
+                      الملف معتمد وجاهز للفتح في علامة تبويب جديدة أو التحميل المباشر إلى جهازك.
+                    </p>
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => openTrackFile(previewResource)}
+                        style={{
+                          backgroundColor: '#4285F4',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '99px',
+                          padding: '10px 24px',
+                          fontWeight: 700,
+                          fontSize: '14px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <ExternalLink size={16} />
+                        <span>فتح في نافذة جديدة</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadFile(previewResource)}
+                        style={{
+                          backgroundColor: '#0F172A',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '99px',
+                          padding: '10px 24px',
+                          fontWeight: 700,
+                          fontSize: '14px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Download size={16} />
+                        <span>تحميل إلى جهازي</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingTop: '16px',
+                  borderTop: '1px solid #E2E8F0',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setPreviewResource(null)}
+                  style={{
+                    padding: '8px 20px',
+                    borderRadius: '99px',
+                    border: 'none',
+                    backgroundColor: '#F1F5F9',
+                    color: '#0F172A',
+                    fontWeight: 700,
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  إغلاق
+                </button>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => openTrackFile(previewResource)}
+                    style={{
+                      padding: '8px 20px',
+                      borderRadius: '99px',
+                      border: '1px solid #CBD5E1',
+                      backgroundColor: '#fff',
+                      color: '#0F172A',
+                      fontWeight: 700,
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <ExternalLink size={15} />
+                    <span>نافذة جديدة</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadFile(previewResource)}
+                    style={{
+                      padding: '8px 24px',
+                      borderRadius: '99px',
+                      border: 'none',
+                      backgroundColor: '#F9AB00',
+                      color: '#0F172A',
+                      fontWeight: 800,
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 0 0 #0F172A',
+                    }}
+                  >
+                    <Download size={15} />
+                    <span>تحميل الملف</span>
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}

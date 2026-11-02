@@ -42,6 +42,8 @@ interface ChallengeCardModel {
   iconBg: string;
   iconColor: string;
   optionLabel: string;
+  deliverySlots?: Array<{ id: string; dayLabel: string; timeLabel: string; capacity: number; bookedCount?: number }>;
+  submissionDaysCount?: number;
 }
 
 export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) => {
@@ -79,6 +81,9 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
   // حالة التسليم للعضو
   const [repoUrl, setRepoUrl] = useState('');
   const [liveUrl, setLiveUrl] = useState('');
+  const [selectedSlotId, setSelectedSlotId] = useState('');
+  const [challengeFile, setChallengeFile] = useState<File | null>(null);
+  const [challengeFileName, setChallengeFileName] = useState('');
   const [submissionSuccessMsg, setSubmissionSuccessMsg] = useState('');
   const [actionErrorMsg, setActionErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -132,6 +137,8 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
         iconBg,
         iconColor,
         optionLabel: `خيار #${optIdx + 1}`,
+        deliverySlots: (opt as any).deliverySlots,
+        submissionDaysCount: (opt as any).submissionDaysCount,
       };
     });
   });
@@ -146,6 +153,9 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
     const choice = store.getMemberChallengeChoice(currentUser.id, card.groupId);
     setRepoUrl(choice?.repoUrl || '');
     setLiveUrl(choice?.liveUrl || '');
+    setSelectedSlotId(card.deliverySlots?.[0]?.id || '');
+    setChallengeFile(null);
+    setChallengeFileName('');
     setSubmissionSuccessMsg(choice?.submitted ? 'تم تسليم هذا التحدي مسبقاً بنجاح ✓' : '');
     setActionErrorMsg('');
   };
@@ -466,6 +476,29 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
 
               {/* نموذج التسليم */}
               <form onSubmit={handleSelectAndSubmit} className="space-y-3 pt-3 border-t border-gray-100">
+                {/* اختيار فترة وموعد التسليم إذا كان التحدي مجدولاً */}
+                {selectedChallenge.deliverySlots && selectedChallenge.deliverySlots.length > 0 && (
+                  <div>
+                    <label className="text-xs font-black text-gray-800 block mb-1">
+                      📅 اختيار موعد وفترة التسليم المعتمدة (حسب السعة المتاحة) *
+                    </label>
+                    <select
+                      value={selectedSlotId}
+                      onChange={(e) => setSelectedSlotId(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-blue-400 bg-blue-50/50 text-xs font-bold text-gray-900 focus:outline-none"
+                    >
+                      {selectedChallenge.deliverySlots.map((s) => {
+                        const remaining = Math.max(0, s.capacity - (s.bookedCount || 0));
+                        return (
+                          <option key={s.id} value={s.id}>
+                            {s.dayLabel} — {s.timeLabel} (المتبقي: {remaining} من {s.capacity} مقعد)
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-xs font-black text-gray-800 block mb-1">
                     رابط مستودع الكود (GitHub Repo URL) *
@@ -493,6 +526,27 @@ export const ChallengesView: React.FC<ChallengesViewProps> = ({ currentUser }) =
                     dir="ltr"
                     className="w-full p-2.5 rounded-xl border border-gray-300 text-xs text-left focus:outline-none focus:border-blue-500 font-mono"
                   />
+                </div>
+
+                {/* خانة إرفاق ملف تطبيقي */}
+                <div>
+                  <label className="text-xs font-black text-gray-800 block mb-1">
+                    📎 خانة إرفاق ملف تطبيقي (ZIP أو PDF أو مستند المشروع) - اختياري
+                  </label>
+                  <label className="flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-gray-400 bg-gray-50 hover:bg-gray-100 cursor-pointer text-xs font-bold text-gray-700 transition-colors">
+                    <span>{challengeFileName ? `تم اختيار: ${challengeFileName}` : 'انقر لاختيار ملف من جهازك'}</span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setChallengeFile(file);
+                          setChallengeFileName(file.name);
+                        }
+                      }}
+                    />
+                  </label>
                 </div>
 
                 {actionErrorMsg && (

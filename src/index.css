@@ -995,34 +995,30 @@ body {
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 640px) {
   .footer-grid {
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 32px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 28px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .footer-grid {
+    grid-template-columns: 1.1fr 1.1fr 1.1fr 1.3fr;
+    gap: 28px;
     align-items: start;
     width: 100%;
   }
 
-  .footer-col-right {
+  .footer-col-right,
+  .footer-col-center,
+  .footer-col-leads,
+  .footer-col-left {
     justify-self: start;
     text-align: right;
-  }
-
-  .footer-col-center {
-    justify-self: center;
-    text-align: center;
     display: flex;
     flex-direction: column;
-    align-items: center;
-  }
-
-  .footer-col-left {
-    justify-self: end;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    text-align: left;
-    max-width: 400px;
+    align-items: flex-start;
   }
 }
 

@@ -140,6 +140,8 @@ export interface TrackResource {
   fileUrl: string;
   fileType: 'pdf' | 'zip' | 'code' | 'doc' | 'link';
   fileSize?: string;
+  fileName?: string;
+  fileData?: string;
   workshopName?: string;
   workshopId?: string;
   color?: string;
@@ -190,6 +192,14 @@ export interface Workshop {
   createdAt?: string;
 }
 
+export interface DeliveryTimeSlot {
+  id: string;
+  dayLabel: string; // e.g. "اليوم 1: الثلاثاء 3 نوفمبر"
+  timeLabel: string; // e.g. "04:00 م - 06:00 م"
+  capacity: number; // e.g. 10 مقاعد
+  bookedCount?: number;
+}
+
 export interface AdminScheduledWorkshop {
   id: string;
   orderNumber: number; // 1 to 8
@@ -205,6 +215,8 @@ export interface AdminScheduledWorkshop {
   publishedAt?: string;
   meetingUrl?: string;
   posterUrl?: string;
+  submissionDaysCount?: number; // كم يوم متاح للتسليم
+  deliverySlots?: DeliveryTimeSlot[]; // فترات ومواعيد التسليم وسعة كل موعد
 }
 
 export interface WorkshopAttendanceRecord {
@@ -449,5 +461,14 @@ export interface LeadershipEvaluation {
   auditLog: EvaluationAuditEntry[];
 }
 
-
-
+export interface ShowcaseSlot {
+  id: string;
+  title: string;
+  description: string;
+  stageName: string;
+  category: 'workshop' | 'general';
+  color: string;
+  createdAt: string;
+  createdBy?: string;
+  createdByName?: string;
+}

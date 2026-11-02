@@ -33,6 +33,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
     store.getAdminScheduledWorkshops()
   );
   const [members, setMembers] = useState<UserProfile[]>(() => store.getMembers());
+  const [attendanceEvents, setAttendanceEvents] = useState(() => store.getAttendanceEvents());
   const [selectedWorkshopId, setSelectedWorkshopId] = useState<string>(
     () => adminWorkshops[0]?.id || 'plan-ws-1'
   );
@@ -42,6 +43,20 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
   const [editMeetingUrl, setEditMeetingUrl] = useState('');
   const [editPosterUrl, setEditPosterUrl] = useState('');
   const [editTaskDesc, setEditTaskDesc] = useState('');
+  const [editSubmissionDays, setEditSubmissionDays] = useState<number>(3);
+  const [editDeliverySlots, setEditDeliverySlots] = useState<
+    Array<{ id: string; dayLabel: string; timeLabel: string; capacity: number; bookedCount?: number }>
+  >([]);
+  const [newSlotDay, setNewSlotDay] = useState('اليوم 1');
+  const [newSlotTime, setNewSlotTime] = useState('04:00 م - 06:00 م');
+  const [newSlotCapacity, setNewSlotCapacity] = useState(10);
+
+  // نافذة إضافة حدث أو ورشة جديدة للشيت
+  const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
+  const [newEventTitle, setNewEventTitle] = useState('');
+  const [newEventDate, setNewEventDate] = useState('نوفمبر 2026');
+  const [newEventType, setNewEventType] = useState<'workshop' | 'meeting' | 'other'>('workshop');
+
   const [successMsg, setSuccessMsg] = useState('');
   const [searchMember, setSearchMember] = useState('');
 
@@ -50,6 +65,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
     const unsub = store.subscribe(() => {
       setAdminWorkshops(store.getAdminScheduledWorkshops());
       setMembers(store.getMembers());
+      setAttendanceEvents(store.getAttendanceEvents());
     });
     return unsub;
   }, []);
@@ -77,6 +93,17 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
     setEditMeetingUrl(ws.meetingUrl || '');
     setEditPosterUrl(ws.posterUrl || '');
     setEditTaskDesc(ws.taskDescription);
+    setEditSubmissionDays(ws.submissionDaysCount || 3);
+    setEditDeliverySlots(
+      ws.deliverySlots && ws.deliverySlots.length > 0
+        ? ws.deliverySlots
+        : [
+            { id: `slot-${ws.id}-1`, dayLabel: `اليوم 1 (${ws.dateStr.split(' ')[0] || 'اليوم'})`, timeLabel: '04:00 م - 06:00 م', capacity: 10, bookedCount: 0 },
+            { id: `slot-${ws.id}-2`, dayLabel: `اليوم 1 (${ws.dateStr.split(' ')[0] || 'اليوم'})`, timeLabel: '08:00 م - 10:00 م', capacity: 15, bookedCount: 0 },
+            { id: `slot-${ws.id}-3`, dayLabel: `اليوم 2 (اليوم التالي)`, timeLabel: '04:00 م - 06:00 م', capacity: 10, bookedCount: 0 },
+            { id: `slot-${ws.id}-4`, dayLabel: `اليوم 2 (اليوم التالي)`, timeLabel: '08:00 م - 10:00 م', capacity: 15, bookedCount: 0 },
+          ]
+    );
   };
 
   // حفظ التعديلات على الورشة
@@ -90,11 +117,13 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
       meetingUrl: editMeetingUrl.trim() || undefined,
       posterUrl: editPosterUrl.trim() || undefined,
       taskDescription: editTaskDesc.trim() || editingWorkshop.taskDescription,
+      submissionDaysCount: editSubmissionDays,
+      deliverySlots: editDeliverySlots,
     };
 
     store.updateAdminScheduledWorkshop(updated);
     setEditingWorkshop(null);
-    setSuccessMsg(`تم تحديث تفاصيل ورشة «${updated.titleAr}» بنجاح ✓`);
+    setSuccessMsg(`تم تحديث تفاصيل ورشة «${updated.titleAr}» ومواعيد التسليم بنجاح ✓`);
     setTimeout(() => setSuccessMsg(''), 3000);
   };
 
@@ -343,29 +372,28 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                 onChange={(e) => setSelectedWorkshopId(e.target.value)}
                 className="px-4 py-2 rounded-2xl bg-gray-50 border border-gray-300 text-xs sm:text-sm font-black text-gray-900 focus:outline-none shadow-xs cursor-pointer flex-1"
               >
-                <option value="orientation-session">لقاء تدشين المسار (أمس) — اللقاء التعريفي</option>
+                <option value="orientation-session">اللقاء التعريفي</option>
                 {adminWorkshops.map((w) => (
                   <option key={w.id} value={w.id}>
                     الورشة {w.orderNumber}: {w.titleAr} ({w.dateStr}) — {w.presenter}
                   </option>
                 ))}
+                {attendanceEvents
+                  .filter((evt) => evt.id !== 'evt-intro' && !adminWorkshops.some((w) => w.id === evt.id))
+                  .map((evt) => (
+                    <option key={evt.id} value={evt.id}>
+                      {evt.title} ({evt.dateStr})
+                    </option>
+                  ))}
               </select>
 
               <button
                 type="button"
                 onClick={() => {
-                  const title = prompt('أدخلي اسم الحدث أو الورشة الجديدة:');
-                  if (!title) return;
-                  const dateStr = prompt('أدخلي تاريخ أو وقت الحدث:', 'الأسبوع القادم') || 'مجدول';
-                  const newId = `custom-event-${Date.now()}`;
-                  store.addAttendanceEvent({
-                    id: newId,
-                    title,
-                    type: 'workshop',
-                    dateStr,
-                  });
-                  setSelectedWorkshopId(newId);
-                  alert(`تمت إضافة الحدث: "${title}" إلى قائمة التحضير بنجاح!`);
+                  setNewEventTitle('');
+                  setNewEventDate('نوفمبر 2026');
+                  setNewEventType('workshop');
+                  setIsAddEventModalOpen(true);
                 }}
                 className="px-4 py-2 rounded-xl text-xs font-black bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 shrink-0 cursor-pointer"
               >
@@ -397,14 +425,37 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
           </div>
 
           {/* شريط الإحصائية للورشة المحددة */}
-          <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200 flex items-center justify-between text-xs font-bold text-blue-950">
-            <span>
-              <strong>الحدث المحدد:</strong> {selectedWorkshop?.titleAr || 'لقاء المجال'} ({selectedWorkshop?.dateStr || 'أمس'})
-            </span>
-            <span className="bg-white px-3 py-1 rounded-full border border-blue-300 text-blue-900 font-black">
-              نسبة الحضور: {attendedCount} من {regularMembers.length} عضو ({Math.round((attendedCount / (regularMembers.length || 1)) * 100)}%)
-            </span>
-          </div>
+          {(() => {
+            let displayTitle = 'اللقاء التعريفي';
+            let displayDate = 'الخميس 29 أكتوبر 2026';
+            if (selectedWorkshopId === 'orientation-session' || selectedWorkshopId === 'evt-intro') {
+              displayTitle = 'اللقاء التعريفي';
+              displayDate = 'الخميس 29 أكتوبر 2026';
+            } else {
+              const ws = adminWorkshops.find((w) => w.id === selectedWorkshopId);
+              if (ws) {
+                displayTitle = `الورشة ${ws.orderNumber}: ${ws.titleAr}`;
+                displayDate = ws.dateStr;
+              } else {
+                const customEvt = attendanceEvents.find((e) => e.id === selectedWorkshopId);
+                if (customEvt) {
+                  displayTitle = customEvt.title;
+                  displayDate = customEvt.dateStr;
+                }
+              }
+            }
+
+            return (
+              <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200 flex items-center justify-between text-xs font-bold text-blue-950">
+                <span>
+                  <strong>الحدث المحدد:</strong> {displayTitle} ({displayDate})
+                </span>
+                <span className="bg-white px-3 py-1 rounded-full border border-blue-300 text-blue-900 font-black">
+                  نسبة الحضور: {attendedCount} من {regularMembers.length} عضو ({Math.round((attendedCount / (regularMembers.length || 1)) * 100)}%)
+                </span>
+              </div>
+            );
+          })()}
 
           {/* جدول الشيت الميداني (مثل Google Sheets) */}
           <div className="rounded-3xl border-2 border-[#0F1729] bg-white overflow-hidden shadow-xs">
@@ -606,6 +657,126 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                 />
               </div>
 
+              {/* تحديد مدة إتاحة التسليم بالأيام */}
+              <div className="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-200 space-y-2">
+                <label className="block text-xs font-black text-blue-950">
+                  ⏳ كم يوم يكون متاحاً للتسليم؟ (مدة استقبال الحلول)
+                </label>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 5, 7].map((days) => (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => setEditSubmissionDays(days)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                        editSubmissionDays === days
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {days} {days === 1 ? 'يوم' : days === 2 ? 'يومان' : 'أيام'}
+                    </button>
+                  ))}
+                  <input
+                    type="number"
+                    min="1"
+                    max="30"
+                    value={editSubmissionDays}
+                    onChange={(e) => setEditSubmissionDays(Number(e.target.value) || 1)}
+                    className="w-16 px-2 py-1.5 text-xs font-black border border-gray-300 rounded-xl text-center bg-white"
+                  />
+                  <span className="text-xs text-gray-600 font-bold">يوم</span>
+                </div>
+              </div>
+
+              {/* تحديد أوقات وفترات التسليم وسعة كل فترة */}
+              <div className="p-3.5 rounded-2xl bg-purple-50/60 border border-purple-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-purple-950">
+                    📅 فترات ومواعيد التسليم المتاحة وسعة كل موعد
+                  </label>
+                  <span className="text-[11px] font-bold text-purple-800">
+                    ({editDeliverySlots.length} فترات محددة)
+                  </span>
+                </div>
+
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {editDeliverySlots.map((slot, idx) => (
+                    <div
+                      key={slot.id || idx}
+                      className="p-2.5 rounded-xl bg-white border border-purple-200 flex items-center justify-between gap-2 text-xs"
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="font-black text-gray-900">{slot.dayLabel}</span>
+                        <span className="text-gray-400">·</span>
+                        <span className="font-bold text-purple-700">{slot.timeLabel}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-lg bg-purple-100 text-purple-900 font-black text-[11px]">
+                          السعة: {slot.capacity} أعضاء
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setEditDeliverySlots((prev) => prev.filter((_, i) => i !== idx))}
+                          className="p-1 rounded-lg text-red-500 hover:bg-red-50 border-none bg-transparent cursor-pointer"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* إضافة فترة جديدة */}
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-purple-200">
+                  <input
+                    type="text"
+                    value={newSlotDay}
+                    onChange={(e) => setNewSlotDay(e.target.value)}
+                    placeholder="اليوم (مثلاً: اليوم 1 أو الثلاثاء)"
+                    className="flex-1 min-w-[110px] px-2.5 py-1.5 text-xs rounded-lg border border-purple-300 bg-white"
+                  />
+                  <input
+                    type="text"
+                    value={newSlotTime}
+                    onChange={(e) => setNewSlotTime(e.target.value)}
+                    placeholder="الوقت (مثلاً: 04:00 م - 06:00 م)"
+                    className="flex-1 min-w-[130px] px-2.5 py-1.5 text-xs rounded-lg border border-purple-300 bg-white"
+                  />
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={newSlotCapacity}
+                      onChange={(e) => setNewSlotCapacity(Number(e.target.value) || 1)}
+                      className="w-14 px-2 py-1.5 text-xs font-black rounded-lg border border-purple-300 text-center bg-white"
+                    />
+                    <span className="text-[11px] text-gray-500 font-bold">عضو</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newSlotDay.trim() || !newSlotTime.trim()) return;
+                      setEditDeliverySlots((prev) => [
+                        ...prev,
+                        {
+                          id: `slot-custom-${Date.now()}`,
+                          dayLabel: newSlotDay.trim(),
+                          timeLabel: newSlotTime.trim(),
+                          capacity: newSlotCapacity,
+                          bookedCount: 0,
+                        },
+                      ]);
+                      setNewSlotDay(`اليوم ${editDeliverySlots.length + 2}`);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-black text-xs border-none cursor-pointer"
+                  >
+                    + إضافة موعد
+                  </button>
+                </div>
+              </div>
+
               <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                 <button
                   type="button"
@@ -618,13 +789,121 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                   type="submit"
                   className="flex-1 py-2.5 px-4 rounded-xl text-xs font-black text-white bg-[#0F1729] hover:bg-gray-800 border-none cursor-pointer shadow-xs"
                 >
-                  حفظ التعديلات ✓
+                  حفظ التعديلات والمواعيد ✓
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* نافذة إضافة حدث أو ورشة جديدة في الشيت */}
+      <AnimatePresence>
+        {isAddEventModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+            onClick={() => setIsAddEventModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border-2 border-[#0F1729] text-right"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+                <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                  <span>إضافة حدث أو ورشة جديدة للتحضير 📝</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsAddEventModalOpen(false)}
+                  className="p-1 rounded-full hover:bg-gray-100 text-gray-400 border-none bg-transparent cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!newEventTitle.trim()) return;
+                  const newEvt = store.addAttendanceEvent(
+                    newEventTitle.trim(),
+                    newEventType,
+                    newEventDate.trim() || 'نوفمبر 2026'
+                  );
+                  setAttendanceEvents(store.getAttendanceEvents());
+                  setSelectedWorkshopId(newEvt.id);
+                  setIsAddEventModalOpen(false);
+                  setSuccessMsg(`تمت إضافة حدث «${newEvt.title}» وظهوره في القائمة بنجاح! ✨`);
+                  setTimeout(() => setSuccessMsg(''), 3000);
+                }}
+                className="space-y-4 text-xs"
+              >
+                <div>
+                  <label className="block font-black text-gray-800 mb-1">
+                    اسم الورشة أو الحدث *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newEventTitle}
+                    onChange={(e) => setNewEventTitle(e.target.value)}
+                    placeholder="مثال: ورشة تفاعلية في Tailwind CSS أو جلسة أسئلة وأجوبة"
+                    className="w-full p-2.5 rounded-xl border border-gray-300 font-bold text-gray-900 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-black text-gray-800 mb-1">
+                    تاريخ ووقت الحدث
+                  </label>
+                  <input
+                    type="text"
+                    value={newEventDate}
+                    onChange={(e) => setNewEventDate(e.target.value)}
+                    placeholder="مثال: الخميس 12 نوفمبر 2026 — 08:00 م"
+                    className="w-full p-2.5 rounded-xl border border-gray-300 font-bold text-gray-900 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-black text-gray-800 mb-1">
+                    نوع الحدث
+                  </label>
+                  <select
+                    value={newEventType}
+                    onChange={(e) => setNewEventType(e.target.value as any)}
+                    className="w-full p-2.5 rounded-xl border border-gray-300 font-bold text-gray-900 focus:outline-none bg-gray-50"
+                  >
+                    <option value="workshop">ورشة عمل تطبيقية (Workshop)</option>
+                    <option value="meeting">لقاء عام أو سيشن نقاشي (Meeting)</option>
+                    <option value="other">فعالية أو هاكاثون خاص (Other)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddEventModalOpen(false)}
+                    className="py-2.5 px-4 rounded-xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 border-none cursor-pointer"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 px-4 rounded-xl text-xs font-black text-white bg-blue-600 hover:bg-blue-700 border-none cursor-pointer shadow-xs"
+                  >
+                    إضافة الحدث واختياره فوراً ✓
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
