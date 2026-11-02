@@ -18,8 +18,8 @@ export const Footer: React.FC = () => {
       </div>
 
       {/* مسافة واسعة ومريحة لنزول محتوى التذييل بعد الخطوط الملونة */}
-      <div className="container pt-20 pb-12 sm:pt-24 sm:pb-14">
-        <div className="footer-grid mb-12">
+      <div className="container" style={{ paddingTop: '64px', paddingBottom: '40px' }}>
+        <div className="footer-grid mb-8">
           {/* العمود الأول (اليمين): قادة النادي */}
           <div className="footer-col-leads flex flex-col gap-3">
             <h4
@@ -90,8 +90,8 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* العمود الرابع (اليسار): الشعار المصغر والوصف مع مسافة جمالية مريحة بعد الخطوط الملونة */}
-          <div className="footer-col-left flex flex-col gap-3 pt-6 sm:pt-7">
+          {/* العمود الرابع (اليسار): الشعار المصغر والوصف */}
+          <div className="footer-col-left flex flex-col gap-3">
             <div className="flex items-center">
               <GDGLogo variant="full" size="sm" />
             </div>
@@ -129,24 +129,49 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        {/* سطر الحقوق السفلي في خط واحد يمين ويسار بدون إيموجي */}
+        {/* سطر الحقوق السفلي: يمين عربي، يسار إنجليزي في خط واحد، وتحته اسم غيداء الشريف */}
         <div
-          className="pt-6 border-t text-xs font-medium flex flex-col sm:flex-row items-center justify-between gap-3 text-right"
           style={{
-            borderColor: 'var(--border-light)',
-            color: 'var(--text-muted)',
+            borderTop: '1px solid var(--border-light)',
+            paddingTop: '24px',
+            marginTop: '36px',
           }}
         >
-          <div className="flex flex-col sm:flex-row items-center gap-2 text-center sm:text-right">
-            <span>© 2026 نادي قوقل للطلبة المطورين — جامعة الطائف. جميع الحقوق محفوظة.</span>
-            <span className="hidden sm:inline" style={{ opacity: 0.4 }}>•</span>
-            <span className="text-[11px]" style={{ color: 'var(--text-muted)', opacity: 0.85 }}>
+          {/* السطر الأول: يمين ويسار في خط واحد */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: 'var(--text-muted)',
+              width: '100%',
+              direction: 'rtl',
+            }}
+          >
+            <div style={{ textAlign: 'right' }}>
+              © 2026 نادي قوقل للطلبة المطورين — جامعة الطائف. جميع الحقوق محفوظة.
+            </div>
+
+            <div style={{ textAlign: 'left', direction: 'ltr' }}>
               Google Developer Groups on Campus — Taif University
-            </span>
+            </div>
           </div>
 
-          <div style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>
-            تم الإنشاء بواسطة : غيداء
+          {/* السطر الثاني: تحته */}
+          <div
+            style={{
+              textAlign: 'center',
+              marginTop: '12px',
+              fontSize: '12px',
+              fontWeight: 800,
+              color: 'var(--text-secondary)',
+            }}
+          >
+            تم الإنشاء بواسطة : غيداء الشريف
           </div>
         </div>
       </div>
