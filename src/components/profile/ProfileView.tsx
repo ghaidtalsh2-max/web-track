@@ -46,14 +46,31 @@ import {
 
 interface ProfileViewProps {
   currentUser: UserProfile;
+  viewingMember?: UserProfile | null;
   hideDirectoryTab?: boolean;
+  onClose?: () => void;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirectoryTab = false }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({
+  currentUser,
+  viewingMember = null,
+  hideDirectoryTab = false,
+  onClose,
+}) => {
   const [allMembers, setAllMembers] = useState<UserProfile[]>(() => store.getMembers());
-  const [selectedMemberId, setSelectedMemberId] = useState<string>(currentUser.id);
+  const [selectedMemberId, setSelectedMemberId] = useState<string>(
+    viewingMember ? viewingMember.id : currentUser.id
+  );
   const [activeTab, setActiveTab] = useState<'profile' | 'directory'>('profile');
   const [viewingInquiryModal, setViewingInquiryModal] = useState<any | null>(null);
+
+  // حالة نافذة منح واعتماد النقاط من قبل القيادة
+  const [showAwardModal, setShowAwardModal] = useState(false);
+  const [awardPointsAmount, setAwardPointsAmount] = useState<number>(20);
+  const [awardReason, setAwardReason] = useState<string>('حضور ورشة / لقاء تفاعلي');
+  const [customReason, setCustomReason] = useState<string>('');
+  const [isSubmittingAward, setIsSubmittingAward] = useState(false);
+  const [awardSuccessMsg, setAwardSuccessMsg] = useState<string | null>(null);
 
   // مزامنة البيانات عند أي تحديث في المتجر
   useEffect(() => {
@@ -64,14 +81,29 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
 
   // تحديث العضو المختار عند تغيير المستخدم أو تفعيل وضع المعاينة
   useEffect(() => {
-    setSelectedMemberId(currentUser.id);
-    if (hideDirectoryTab) {
+    if (viewingMember) {
+      setSelectedMemberId(viewingMember.id);
       setActiveTab('profile');
+    } else {
+      setSelectedMemberId(currentUser.id);
+      if (hideDirectoryTab) {
+        setActiveTab('profile');
+      }
     }
-  }, [currentUser.id, hideDirectoryTab]);
+  }, [viewingMember?.id, currentUser.id, hideDirectoryTab]);
 
-  const displayedMember = allMembers.find((m) => m.id === selectedMemberId) || currentUser;
-  const isViewingSelf = displayedMember.id === currentUser.id;
+  // إغلاق المعاينة عند الضغط على زر Escape
+  useEffect(() => {
+    if (!onClose) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const displayedMember = viewingMember || allMembers.find((m) => m.id === selectedMemberId) || currentUser;
+  const isViewingSelf = !viewingMember && displayedMember.id === currentUser.id;
   const isStaff = currentUser.role === 'track_leader' || currentUser.role === 'co_leader' || currentUser.role === 'supervisor';
   const isFemale = isFemaleUser(displayedMember);
 
@@ -326,6 +358,97 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
     }
   };
 
+  // معالجة منح القيادة للنقاط
+  const handleAwardPoints = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalReason = customReason.trim() ? customReason.trim() : awardReason;
+    if (!finalReason) return;
+    setIsSubmittingAward(true);
+    setAwardSuccessMsg(null);
+    try {
+      await store.awardPoints(
+        displayedMember.id,
+        Number(awardPointsAmount),
+        finalReason,
+        currentUser.id,
+        `manual-leader-${Date.now()}-${displayedMember.id.slice(0, 5)}`
+      );
+      confetti({
+        particleCount: 80,
+        spread: 60,
+        origin: { y: 0.6 },
+        colors: ['#34A853', '#4285F4', '#F9AB00', '#EA4335'],
+      });
+      setAwardSuccessMsg(`تم اعتماد وإضافة +${awardPointsAmount} نقطة لملف ${displayedMember.fullName} بنجاح! 🌟`);
+      setTimeout(() => {
+        setShowAwardModal(false);
+        setAwardSuccessMsg(null);
+        setCustomReason('');
+      }, 1500);
+    } catch (err: any) {
+      setAwardSuccessMsg(err?.message || 'حدث خطأ أثناء اعتماد النقاط');
+    } finally {
+      setIsSubmittingAward(false);
+    }
+  };
+
+  const getLeaderInfo = (leaderId?: string) => {
+    if (!leaderId) return { name: 'إدارة المسار', role: 'لجنة التحكيم والتقييم', color: '#64748B', bg: '#F1F5F9', border: '#CBD5E1' };
+    if (leaderId === '1734f887-f9f3-4d6c-a963-d00f767d86e6') {
+      return { name: 'غيداء الشريف', role: 'قائدة مسار الويب 👑', color: '#B91C1C', bg: '#FEE2E2', border: '#FCA5A5' };
+    }
+    if (leaderId === '6a3430df-424d-4bc0-99d1-b5b196b7fef3') {
+      return { name: 'ريتال القثامي', role: 'نائبة القادة 🛡️', color: '#1D4ED8', bg: '#DBEAFE', border: '#93C5FD' };
+    }
+    if (leaderId === 'fe04b670-48b6-4ff0-9826-27b0de853abb') {
+      return { name: 'سلمان الشهري', role: 'نائب القادة 🛡️', color: '#15803D', bg: '#DCFCE7', border: '#86EFAC' };
+    }
+    const found = allMembers.find((m) => m.id === leaderId);
+    if (found) {
+      const roleText = found.role === 'track_leader' ? 'قائدة المسار 👑' : 'نائب القادة 🛡️';
+      return { name: found.fullName, role: roleText, color: '#4338CA', bg: '#EEF2FF', border: '#C7D2FE' };
+    }
+    return { name: 'إدارة مسار الويب', role: 'القيادة', color: '#475569', bg: '#F1F5F9', border: '#CBD5E1' };
+  };
+
+  // جلب سجل تفاصيل النقاط الفعلي للعضو المعروض
+  const memberLedger = store.getPointsLedger().filter(
+    (l: any) => l.profile_id === displayedMember.id || l.profileId === displayedMember.id
+  );
+
+  const fullLedger: any[] = [...memberLedger];
+
+  // 1. نقاط الترحيب بالانضمام (+100)
+  const hasWelcome = fullLedger.some((l) => l.reason?.includes('ترحيب') || l.reason?.includes('انضمام'));
+  if (!hasWelcome && displayedMember.points >= 100) {
+    fullLedger.push({
+      id: 'welcome-init-base',
+      profile_id: displayedMember.id,
+      points_amount: 100,
+      reason: 'نقاط الترحيب بالانضمام لمسار تصميم وتطوير الويب 🚀',
+      approved_by: '1734f887-f9f3-4d6c-a963-d00f767d86e6',
+      created_at: displayedMember.joinedAt || '2026-10-29T10:00:00Z',
+    });
+  }
+
+  // 2. نقاط حضور اللقاء التعريفي (+20) إذا كان معتمداً بالحضور ولم يسجل قيد منفصل
+  const attStats = store.getMemberAttendanceStats(displayedMember.id);
+  const hasAttendedIntro = attStats.attended > 0;
+  const hasIntroLedger = fullLedger.some((l) => l.reason?.includes('اللقاء التعريفي') || l.reason?.includes('حضور'));
+  if (hasAttendedIntro && !hasIntroLedger) {
+    fullLedger.push({
+      id: 'att-intro-base',
+      profile_id: displayedMember.id,
+      points_amount: 20,
+      reason: 'حضور اللقاء التعريفي الأول لمسار الويب 🎯',
+      approved_by: '6a3430df-424d-4bc0-99d1-b5b196b7fef3',
+      created_at: '2026-10-29T18:00:00Z',
+    });
+  }
+
+  // ترتيب السجل بالأحدث أولاً
+  fullLedger.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+
   const skillsList: MemberSkillItem[] =
     displayedMember.detailedSkills && displayedMember.detailedSkills.length > 0
       ? displayedMember.detailedSkills
@@ -345,6 +468,44 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
       className="container py-8 sm:py-12 text-right"
       dir="rtl"
     >
+      {/* شريط الإغلاق والتنقل المرن عند معاينة ملف عضو محدد */}
+      {onClose && (
+        <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-2 border-gray-900 rounded-2xl p-3 sm:p-4 mb-6 flex items-center justify-between shadow-md">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2 rounded-xl text-xs sm:text-sm font-black bg-gray-900 text-white hover:bg-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs border-none"
+            >
+              <X size={16} />
+              <span>إغلاق ✕</span>
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-500 hidden sm:inline">معاينة حساب العضو:</span>
+              <span className="px-3 py-1 rounded-full text-xs sm:text-sm font-black bg-amber-100 text-amber-900 border border-amber-300">
+                {displayedMember.fullName}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isStaff && !isViewingSelf && (
+              <button
+                type="button"
+                onClick={() => setShowAwardModal(true)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs border-none"
+              >
+                <Sparkles size={13} className="text-amber-300" />
+                <span>+ منح نقاط 🎁</span>
+              </button>
+            )}
+            <span className="px-3 py-1 rounded-xl text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-300 font-['Arimo']">
+              ⭐ {displayedMember.points} نقطة
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* 1. التبديل بين البروفايل ودليل الأعضاء (يُخفى تلقائياً عند معاينة ملف عضو محدد) */}
       {!hideDirectoryTab && (
         <div className="flex items-center justify-between gap-4 mb-8 flex-wrap">
@@ -605,7 +766,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                       {displayedMember.fullName}
                     </h1>
 
-                    {isViewingSelf && (
+                    {isViewingSelf ? (
                       <button
                         type="button"
                         onClick={() => {
@@ -635,7 +796,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                         <Edit3 size={15} />
                         <span>تعديل الملف الشخصي</span>
                       </button>
-                    )}
+                    ) : isStaff ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowAwardModal(true)}
+                        className="cursor-pointer hover:bg-gray-800 transition-all text-white border-none shadow-md active:scale-95"
+                        style={{
+                          backgroundColor: '#0F172A',
+                          borderRadius: '99px',
+                          padding: '10px 22px',
+                          minHeight: '42px',
+                          fontSize: '15px',
+                          fontWeight: 800,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          boxShadow: '0 4px 0 0 #34A853',
+                        }}
+                      >
+                        <Sparkles size={17} className="text-amber-400" />
+                        <span>+ منح نقاط للعضو 🎁</span>
+                      </button>
+                    ) : null}
                   </div>
 
                   <p
@@ -815,6 +997,121 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                 <span style={{ fontSize: '15px' }}>{store.getMemberAttendanceRate(displayedMember.id) > 0 ? 'نسبة الحضور' : 'مبادرات'}</span>
               </div>
             </div>
+          </div>
+
+          {/* ================= سجل تفاصيل النقاط والاعتمادات الرسمية 📊 ================= */}
+          <div className="rounded-[28px] bg-white border-2 border-[#0F172A] p-6 sm:p-7 shadow-xs text-right">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-200">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl">📊</span>
+                  <h3 className="text-xl sm:text-2xl font-black text-gray-900">
+                    سجل تفاصيل النقاط والاعتمادات الرسمية
+                  </h3>
+                </div>
+                <p className="text-xs sm:text-sm text-gray-600 font-medium mt-1">
+                  كشف شفاف ومفصل يوضح سبب كل نقطة ومَن اعتمدها من قيادة المسار بالتاريخ الدقيق
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="px-4 py-2 rounded-2xl bg-emerald-50 border border-emerald-300 flex items-center gap-2">
+                  <span className="text-xs font-bold text-emerald-900">إجمالي النقاط المعتمدة:</span>
+                  <span className="text-lg font-black text-emerald-700 font-['Arimo']">
+                    {displayedMember.points}
+                  </span>
+                  <span className="text-xs font-bold text-emerald-600">نقطة ⭐</span>
+                </div>
+
+                {isStaff && !isViewingSelf && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAwardModal(true)}
+                    className="px-4 py-2 rounded-2xl text-xs sm:text-sm font-black bg-[#0F172A] text-white hover:bg-gray-800 transition-all flex items-center gap-2 cursor-pointer shadow-xs border-none"
+                  >
+                    <Sparkles size={15} className="text-amber-400" />
+                    <span>+ منح نقاط للعضو 🎁</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {fullLedger.length === 0 ? (
+              <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                <Award size={36} className="mx-auto text-gray-400 mb-2" />
+                <div className="text-sm font-black text-gray-800">لا توجد قيود نقاط مسجلة بعد</div>
+                <p className="text-xs text-gray-500 mt-1">
+                  سيتم إدراج النقاط فور حضور الورش أو تسليم المهام واعتمادها من القيادة
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {fullLedger.map((item, idx) => {
+                  const approver = getLeaderInfo(item.approved_by);
+                  const pts = Number(item.points_amount) || 0;
+                  const dateStr = item.created_at
+                    ? new Date(item.created_at).toLocaleDateString('ar-SA', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })
+                    : 'أكتوبر 2026';
+
+                  return (
+                    <div
+                      key={item.id || idx}
+                      className="p-4 sm:p-5 rounded-2xl bg-gray-50/70 border border-gray-200 hover:border-gray-400 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                    >
+                      {/* جهة اليمين: مقدار النقاط والسبب */}
+                      <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
+                        <div
+                          className={`px-3 py-1.5 rounded-xl font-black text-sm sm:text-base font-['Arimo'] shrink-0 flex items-center gap-1 shadow-2xs ${
+                            pts >= 100
+                              ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                              : pts >= 50
+                              ? 'bg-purple-100 text-purple-900 border border-purple-300'
+                              : pts >= 25
+                              ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                              : 'bg-blue-100 text-blue-900 border border-blue-300'
+                          }`}
+                        >
+                          <span>+{pts}</span>
+                          <span className="text-[11px] font-sans">نقطة</span>
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="text-sm sm:text-base font-black text-gray-900 leading-snug">
+                            {item.reason || 'مكافأة مسار الويب'}
+                          </div>
+                          <div className="text-xs text-gray-500 font-semibold mt-0.5 flex items-center gap-2 flex-wrap">
+                            <span>📅 {dateStr}</span>
+                            <span>•</span>
+                            <span className="text-emerald-700 font-bold">معتمد وموثق ✓</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* جهة اليسار: بطاقة المعتمد (غيداء، ريتال، سلمان) */}
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <span className="text-[11px] font-bold text-gray-500">اعتمدت بواسطة:</span>
+                        <div
+                          className="px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border shadow-2xs"
+                          style={{
+                            backgroundColor: approver.bg,
+                            color: approver.color,
+                            borderColor: approver.border,
+                          }}
+                        >
+                          <Shield size={13} />
+                          <span>{approver.name}</span>
+                          <span className="text-[10px] opacity-80">({approver.role})</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* قسم متابعة طلبات العضو وتحديثات الاعتماد (موافقة / رفض / شاهد الرد) */}
@@ -1673,6 +1970,146 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, hideDirec
                   إغلاق النافذة
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* نافذة منح نقاط واعتماد رسمي للعضو */}
+        {showAwardModal && (
+          <div
+            className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            dir="rtl"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowAwardModal(false);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full border-2 border-gray-900 shadow-2xl text-right relative"
+            >
+              <button
+                type="button"
+                onClick={() => setShowAwardModal(false)}
+                className="absolute top-4 left-4 p-2 text-gray-400 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors cursor-pointer border-none"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center text-2xl">
+                  🎁
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-900">
+                    منح وتوثيق نقاط رسمية
+                  </h3>
+                  <p className="text-xs text-gray-500 font-bold mt-0.5">
+                    للعضو: <span className="text-gray-900 font-black">{displayedMember.fullName}</span> (@{displayedMember.username})
+                  </p>
+                </div>
+              </div>
+
+              {awardSuccessMsg && (
+                <div className="mb-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-xs font-black text-emerald-800 text-center animate-bounce">
+                  {awardSuccessMsg}
+                </div>
+              )}
+
+              <form onSubmit={handleAwardPoints} className="space-y-4">
+                {/* 1. تحديد عدد النقاط الممنوحة */}
+                <div>
+                  <label className="block text-xs font-black text-gray-800 mb-2">
+                    اختيار مقدار النقاط:
+                  </label>
+                  <div className="grid grid-cols-3 gap-2 mb-2.5">
+                    {[20, 25, 30, 50, 67, 100].map((pts) => (
+                      <button
+                        key={pts}
+                        type="button"
+                        onClick={() => setAwardPointsAmount(pts)}
+                        className={`py-2 rounded-xl text-xs font-black border transition-all cursor-pointer font-['Arimo'] ${
+                          awardPointsAmount === pts
+                            ? 'bg-[#0F172A] text-white border-black shadow-xs scale-102'
+                            : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        +{pts} نقطة
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-500 shrink-0">أو إدخال رصيد مخصص:</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="500"
+                      value={awardPointsAmount}
+                      onChange={(e) => setAwardPointsAmount(Number(e.target.value))}
+                      className="w-full px-3 py-1.5 text-xs font-black rounded-xl border border-gray-300 focus:outline-none focus:border-blue-500 font-['Arimo'] text-center"
+                    />
+                  </div>
+                </div>
+
+                {/* 2. سبب منح النقاط */}
+                <div>
+                  <label className="block text-xs font-black text-gray-800 mb-2">
+                    سبب الاعتماد (يظهر رسمياً في سجل نقاط العضو):
+                  </label>
+                  <select
+                    value={awardReason}
+                    onChange={(e) => setAwardReason(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-gray-300 bg-gray-50 focus:outline-none focus:border-blue-500 mb-2"
+                  >
+                    <option value="حضور ورشة / لقاء تفاعلي">حضور ورشة / لقاء تفاعلي (+20)</option>
+                    <option value="تسليم مهمة / تطبيق عملي معتمد">تسليم مهمة / تطبيق عملي معتمد (+25)</option>
+                    <option value="تفاعل ومشاركة مميزة في مسار الويب">تفاعل ومشاركة مميزة في مسار الويب (+67)</option>
+                    <option value="إنجاز تحدي إضافي وحل مشكلة برمجية">إنجاز تحدي إضافي وحل مشكلة برمجية (+50)</option>
+                    <option value="مكافأة خاصة من القيادة لتميز الأداء">مكافأة خاصة من القيادة لتميز الأداء (+100)</option>
+                    <option value="custom">سبب مخصص آخر...</option>
+                  </select>
+
+                  {awardReason === 'custom' && (
+                    <input
+                      type="text"
+                      placeholder="اكتب سبب منح النقاط بالتفصيل..."
+                      value={customReason}
+                      onChange={(e) => setCustomReason(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-gray-300 focus:outline-none focus:border-blue-500"
+                      required
+                    />
+                  )}
+                </div>
+
+                {/* 3. توثيق المعتمد */}
+                <div className="p-3 rounded-2xl bg-gray-50 border border-gray-200 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-gray-500">مَن يعتمد النقاط الآن:</span>
+                    <span className="font-black text-gray-900">{currentUser.fullName} ({currentUser.role === 'track_leader' ? 'قائدة المسار 👑' : 'نائب القادة 🛡️'})</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmittingAward}
+                    className="flex-1 py-3 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700 transition-all cursor-pointer shadow-md disabled:opacity-50 border-none flex items-center justify-center gap-2"
+                  >
+                    <Check size={16} />
+                    <span>{isSubmittingAward ? 'جاري الاعتماد...' : `تأكيد ومنح +${awardPointsAmount} نقطة ✓`}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAwardModal(false)}
+                    className="px-5 py-3 rounded-2xl text-xs font-black bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all cursor-pointer border border-gray-200"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

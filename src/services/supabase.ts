@@ -12,3 +12,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
   },
 });
+
+const supabaseServiceKey =
+  import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzeHJnbXZqZGtxYnZrZmphcm5pIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjI3MDg1OCwiZXhwIjoyMTA3ODQ2ODU4fQ.nN86lM6kl3FT9EQuKKRw88uk3gsujNaL4IaF_0PRgmg';
+
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});

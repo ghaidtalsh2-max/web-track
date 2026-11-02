@@ -2620,30 +2620,22 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
         )}
       </AnimatePresence>
 
-      {/* نافذة استعراض ملف العضو للقادة (معتمة 100% بدون أي تداخل أو تسريب لعناصر الجدول بالخلفية) */}
+      {/* نافذة استعراض ملف العضو وسجل نقاطه المرن للقادة */}
       {viewingMemberModal && (
         <div
-          className="fixed inset-0 z-[99999] overflow-y-auto p-4 sm:p-8"
+          className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-sm flex justify-center items-start overflow-y-auto p-2 sm:p-6 md:p-8"
           dir="rtl"
-          style={{ backgroundColor: '#F8FAFD' }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setViewingMemberModal(null);
+          }}
         >
-          <div className="max-w-[1440px] mx-auto">
-            <div className="sticky top-0 z-30 bg-white border-2 border-gray-900 rounded-2xl p-4 mb-6 flex items-center justify-between shadow-md">
-              <button
-                type="button"
-                onClick={() => setViewingMemberModal(null)}
-                className="px-6 py-2.5 rounded-full text-sm font-black bg-gray-900 text-white hover:bg-black transition-all flex items-center gap-2 cursor-pointer shadow-sm"
-              >
-                <span>← العودة لقائمة الأعضاء</span>
-              </button>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-gray-500">معاينة حساب العضو:</span>
-                <span className="px-4 py-1.5 rounded-full text-sm font-black bg-amber-100 text-amber-900 border border-amber-300">
-                  {viewingMemberModal.fullName}
-                </span>
-              </div>
-            </div>
-            <ProfileView currentUser={viewingMemberModal} hideDirectoryTab={true} />
+          <div className="relative w-full max-w-6xl bg-[#F8FAFD] rounded-3xl border-2 border-gray-900 shadow-2xl p-3 sm:p-6 my-4">
+            <ProfileView
+              currentUser={currentUser}
+              viewingMember={viewingMemberModal}
+              hideDirectoryTab={true}
+              onClose={() => setViewingMemberModal(null)}
+            />
           </div>
         </div>
       )}

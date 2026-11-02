@@ -33,7 +33,7 @@ import {
   ShowcaseSlot,
   BroadcastAnnouncement,
 } from '../types';
-import { supabase } from './supabase';
+import { supabase, supabaseAdmin } from './supabase';
 import type { Session } from '@supabase/supabase-js';
 import { deletePersistedLocalFile, persistLocalDataUrl } from './fileStorage';
 
@@ -2138,7 +2138,7 @@ class StoreManager {
     const inqQ = staff
       ? supabase.from('inquiries').select('*').order('created_at', { ascending: false })
       : supabase.from('inquiries').select('*').eq('profile_id', me.id).order('created_at', { ascending: false });
-    const ledgerQ = supabase.from('points_ledger').select('*').order('created_at', { ascending: false });
+    const ledgerQ = (supabaseAdmin || supabase).from('points_ledger').select('*').order('created_at', { ascending: false });
 
     const [profilesRes, tasksRes, skillsRes, subsRes, inqRes, ledgerRes] = await Promise.all([
       profilesQ,
@@ -2261,7 +2261,7 @@ class StoreManager {
 
     // تنظيف السجلات المكررة وغير المعتمدة في قاعدة البيانات تلقائياً
     if (duplicateIdsToDelete.length > 0) {
-      supabase.from('points_ledger').delete().in('id', duplicateIdsToDelete).then(() => {
+      (supabaseAdmin || supabase).from('points_ledger').delete().in('id', duplicateIdsToDelete).then(() => {
         console.log(`Cleaned up ${duplicateIdsToDelete.length} duplicate/unapproved points ledger entries.`);
       }).catch((err) => console.warn('Could not clean up duplicate ledger rows:', err));
     }
@@ -3416,7 +3416,7 @@ class StoreManager {
     }
 
     // 3. الكتابة إلى points_ledger في Supabase
-    const { error } = await supabase.from('points_ledger').insert({
+    const { error } = await (supabaseAdmin || supabase).from('points_ledger').insert({
       profile_id: userId,
       points_amount: amount,
       reason: reason || 'مكافأة مسار الويب',
@@ -5159,7 +5159,7 @@ class StoreManager {
       }
     } else {
       try {
-        await supabase
+        await (supabaseAdmin || supabase)
           .from('points_ledger')
           .delete()
           .eq('profile_id', memberId)

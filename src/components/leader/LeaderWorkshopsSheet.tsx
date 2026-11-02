@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { UserProfile, AdminScheduledWorkshop } from '../../types';
 import { store } from '../../services/store';
 import { UserAvatar } from '../common/UserAvatar';
+import { ProfileView } from '../profile/ProfileView';
 import confetti from 'canvas-confetti';
 import {
   Calendar,
@@ -64,6 +65,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
   const [searchMember, setSearchMember] = useState('');
   const [isAttendanceEditMode, setIsAttendanceEditMode] = useState(false);
   const [attendanceVersion, setAttendanceVersion] = useState(0);
+  const [inspectingMember, setInspectingMember] = useState<UserProfile | null>(null);
 
   // اشتراك في store
   useEffect(() => {
@@ -564,7 +566,11 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                         </td>
 
                         <td className="py-3 px-4">
-                          <div className="flex items-center gap-2.5">
+                          <div
+                            onClick={() => setInspectingMember(m)}
+                            className="flex items-center gap-2.5 cursor-pointer group"
+                            title="انقري لمعاينة حساب العضو وسجل نقاطه كاملاً"
+                          >
                             <UserAvatar
                               letter={m.avatarLetter}
                               name={m.fullName}
@@ -573,7 +579,14 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                               size="xs"
                               role={m.role}
                             />
-                            <span className="font-black text-gray-950">{m.fullName}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-black text-gray-950 group-hover:text-blue-600 group-hover:underline">
+                                {m.fullName}
+                              </span>
+                              <span className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-md font-bold">
+                                معاينة 👁️
+                              </span>
+                            </div>
                           </div>
                         </td>
 
@@ -1047,6 +1060,26 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
           </div>
         )}
       </AnimatePresence>
+
+      {/* نافذة استعراض ملف العضو وسجل نقاطه كاملاً */}
+      {inspectingMember && (
+        <div
+          className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-sm flex justify-center items-start overflow-y-auto p-2 sm:p-6 md:p-8"
+          dir="rtl"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setInspectingMember(null);
+          }}
+        >
+          <div className="relative w-full max-w-6xl bg-[#F8FAFD] rounded-3xl border-2 border-gray-900 shadow-2xl p-3 sm:p-6 my-4">
+            <ProfileView
+              currentUser={currentUser}
+              viewingMember={inspectingMember}
+              hideDirectoryTab={true}
+              onClose={() => setInspectingMember(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
