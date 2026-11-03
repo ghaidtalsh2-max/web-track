@@ -59,8 +59,9 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
     return store.subscribe(sync);
   }, []);
 
-  // حالة إضافة ومنح النقاط
+  // حالة إضافة ومنح وسحب النقاط
   const [awardTarget, setAwardTarget] = useState<'all' | string>('all');
+  const [pointsActionType, setPointsActionType] = useState<'award' | 'deduct'>('award');
   const [awardCustomInput, setAwardCustomInput] = useState<string>('20');
   const [awardReason, setAwardReason] = useState<string>('مشاركة وتفاعل متميز في مسار الويب');
   const [isAwardingPoints, setIsAwardingPoints] = useState(false);
@@ -71,60 +72,76 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
     e.preventDefault();
     setAwardSuccessMsg('');
     setAwardErrorMsg('');
-    const pts = parseInt(awardCustomInput, 10);
-    if (isNaN(pts) || pts <= 0) {
+    const rawPts = parseInt(awardCustomInput, 10);
+    if (isNaN(rawPts) || rawPts <= 0) {
       setAwardErrorMsg('يرجى تحديد عدد نقاط صحيح أكبر من 0.');
       return;
     }
-    const reason = awardReason.trim() || 'مكافأة مسار تصميم وتطوير الويب';
+    const isDeduct = pointsActionType === 'deduct';
+    const effectivePts = isDeduct ? -Math.abs(rawPts) : Math.abs(rawPts);
+    const reason = awardReason.trim() || (isDeduct ? 'خصم إداري من مسار الويب' : 'مكافأة مسار تصميم وتطوير الويب');
 
     if (!store.canAwardPoints()) {
       if (store.isSupervisorOnly()) {
         try {
-          await store.requestSupervisorPermission(currentUser.fullName, `منح ${pts} نقطة: ${reason}`);
+          await store.requestSupervisorPermission(currentUser.fullName, `${isDeduct ? 'سحب' : 'منح'} ${rawPts} نقطة: ${reason}`);
           setAwardSuccessMsg('تم إرسال طلب اعتماد رصد النقاط إلى القائدة غيداء بنجاح للموافقة عليها ✨');
         } catch {
           setAwardErrorMsg('تعذّر إرسال طلب الصلاحية حالياً.');
         }
         return;
       }
-      setAwardErrorMsg('صلاحية رصد النقاط محصورة بقادة المجال (غيداء، ريتال، سلمان).');
+      setAwardErrorMsg('صلاحية رصد وسحب النقاط محصورة بقادة المجال (غيداء، ريتال، سلمان).');
       return;
     }
 
     setIsAwardingPoints(true);
     try {
       if (awardTarget === 'all') {
-        const memberList = members.filter((m) => m.role === 'member');
+        const memberList = members.filter((m) => m.role === 'member' || m.fullName.includes('سلمان'));
         if (memberList.length === 0) {
-          throw new Error('لا يوجد أعضاء في المسار لمنحهم النقاط.');
+          throw new Error('لا يوجد أعضاء في المسار لإجراء العملية.');
         }
         for (const m of memberList) {
-          await store.awardPoints(m.id, pts, reason);
+          await store.awardPoints(m.id, effectivePts, reason);
         }
-        setAwardSuccessMsg(`تم بنجاح منح ${pts} نقطة لكل عضو من أعضاء المسار الـ (${memberList.length}) عضواً! ✨`);
+        setAwardSuccessMsg(
+          isDeduct
+            ? `تم بنجاح سحب وخصم ${rawPts} نقطة من كل عضو من أعضاء المسار والنائب سلمان (${memberList.length} عضواً)! ✓`
+            : `تم بنجاح منح ${rawPts} نقطة لكل عضو من أعضاء المسار والنائب سلمان (${memberList.length} عضواً)! ✨`
+        );
       } else if (awardTarget.startsWith('level:')) {
         const targetLevel = awardTarget.replace('level:', '');
-        const memberList = members.filter((m) => m.role === 'member' && m.webLevel === targetLevel);
+        const memberList = members.filter((m) => (m.role === 'member' || m.fullName.includes('سلمان')) && m.webLevel === targetLevel);
         if (memberList.length === 0) {
           throw new Error('لا يوجد أعضاء مسجلين في هذا المستوى التعليمي.');
         }
         for (const m of memberList) {
-          await store.awardPoints(m.id, pts, reason);
+          await store.awardPoints(m.id, effectivePts, reason);
         }
         const levelNames: Record<string, string> = {
           beginner: 'المستوى 1: مبتدئ',
           intermediate: 'المستوى 2: متوسط',
           advanced: 'المستوى 3: متقدم',
         };
-        setAwardSuccessMsg(`تم بنجاح منح ${pts} نقطة لجميع أعضاء ${levelNames[targetLevel] || targetLevel} الـ (${memberList.length}) عضواً! ✨`);
+        setAwardSuccessMsg(
+          isDeduct
+            ? `تم بنجاح خصم ${rawPts} نقطة من جميع أعضاء ${levelNames[targetLevel] || targetLevel} الـ (${memberList.length}) عضواً! ✓`
+            : `تم بنجاح منح ${rawPts} نقطة لجميع أعضاء ${levelNames[targetLevel] || targetLevel} الـ (${memberList.length}) عضواً! ✨`
+        );
       } else {
         const targetMember = members.find((m) => m.id === awardTarget);
         if (!targetMember) throw new Error('العضو المحدد غير موجود.');
-        await store.awardPoints(targetMember.id, pts, reason);
-        setAwardSuccessMsg(`تم بنجاح منح ${pts} نقطة للعضو (${targetMember.fullName})! ✨`);
+        await store.awardPoints(targetMember.id, effectivePts, reason);
+        setAwardSuccessMsg(
+          isDeduct
+            ? `تم بنجاح سحب وخصم ${rawPts} نقطة من (${targetMember.fullName}) وتحديث رصيده وسجله! ✓`
+            : `تم بنجاح منح ${rawPts} نقطة للعضو (${targetMember.fullName})! ✨`
+        );
       }
-      confetti({ particleCount: 70, spread: 60, origin: { y: 0.65 } });
+      if (!isDeduct) {
+        confetti({ particleCount: 70, spread: 60, origin: { y: 0.65 } });
+      }
       await store.refreshData();
     } catch (err: any) {
       setAwardErrorMsg(err?.message || 'تعذّر إتمام قيد النقاط.');
@@ -1418,7 +1435,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
             </div>
           </div>
 
-          {/* بطاقة إضافة ومنح النقاط */}
+          {/* بطاقة إدارة ومنح وسحب النقاط */}
           <div className="bg-white rounded-3xl border-2 border-gray-900 p-6 sm:p-8 mb-8 shadow-xs">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 font-bold">
@@ -1426,12 +1443,50 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
               </div>
               <div>
                 <h2 className="text-xl font-black text-gray-900">
-                  إضافة نقاط التفاعل للأعضاء
+                  إدارة نقاط التفاعل (منح وسحب النقاط)
                 </h2>
                 <p className="text-xs text-gray-500 font-medium">
-                  حدد عضواً معيناً بالاسم أو اختر "الكل" لرفع مؤشر التفاعل لجميع الأعضاء دفعة واحدة
+                  حدد النائب سلمان أو أي عضو بالاسم، أو اختر "الكل" لمنح أو سحب النقاط وتسجيلها في السجل المعتمد
                 </p>
               </div>
+            </div>
+
+            {/* مفتاح التحويل السريع بين منح النقاط وسحبها */}
+            <div className="flex items-center gap-2 p-1.5 bg-gray-100 rounded-2xl mb-6 border border-gray-200">
+              <button
+                type="button"
+                onClick={() => {
+                  setPointsActionType('award');
+                  if (!awardReason || awardReason.includes('خصم') || awardReason.includes('سحب')) {
+                    setAwardReason('مشاركة وتفاعل متميز في مسار الويب');
+                  }
+                }}
+                className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 border-none ${
+                  pointsActionType === 'award'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'bg-transparent text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Plus size={16} />
+                <span>➕ منح وإيداع نقاط</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPointsActionType('deduct');
+                  if (!awardReason || awardReason.includes('مكافأة') || awardReason.includes('مشاركة')) {
+                    setAwardReason('خصم إداري / استرجاع نقاط');
+                  }
+                }}
+                className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 border-none ${
+                  pointsActionType === 'deduct'
+                    ? 'bg-rose-600 text-white shadow-md'
+                    : 'bg-transparent text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <X size={16} />
+                <span>➖ سحب وخصم نقاط</span>
+              </button>
             </div>
 
             <form onSubmit={handleAwardPoints} className="space-y-6">
@@ -1459,8 +1514,21 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                   className="w-full px-4 py-3 text-xs sm:text-sm rounded-2xl bg-gray-50 border border-gray-300 text-gray-900 font-bold focus:outline-none focus:border-blue-500"
                 >
                   <option value="all">
-                    🌟 الكل (جميع أعضاء المسار — {members.filter((m) => m.role === 'member').length} عضواً)
+                    🌟 الكل (جميع أعضاء المسار والنائب — {members.filter((m) => m.role === 'member' || m.fullName.includes('سلمان')).length} عضواً)
                   </option>
+
+                  {/* قسم مخصص وظاهر فوراً للنائب سلمان في أعلى القائمة */}
+                  {members.filter((m) => m.fullName.includes('سلمان')).length > 0 && (
+                    <optgroup label="🛡️ قيادة وإدارة المسار (النائب سلمان الغامدي):">
+                      {members
+                        .filter((m) => m.fullName.includes('سلمان'))
+                        .map((m) => (
+                          <option key={m.id} value={m.id}>
+                            🛡️ النائب {m.fullName} (@{m.username}) — رصيده الحالي: {m.points || 0} نقطة
+                          </option>
+                        ))}
+                    </optgroup>
+                  )}
                   
                   <optgroup label="⚡ استهداف حسب المستوى التعليمي:">
                     <option value="level:beginner">
@@ -1470,7 +1538,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                       ⚡ جميع أعضاء المستوى 2: متوسط ({members.filter((m) => m.role === 'member' && m.webLevel === 'intermediate').length} أعضاء)
                     </option>
                     <option value="level:advanced">
-                      ⚡ جميع أعضاء المستوى 3: متقدم ({members.filter((m) => m.role === 'member' && m.webLevel === 'advanced').length} أعضاء)
+                      ⚡ جميع أعضاء المستوى 3: متقدم ({members.filter((m) => (m.role === 'member' || m.fullName.includes('سلمان')) && m.webLevel === 'advanced').length} أعضاء)
                     </option>
                   </optgroup>
 
@@ -1498,11 +1566,11 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
 
                   <optgroup label="📁 أعضاء المستوى 3: متقدم (بالاسم والرصيد)">
                     {members
-                      .filter((m) => m.role === 'member' && m.webLevel === 'advanced')
+                      .filter((m) => (m.role === 'member' || m.fullName.includes('سلمان')) && m.webLevel === 'advanced')
                       .sort((a, b) => a.fullName.localeCompare(b.fullName, 'ar'))
                       .map((m) => (
                         <option key={m.id} value={m.id}>
-                          {m.fullName} (@{m.username}) — رصيده: {m.points || 0} نقطة
+                          {m.fullName} {m.fullName.includes('سلمان') ? '🛡️ (النائب)' : ''} (@{m.username}) — رصيده: {m.points || 0} نقطة
                         </option>
                       ))}
                   </optgroup>
@@ -1512,23 +1580,25 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
               {/* 2. اختيار مقدار النقاط */}
               <div>
                 <label className="block text-xs font-black text-gray-800 mb-2">
-                  مقدار النقاط:
+                  {pointsActionType === 'deduct' ? 'مقدار النقاط المراد سحبها / خصمها:' : 'مقدار النقاط المراد منحها:'}
                 </label>
                 <div className="flex flex-wrap items-center gap-2 mb-3">
-                  {[5, 20, 25, 30, 100].map((num) => {
+                  {(pointsActionType === 'deduct' ? [5, 10, 20, 25, 50, 100] : [5, 20, 25, 30, 100]).map((num) => {
                     const isSelected = awardCustomInput === String(num);
                     return (
                       <button
                         key={num}
                         type="button"
                         onClick={() => setAwardCustomInput(String(num))}
-                        className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all cursor-pointer border ${
+                        className={`px-4 py-2 rounded-xl font-black text-xs transition-all cursor-pointer border ${
                           isSelected
-                            ? 'bg-[#4285F4] text-white border-[#4285F4] shadow-sm scale-105'
+                            ? pointsActionType === 'deduct'
+                              ? 'bg-rose-600 text-white border-rose-600 shadow-xs scale-105'
+                              : 'bg-emerald-600 text-white border-emerald-600 shadow-xs scale-105'
                             : 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200'
                         }`}
                       >
-                        +{num} نقطة
+                        {pointsActionType === 'deduct' ? `-${num} نقطة` : `+${num} نقطة`}
                       </button>
                     );
                   })}
@@ -1542,7 +1612,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                       max="1000"
                       value={awardCustomInput}
                       onChange={(e) => setAwardCustomInput(e.target.value)}
-                      placeholder="أو اكتب أي عدد نقاط مخصص..."
+                      placeholder={pointsActionType === 'deduct' ? 'اكتب عدد النقاط المراد سحبها...' : 'أو اكتب أي عدد نقاط مخصص...'}
                       className="w-full px-4 py-3 text-xs sm:text-sm rounded-2xl bg-gray-50 border border-gray-300 text-gray-900 font-bold focus:outline-none focus:border-blue-500"
                     />
                     <span className="absolute left-4 top-3 text-xs font-bold text-gray-400">
@@ -1552,16 +1622,20 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                 </div>
               </div>
 
-              {/* 3. سبب المنح */}
+              {/* 3. سبب العملية */}
               <div>
                 <label className="block text-xs font-black text-gray-800 mb-2">
-                  سبب منح النقاط (يظهر في سجل العضو والتنبيهات):
+                  {pointsActionType === 'deduct' ? 'سبب سحب وخصم النقاط (يظهر في سجل العضو):' : 'سبب منح النقاط (يظهر في سجل العضو والتنبيهات):'}
                 </label>
                 <input
                   type="text"
                   value={awardReason}
                   onChange={(e) => setAwardReason(e.target.value)}
-                  placeholder="مثال: حضور ورشة العمل، مشاركة متميزة، إنجاز تحدي إضافي..."
+                  placeholder={
+                    pointsActionType === 'deduct'
+                      ? 'مثال: خصم إداري، عدم حضور الورشة، استرجاع نقاط مسجلة بالخطأ...'
+                      : 'مثال: حضور ورشة العمل، مشاركة متميزة، إنجاز تحدي إضافي...'
+                  }
                   className="w-full px-4 py-3 text-xs sm:text-sm rounded-2xl bg-gray-50 border border-gray-300 text-gray-900 font-medium focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -1570,12 +1644,20 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
               <button
                 type="submit"
                 disabled={isAwardingPoints}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-[#34A853] hover:bg-green-700 text-white font-black text-xs sm:text-sm transition-all shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                className={`w-full sm:w-auto px-8 py-3.5 rounded-2xl text-white font-black text-xs sm:text-sm transition-all shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 border-none ${
+                  pointsActionType === 'deduct'
+                    ? 'bg-rose-600 hover:bg-rose-700'
+                    : 'bg-emerald-600 hover:bg-emerald-700'
+                }`}
               >
-                <Award size={18} />
+                {pointsActionType === 'deduct' ? <X size={18} /> : <Award size={18} />}
                 <span>
                   {isAwardingPoints
-                    ? 'جارٍ قيد النقاط في قاعدة البيانات...'
+                    ? 'جارٍ تحديث النقاط في قاعدة البيانات...'
+                    : pointsActionType === 'deduct'
+                    ? awardTarget === 'all'
+                      ? `سحب وخصم ${awardCustomInput || 0} نقطة من جميع الأعضاء والنائب ⚠️`
+                      : `سحب وخصم ${awardCustomInput || 0} نقطة من المستهدف المحدد ⚠️`
                     : awardTarget === 'all'
                     ? `إيداع ${awardCustomInput || 0} نقطة لجميع الأعضاء دفعة واحدة ✨`
                     : `إيداع ${awardCustomInput || 0} نقطة للعضو المحدد ✨`}
