@@ -124,6 +124,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const excludedStaffNames = ['رنا', 'أثير', 'اثير', 'عامر', 'وجد', 'ثامر', 'ريتال', 'غيداء'];
 
   const filteredMembers = allMembers.filter((m) => {
+    // إتاحة النائب سلمان للظهور ضمن قائمة الأعضاء والمنافسة بالنقاط
+    if (m.fullName.includes('سلمان')) {
+      const matchesSearch =
+        m.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        m.major?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        m.username?.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesSearch;
+    }
+
     // استبعاد الإشراف والقادة بناءً على الدور والرتبة والاسم الصريح
     if (m.role === 'supervisor' || m.role === 'track_leader') return false;
     if (excludedStaffNames.some((n) => m.fullName.includes(n))) return false;
@@ -733,8 +742,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     showBadge
                   />
                   <div className="min-w-0">
-                    <div className="font-black text-sm text-gray-900 truncate">
-                      {m.fullName}
+                    <div className="font-black text-sm text-gray-900 truncate flex items-center gap-1.5">
+                      <span>{m.fullName}</span>
+                      {m.fullName.includes('سلمان') && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800 border border-indigo-200">
+                          النائب 🛡️
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-blue-600 font-bold mt-0.5 truncate">
                       @{m.username || 'عضو'}

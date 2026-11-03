@@ -3096,6 +3096,8 @@ class StoreManager {
   } {
     const excludedLeaderNames = ['عامر', 'أثير', 'غيداء', 'ريتال'];
     const pool = this.members.filter((m) => {
+      // إتاحة النائب سلمان للمنافسة على عضو الشهر ونجوم الأسبوع وفق توجيه القيادة
+      if (m.fullName.includes('سلمان')) return true;
       if (m.role === 'track_leader' || m.role === 'supervisor') return false;
       if (excludedLeaderNames.some((name) => m.fullName.includes(name))) return false;
       return true;

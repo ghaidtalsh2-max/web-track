@@ -171,7 +171,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
 
   // تحضير جميع الأعضاء دفعة واحدة
   const handleMarkAllAttended = async () => {
-    const regularMembers = members.filter((m) => m.role === 'member');
+    const regularMembers = members.filter((m) => m.role === 'member' || m.fullName.includes('سلمان'));
     for (const m of regularMembers) {
       await store.toggleAttendance(selectedWorkshopId, m.id, true);
     }
@@ -183,7 +183,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
   // تحديد الجميع كغائبين
   const handleMarkAllAbsent = async () => {
     if (!window.confirm('هل أنتِ متأكدة من رغبتك في تسجيل جميع الأعضاء كغائبين لهذه الورشة؟')) return;
-    const regularMembers = members.filter((m) => m.role === 'member');
+    const regularMembers = members.filter((m) => m.role === 'member' || m.fullName.includes('سلمان'));
     for (const m of regularMembers) {
       await store.toggleAttendance(selectedWorkshopId, m.id, false);
     }
@@ -193,7 +193,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
   };
 
   const regularMembers = members
-    .filter((m) => m.role === 'member')
+    .filter((m) => m.role === 'member' || m.fullName.includes('سلمان'))
     .filter(
       (m) =>
         m.fullName.toLowerCase().includes(searchMember.toLowerCase()) ||
@@ -622,10 +622,15 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                               size="xs"
                               role={m.role}
                             />
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-black text-gray-950 group-hover:text-blue-600 group-hover:underline">
                                 {m.fullName}
                               </span>
+                              {m.fullName.includes('سلمان') && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-2xs">
+                                  النائب سلمان 🛡️
+                                </span>
+                              )}
                               <span className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-md font-bold">
                                 معاينة 👁️
                               </span>
@@ -715,12 +720,13 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
       {/* نافذة مودال لتعديل تفاصيل الورشة والروابط والبوستر والاعتماد */}
       {editingWorkshop && (
         <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm overflow-y-auto"
+          className="fixed inset-0 z-[99999] overflow-y-auto bg-black/60 backdrop-blur-sm p-2 sm:p-4 flex justify-center items-start"
           onClick={() => setEditingWorkshop(null)}
           dir="rtl"
         >
           <div
-            className="w-full max-w-xl bg-white rounded-3xl shadow-2xl border-2 border-gray-900 text-right flex flex-col max-h-[92vh] my-auto overflow-hidden"
+            className="w-full max-w-xl bg-white rounded-3xl shadow-2xl border-2 border-gray-900 text-right flex flex-col my-4 sm:my-6 overflow-hidden"
+            style={{ maxHeight: 'calc(100vh - 32px)', minHeight: 0 }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header (ثابت في الأعلى) */}
@@ -741,7 +747,10 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
             </div>
 
             {/* Form Body (قابل للتمرير بسلاسة مهما كبرت الصورة أو المحتوى) */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            <div
+              className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 min-h-0"
+              style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+            >
               <div>
                 <label className="block text-xs font-black text-gray-700 mb-1">
                   اسم المقدّم / المقدّمة:
@@ -759,18 +768,23 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                   بوستر الورشة (صورة الغلاف):
                 </label>
 
-                {/* معاينة الصورة المرفوعة أو الرابط */}
+                {/* معاينة الصورة المرفوعة أو الرابط بارتفاع منضبط وثابت لا يكسر المودال */}
                 {editPosterUrl ? (
-                  <div className="relative mb-2.5 rounded-2xl overflow-hidden border-2 border-gray-900 group bg-gray-900 flex items-center justify-center">
-                    <img
-                      src={editPosterUrl}
-                      alt="بوستر الورشة"
-                      className="w-full max-h-52 object-contain"
-                    />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <div className="space-y-2 mb-2.5">
+                    <div
+                      className="relative rounded-2xl overflow-hidden border-2 border-gray-900 bg-gray-950 flex items-center justify-center shadow-inner"
+                      style={{ height: '160px', maxHeight: '160px' }}
+                    >
+                      <img
+                        src={editPosterUrl}
+                        alt="بوستر الورشة"
+                        style={{ maxHeight: '160px', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain' }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
                       <label
                         htmlFor="poster-file-upload-input"
-                        className="px-3 py-1.5 rounded-xl bg-white text-gray-900 text-xs font-black cursor-pointer shadow-md hover:bg-gray-100 transition-colors flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 text-xs font-black cursor-pointer border border-gray-300 transition-colors flex items-center gap-1 shadow-2xs"
                       >
                         <Upload size={13} />
                         <span>تغيير الصورة</span>
@@ -778,7 +792,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                       <button
                         type="button"
                         onClick={() => setEditPosterUrl('')}
-                        className="px-3 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-black cursor-pointer shadow-md hover:bg-rose-700 border-none flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-black cursor-pointer border border-rose-200 flex items-center gap-1 shadow-2xs"
                       >
                         <Trash2 size={13} />
                         <span>حذف الصورة</span>
@@ -984,7 +998,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
             </div>
 
             {/* Footer (ثابت في الأسفل دائماً مع زر الاعتماد) */}
-            <div className="p-3.5 sm:p-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
+            <div className="p-3.5 sm:p-4 bg-gray-50 border-t-2 border-gray-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0 sticky bottom-0 z-30 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
               <button
                 type="button"
                 onClick={() => setEditingWorkshop(null)}
@@ -997,7 +1011,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                 <button
                   type="button"
                   onClick={handleSaveEdit}
-                  className="py-2.5 px-4 rounded-xl text-xs font-black text-gray-900 bg-white hover:bg-gray-100 border border-gray-300 cursor-pointer shadow-2xs whitespace-nowrap"
+                  className="py-2.5 px-4 rounded-xl text-xs font-black text-gray-900 bg-white hover:bg-gray-100 border border-gray-300 cursor-pointer shadow-xs whitespace-nowrap"
                 >
                   حفظ كمسودة ✓
                 </button>
@@ -1005,7 +1019,7 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                 <button
                   type="button"
                   onClick={handleSaveAndPublish}
-                  className="flex-1 sm:flex-initial py-2.5 px-5 rounded-xl text-xs sm:text-sm font-black text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 border-none cursor-pointer shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap"
+                  className="flex-1 sm:flex-initial py-2.5 px-5 rounded-xl text-xs sm:text-sm font-black text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 border-none cursor-pointer shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap transition-transform active:scale-95"
                 >
                   <Sparkles size={14} className="text-amber-300" />
                   <span>اعتماد ونشر الورشة للأعضاء 🚀</span>

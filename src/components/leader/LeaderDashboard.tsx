@@ -254,7 +254,8 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
 
   const filteredMembers = members
     .filter((m) => {
-      if (m.role !== 'member') return false;
+      const isEligible = m.role === 'member' || m.fullName.includes('سلمان');
+      if (!isEligible) return false;
       const matchesSearch =
         m.fullName.toLowerCase().includes(memberSearch.toLowerCase()) ||
         m.username.toLowerCase().includes(memberSearch.toLowerCase()) ||
@@ -827,7 +828,7 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
 
       {/* 2. تبويب الأعضاء (Members) بتصميم MembersV2 المعتمد */}
       {currentTab === 'members' && (() => {
-        const regularMembersList = members.filter((m) => m.role === 'member');
+        const regularMembersList = members.filter((m) => m.role === 'member' || m.fullName.includes('سلمان'));
         const countAll = regularMembersList.length;
         const countBeg = regularMembersList.filter((m) => m.webLevel === 'beginner').length;
         const countInter = regularMembersList.filter((m) => m.webLevel === 'intermediate').length;
@@ -989,9 +990,16 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                         </div>
 
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <b style={{ fontSize: '22px', display: 'block', color: '#0F172A' }} className="truncate">
-                            {m.fullName}
-                          </b>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <b style={{ fontSize: '22px', color: '#0F172A' }} className="truncate">
+                              {m.fullName}
+                            </b>
+                            {m.fullName.includes('سلمان') && (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                النائب سلمان 🛡️
+                              </span>
+                            )}
+                          </div>
                           <div style={{ fontSize: '15px', color: '#5f6673', fontFamily: 'Arimo' }} className="truncate">
                             @{m.username}
                           </div>
@@ -1090,7 +1098,14 @@ export const LeaderDashboard: React.FC<LeaderDashboardProps> = ({
                             >
                               {m.avatarLetter}
                             </div>
-                            <span className="font-bold text-gray-900 whitespace-nowrap">{m.fullName}</span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-gray-900 whitespace-nowrap">{m.fullName}</span>
+                              {m.fullName.includes('سلمان') && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                  النائب سلمان 🛡️
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3.5 px-5 font-mono text-gray-600 whitespace-nowrap">{m.username}</td>
                           <td className="py-3.5 px-5 whitespace-nowrap">

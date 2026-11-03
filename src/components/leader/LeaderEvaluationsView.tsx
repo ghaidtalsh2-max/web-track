@@ -21,7 +21,7 @@ interface LeaderEvaluationsViewProps {
 const EVALUATION_STORAGE_KEY = 'web_track_leadership_evaluations_v2';
 
 export const LeaderEvaluationsView: React.FC<LeaderEvaluationsViewProps> = ({ currentUser }) => {
-  const [selectedLeader, setSelectedLeader] = useState<'ghaidaa' | 'retal'>('ghaidaa');
+  const [selectedLeader, setSelectedLeader] = useState<'ghaidaa' | 'retal' | 'salman'>('ghaidaa');
   const [selectedPeriod, setSelectedPeriod] = useState<'q1' | 'q2' | 'history'>('q1');
 
   // Initial Mock Evaluations
@@ -124,6 +124,59 @@ export const LeaderEvaluationsView: React.FC<LeaderEvaluationsViewProps> = ({ cu
       recommendations: [],
       auditLog: [],
     },
+    'salman-q1': {
+      id: 'eval-salman-q1',
+      leaderId: 'salman',
+      leaderName: 'سلمان محمد الغامدي',
+      period: 'q1',
+      status: 'draft',
+      scores: {
+        commitment: 5,
+        quality: 5,
+        initiative: 5,
+        engagement: 4,
+        collaboration: 5,
+      },
+      strengths: 'مبادرة قيادية متميزة في التنسيق والمتابعة الميدانية مع الأعضاء، ومرونة عالية في دعم مسار الويب.',
+      improvements: '',
+      evidence: '',
+      recommendations: [
+        {
+          id: 'rec-salman-1',
+          text: 'مواصلة المتابعة المستمرة للأعضاء والتنسيق مع قائدة المسار غيداء وريتال',
+          priority: 'high',
+          followupDate: '2026-11-20',
+          status: 'in_progress',
+        },
+      ],
+      auditLog: [
+        {
+          id: 'audit-salman-1',
+          action: 'إنشاء مسودة تقييم النائب سلمان',
+          performedBy: 'غيداء الشريف (قائدة المسار)',
+          timestamp: '2026-11-03 12:00',
+        },
+      ],
+    },
+    'salman-q2': {
+      id: 'eval-salman-q2',
+      leaderId: 'salman',
+      leaderName: 'سلمان محمد الغامدي',
+      period: 'q2',
+      status: 'draft',
+      scores: {
+        commitment: null,
+        quality: null,
+        initiative: null,
+        engagement: null,
+        collaboration: null,
+      },
+      strengths: '',
+      improvements: '',
+      evidence: '',
+      recommendations: [],
+      auditLog: [],
+    },
   };
 
   // State
@@ -159,7 +212,7 @@ export const LeaderEvaluationsView: React.FC<LeaderEvaluationsViewProps> = ({ cu
   const currentEval = evaluations[evalKey] || {
     id: `eval-${evalKey}`,
     leaderId: selectedLeader,
-    leaderName: selectedLeader === 'ghaidaa' ? 'غيداء الشريف' : 'ريتال القثامي',
+    leaderName: selectedLeader === 'ghaidaa' ? 'غيداء الشريف' : selectedLeader === 'retal' ? 'ريتال القثامي' : 'سلمان محمد الغامدي',
     period: selectedPeriod === 'q2' ? 'q2' : 'q1',
     status: 'draft',
     scores: { commitment: null, quality: null, initiative: null, engagement: null, collaboration: null },
@@ -514,6 +567,36 @@ export const LeaderEvaluationsView: React.FC<LeaderEvaluationsViewProps> = ({ cu
               />
             )}
             ريتال القثامي
+          </a>
+
+          <a
+            onClick={() => setSelectedLeader('salman')}
+            className={selectedLeader === 'salman' ? 'on' : ''}
+            style={{
+              padding: '10px 22px',
+              borderRadius: '99px',
+              fontWeight: 600,
+              fontSize: '17px',
+              color: selectedLeader === 'salman' ? '#fff' : '#3C4043',
+              background: selectedLeader === 'salman' ? '#0F172A' : 'transparent',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+            }}
+          >
+            {selectedLeader === 'salman' && (
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: '9px',
+                  height: '9px',
+                  borderRadius: '50%',
+                  background: '#4285F4',
+                  marginInlineEnd: '8px',
+                }}
+              />
+            )}
+            النائب سلمان الغامدي 🛡️
           </a>
         </div>
 
