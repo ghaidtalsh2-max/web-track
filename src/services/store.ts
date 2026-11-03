@@ -2225,22 +2225,14 @@ class StoreManager {
         row.activity_key?.includes('attendance');
 
       if (isAttendanceRow) {
-        const memberName = profileNameById.get(row.profile_id) || '';
-        const isRetalApprovedMember = retalAttendedKeywords.some((kw) => memberName.includes(kw));
-
-        // إذا كان العضو لم تعتمده ريتال (أي غيبته ريتال)، نحذف قيد الحضور فوراً
-        if (!isRetalApprovedMember) {
+        // مفتاح منع التكرار لكل حضور هو (العضو + المعرف الفريد للورشة)
+        const attKey = row.activity_key || `att_orientation-session_${row.profile_id}`;
+        const uniqueAttKey = `${row.profile_id}-${attKey}`;
+        if (seenAttendanceMemberIds.has(uniqueAttKey)) {
           duplicateIdsToDelete.push(row.id);
           continue;
         }
-
-        // للأعضاء المعتمدين من ريتال: نضمن قيد حضور واحد فقط لكل عضو (+20 نقطة)
-        if (seenAttendanceMemberIds.has(row.profile_id)) {
-          duplicateIdsToDelete.push(row.id);
-          continue;
-        }
-
-        seenAttendanceMemberIds.add(row.profile_id);
+        seenAttendanceMemberIds.add(uniqueAttKey);
         dedupedLedger.push(row);
         continue;
       }
@@ -2422,30 +2414,34 @@ class StoreManager {
         }
       }
 
-      // 2. مزامنة وتثبيت تحضير اللقاء التعريفي وفق كشف ريتال القثامي بالضبط
-      // الأعضاء المعتمدون من ريتال = حاضر ✓ (+20 نقطة)، وبقية الأعضاء = غائب ✗
-      const activeMembers = this.members.filter((m) => m.role === 'member');
-      for (const m of activeMembers) {
-        const isRetalAttended = retalAttendedKeywords.some((kw) => m.fullName.includes(kw));
-        const k1 = `orientation-session_${m.id}`;
-        const k2 = `evt-intro_${m.id}`;
+      // 2. مزامنة وتثبيت خريطة التحضير المركزية من دفتر القيود في Supabase (Single Source of Truth)
+      // لضمان ظهور التحضير متطابقاً عند كل القادة (غيداء، ريتال، سلمان) في أي وقت وعبر أي جهاز
+      for (const row of dedupedLedger) {
+        if (row.activity_key?.startsWith('att_')) {
+          const rawKey = row.activity_key.slice(4);
+          const lastIdx = rawKey.lastIndexOf('_');
+          if (lastIdx > 0) {
+            const wsId = rawKey.slice(0, lastIdx);
+            const mId = rawKey.slice(lastIdx + 1);
+            const approverName = profileNameById.get(row.approved_by) || (row.approved_by === '6a3430df-424d-4bc0-99d1-b5b196b7fef3' ? 'ريتال القثامي' : 'غيداء الشريف');
 
-        currentAttendance[k1] = {
-          workshopId: 'orientation-session',
-          memberId: m.id,
-          attended: isRetalAttended,
-          markedAt: new Date().toISOString(),
-          markedBy: 'ريتال القثامي',
-        };
+            const rec: WorkshopAttendanceRecord = {
+              workshopId: wsId,
+              memberId: mId,
+              attended: true,
+              markedAt: row.created_at || new Date().toISOString(),
+              markedBy: approverName,
+            };
 
-        currentAttendance[k2] = {
-          workshopId: 'evt-intro',
-          memberId: m.id,
-          attended: isRetalAttended,
-          markedAt: new Date().toISOString(),
-          markedBy: 'ريتال القثامي',
-        };
-        attendanceChanged = true;
+            currentAttendance[`${wsId}_${mId}`] = rec;
+            if (wsId === 'orientation-session') {
+              currentAttendance[`evt-intro_${mId}`] = { ...rec, workshopId: 'evt-intro' };
+            } else if (wsId === 'evt-intro') {
+              currentAttendance[`orientation-session_${mId}`] = { ...rec, workshopId: 'orientation-session' };
+            }
+            attendanceChanged = true;
+          }
+        }
       }
 
       if (attendanceChanged && typeof localStorage !== 'undefined') {
@@ -5109,6 +5105,7 @@ class StoreManager {
     const result: Record<string, WorkshopAttendanceRecord> = {};
     const isIntro = workshopId === 'orientation-session' || workshopId === 'evt-intro';
 
+    // 1. القراءة من الخريطة المحلية
     Object.entries(all).forEach(([key, rec]) => {
       if (
         rec.workshopId === workshopId ||
@@ -5117,6 +5114,34 @@ class StoreManager {
         result[rec.memberId] = rec;
       }
     });
+
+    // 2. التحقق من دفتر القيود المركزي في الذاكرة (Supabase Single Source of Truth)
+    if (this.pointsLedger && Array.isArray(this.pointsLedger)) {
+      for (const row of this.pointsLedger) {
+        if (row.activity_key?.startsWith('att_')) {
+          const rawKey = row.activity_key.slice(4);
+          const lastIdx = rawKey.lastIndexOf('_');
+          if (lastIdx > 0) {
+            const wsId = rawKey.slice(0, lastIdx);
+            const mId = rawKey.slice(lastIdx + 1);
+            if (wsId === workshopId || (isIntro && (wsId === 'orientation-session' || wsId === 'evt-intro'))) {
+              if (!result[mId] || !result[mId].attended) {
+                const approver = this.members.find((m) => m.id === row.approved_by);
+                const approverName = approver?.fullName || (row.approved_by === '6a3430df-424d-4bc0-99d1-b5b196b7fef3' ? 'ريتال القثامي' : 'غيداء الشريف');
+                result[mId] = {
+                  workshopId,
+                  memberId: mId,
+                  attended: true,
+                  markedAt: row.created_at || new Date().toISOString(),
+                  markedBy: approverName,
+                };
+              }
+            }
+          }
+        }
+      }
+    }
+
     return result;
   }
 
@@ -5144,13 +5169,17 @@ class StoreManager {
 
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(all));
 
-    // إذا تم التحضير، منح نقاط الحضور (+20 نقطة) وتوثيقه في دفتر القيود؛ وإذا تم الغياب، إزالة قيد الحضور
+    const isIntro = workshopId === 'orientation-session' || workshopId === 'evt-intro';
+    const scheduledWs = this.getAdminScheduledWorkshops().find((w) => w.id === workshopId);
+    const customEvt = this.getAttendanceEvents().find((e) => e.id === workshopId);
+    const workshopName = isIntro ? 'اللقاء التعريفي' : (scheduledWs?.titleAr || customEvt?.title || 'ورشة عمل تطبيقية');
+
     if (attended) {
       try {
         await this.awardPoints(
           memberId,
           20,
-          `حضور: ${workshopId === 'orientation-session' || workshopId === 'evt-intro' ? 'اللقاء التعريفي' : 'ورشة عمل تطبيقية'} 🎯`,
+          `حضور: ${workshopName} 🎯`,
           leaderId,
           `att_${workshopId}_${memberId}`
         );
@@ -5159,17 +5188,26 @@ class StoreManager {
       }
     } else {
       try {
+        const attKey = `att_${workshopId}_${memberId}`;
+        const introKey = `att_orientation-session_${memberId}`;
+
         await (supabaseAdmin || supabase)
           .from('points_ledger')
           .delete()
           .eq('profile_id', memberId)
-          .or(`activity_key.eq.att_${workshopId}_${memberId},reason.ilike.%حضور%`);
-        
+          .or(isIntro ? `activity_key.eq.${attKey},activity_key.eq.${introKey},activity_key.eq.att_evt-intro_${memberId}` : `activity_key.eq.${attKey}`);
+
+        // إزالة القيد فوراً من ذاكرة المتجر
+        this.pointsLedger = (this.pointsLedger || []).filter(
+          (l: any) => !(l.profile_id === memberId && (l.activity_key === attKey || (isIntro && (l.activity_key?.includes('orientation-session') || l.activity_key?.includes('evt-intro')))))
+        );
+
         // خصم فوري من كائن العضو محلياً وتحديث Supabase
         const m = this.members.find((u) => u.id === memberId);
         if (m && m.points >= 20) {
           m.points -= 20;
-          await supabase.from('profiles').update({ points: m.points }).eq('id', memberId);
+          this.patchMember(memberId, { points: m.points });
+          await (supabaseAdmin || supabase).from('profiles').update({ points: m.points }).eq('id', memberId);
         }
       } catch (e) {
         console.warn('remove attendance points warning:', e);

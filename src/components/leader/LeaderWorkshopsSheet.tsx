@@ -157,6 +157,18 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
     setTimeout(() => setSuccessMsg(''), 3500);
   };
 
+  // تحديد الجميع كغائبين
+  const handleMarkAllAbsent = async () => {
+    if (!window.confirm('هل أنتِ متأكدة من رغبتك في تسجيل جميع الأعضاء كغائبين لهذه الورشة؟')) return;
+    const regularMembers = members.filter((m) => m.role === 'member');
+    for (const m of regularMembers) {
+      await store.toggleAttendance(selectedWorkshopId, m.id, false);
+    }
+    setAttendanceVersion((v) => v + 1);
+    setSuccessMsg(`تم تسجيل جميع الأعضاء (${regularMembers.length} عضو) كغائبين وتحديث السجل بنجاح ✓`);
+    setTimeout(() => setSuccessMsg(''), 3500);
+  };
+
   const regularMembers = members
     .filter((m) => m.role === 'member')
     .filter(
@@ -437,6 +449,14 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                   >
                     <Check size={13} />
                     <span>تحضير الكل ✓</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleMarkAllAbsent}
+                    className="px-3 py-2 rounded-xl text-xs font-black text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 cursor-pointer flex items-center gap-1 shadow-2xs whitespace-nowrap"
+                  >
+                    <X size={13} />
+                    <span>تحديد الكل كغائب ✗</span>
                   </button>
                   <button
                     type="button"
