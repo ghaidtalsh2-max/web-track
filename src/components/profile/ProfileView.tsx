@@ -47,6 +47,7 @@ import {
   CheckSquare,
   CalendarCheck,
   TrendingDown,
+  Clock,
 } from 'lucide-react';
 
 interface ProfileViewProps {

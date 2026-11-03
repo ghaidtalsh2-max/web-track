@@ -115,8 +115,8 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
   };
 
   // حفظ التعديلات على الورشة
-  const handleSaveEdit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveEdit = (e?: React.FormEvent | React.MouseEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!editingWorkshop) return;
 
     const updated: AdminScheduledWorkshop = {
@@ -133,6 +133,29 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
     setEditingWorkshop(null);
     setSuccessMsg(`تم تحديث تفاصيل ورشة «${updated.titleAr}» ومواعيد التسليم بنجاح ✓`);
     setTimeout(() => setSuccessMsg(''), 3000);
+  };
+
+  // حفظ التعديلات واعتماد نشر الورشة فوراً للأعضاء
+  const handleSaveAndPublish = (e?: React.FormEvent | React.MouseEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!editingWorkshop) return;
+
+    const updated: AdminScheduledWorkshop = {
+      ...editingWorkshop,
+      presenter: editPresenter.trim() || editingWorkshop.presenter,
+      meetingUrl: editMeetingUrl.trim() || undefined,
+      posterUrl: editPosterUrl.trim() || undefined,
+      taskDescription: editTaskDesc.trim() || editingWorkshop.taskDescription,
+      submissionDaysCount: editSubmissionDays,
+      deliverySlots: editDeliverySlots,
+    };
+
+    store.updateAdminScheduledWorkshop(updated);
+    store.publishAdminScheduledWorkshop(updated.id);
+    confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+    setEditingWorkshop(null);
+    setSuccessMsg(`تم حفظ ورشة «${updated.titleAr}» واعتماد نشرها للأعضاء بنجاح! 🚀✨`);
+    setTimeout(() => setSuccessMsg(''), 4000);
   };
 
   // تبديل حالة التحضير لعضو ومزامنته مركزياً
@@ -689,30 +712,36 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
         </div>
       )}
 
-      {/* نافذة مودال لتعديل تفاصيل الورشة والروابط والبوستر */}
+      {/* نافذة مودال لتعديل تفاصيل الورشة والروابط والبوستر والاعتماد */}
       {editingWorkshop && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs"
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm overflow-y-auto"
           onClick={() => setEditingWorkshop(null)}
+          dir="rtl"
         >
           <div
-            className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border-2 border-gray-900 text-right"
+            className="w-full max-w-xl bg-white rounded-3xl shadow-2xl border-2 border-gray-900 text-right flex flex-col max-h-[92vh] my-auto overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
-              <h3 className="text-lg font-black text-gray-900">
-                تعديل ورشة «{editingWorkshop.titleAr}» ✏️
-              </h3>
+            {/* Header (ثابت في الأعلى) */}
+            <div className="flex items-center justify-between p-4 sm:p-5 pb-3 border-b border-gray-100 shrink-0 bg-white">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">✏️</span>
+                <h3 className="text-base sm:text-lg font-black text-gray-900">
+                  تعديل واعتماد ورشة «{editingWorkshop.titleAr}»
+                </h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setEditingWorkshop(null)}
-                className="p-1 rounded-full hover:bg-gray-100 text-gray-400 border-none bg-transparent cursor-pointer"
+                className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-900 border-none bg-transparent cursor-pointer transition-colors"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="space-y-4 text-right">
+            {/* Form Body (قابل للتمرير بسلاسة مهما كبرت الصورة أو المحتوى) */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-xs font-black text-gray-700 mb-1">
                   اسم المقدّم / المقدّمة:
@@ -732,13 +761,13 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
 
                 {/* معاينة الصورة المرفوعة أو الرابط */}
                 {editPosterUrl ? (
-                  <div className="relative mb-2.5 rounded-2xl overflow-hidden border-2 border-gray-900 group bg-gray-100">
+                  <div className="relative mb-2.5 rounded-2xl overflow-hidden border-2 border-gray-900 group bg-gray-900 flex items-center justify-center">
                     <img
                       src={editPosterUrl}
                       alt="بوستر الورشة"
-                      className="w-full h-44 object-cover"
+                      className="w-full max-h-52 object-contain"
                     />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                       <label
                         htmlFor="poster-file-upload-input"
                         className="px-3 py-1.5 rounded-xl bg-white text-gray-900 text-xs font-black cursor-pointer shadow-md hover:bg-gray-100 transition-colors flex items-center gap-1"
@@ -952,23 +981,37 @@ export const LeaderWorkshopsSheet: React.FC<LeaderWorkshopsSheetProps> = ({ curr
                   </button>
                 </div>
               </div>
+            </div>
 
-              <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+            {/* Footer (ثابت في الأسفل دائماً مع زر الاعتماد) */}
+            <div className="p-3.5 sm:p-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setEditingWorkshop(null)}
+                className="py-2.5 px-4 rounded-xl text-xs font-bold text-gray-600 bg-white hover:bg-gray-100 border border-gray-200 cursor-pointer"
+              >
+                إلغاء
+              </button>
+
+              <div className="flex items-center gap-2 flex-1 sm:justify-end">
                 <button
                   type="button"
-                  onClick={() => setEditingWorkshop(null)}
-                  className="py-2.5 px-4 rounded-xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 border-none cursor-pointer"
+                  onClick={handleSaveEdit}
+                  className="py-2.5 px-4 rounded-xl text-xs font-black text-gray-900 bg-white hover:bg-gray-100 border border-gray-300 cursor-pointer shadow-2xs whitespace-nowrap"
                 >
-                  إلغاء
+                  حفظ كمسودة ✓
                 </button>
+
                 <button
-                  type="submit"
-                  className="flex-1 py-2.5 px-4 rounded-xl text-xs font-black text-white bg-[#0F1729] hover:bg-gray-800 border-none cursor-pointer shadow-xs"
+                  type="button"
+                  onClick={handleSaveAndPublish}
+                  className="flex-1 sm:flex-initial py-2.5 px-5 rounded-xl text-xs sm:text-sm font-black text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 border-none cursor-pointer shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap"
                 >
-                  حفظ التعديلات والمواعيد ✓
+                  <Sparkles size={14} className="text-amber-300" />
+                  <span>اعتماد ونشر الورشة للأعضاء 🚀</span>
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
