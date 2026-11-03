@@ -2923,11 +2923,15 @@ class StoreManager {
     const subs = this.submissions.filter((s: any) => s.profile_id === userId || s.profileId === userId);
     const approvedSubs = subs.filter((s: any) => s.status === 'approved');
     const ledger = this.pointsLedger.filter((l: any) => l.profile_id === userId);
+    const attStats = this.getMemberAttendanceStats(userId);
 
-    const workshopsCompleted = ledger.filter((l: any) =>
-      (l.reason && (l.reason.includes('ورشة') || l.reason.toLowerCase().includes('workshop'))) ||
-      (l.activity_key && l.activity_key.includes('workshop'))
-    ).length;
+    const workshopsCompleted = Math.max(
+      attStats.attended,
+      ledger.filter((l: any) =>
+        (l.reason && (l.reason.includes('ورشة') || l.reason.includes('لقاء') || l.reason.includes('حضور') || l.reason.toLowerCase().includes('workshop'))) ||
+        (l.activity_key && (l.activity_key.includes('workshop') || l.activity_key.startsWith('att_')))
+      ).length
+    );
 
     const challengesCompleted = approvedSubs.length + ledger.filter((l: any) =>
       (l.reason && (l.reason.includes('تحدي') || l.reason.toLowerCase().includes('lab')))
@@ -3460,6 +3464,59 @@ class StoreManager {
 
   public async addPoints(userId: string, amount: number, reason?: string) {
     return this.awardPoints(userId, amount, reason);
+  }
+
+  // --- سحب / خصم نقاط رسمياً وتوثيقها في دفتر القيود ---
+  public async deductPoints(
+    userId: string,
+    amount: number,
+    reason?: string,
+    deductedBy?: string,
+    activityKey?: string
+  ): Promise<boolean> {
+    const approverId = deductedBy || this.getCurrentUser()?.id || '1734f887-f9f3-4d6c-a963-d00f767d86e6';
+    const numAmount = Math.abs(Number(amount));
+    const finalKey = activityKey || `deduct-${Date.now()}-${userId.slice(0, 8)}-${Math.random().toString(36).slice(2, 7)}`;
+    const finalReason = reason ? `سحب نقاط: ${reason}` : 'خصم وسحب نقاط من القيادة';
+
+    const client = supabaseAdmin || supabase;
+    const { error } = await client.from('points_ledger').insert({
+      profile_id: userId,
+      points_amount: -numAmount,
+      reason: finalReason,
+      activity_key: finalKey,
+      approved_by: approverId,
+    });
+
+    if (error) {
+      console.error('Supabase deductPoints error:', error);
+      throw new Error(`فشل قيد خصم النقاط في قاعدة البيانات: ${error.message}`);
+    }
+
+    const currentMember = this.members.find((m) => m.id === userId);
+    const updatedPoints = Math.max(0, (currentMember?.points || 0) - numAmount);
+    this.patchMember(userId, { points: updatedPoints });
+
+    try {
+      await client.from('profiles').update({ points: updatedPoints }).eq('id', userId);
+    } catch (e) {
+      console.warn('Could not update profiles.points:', e);
+    }
+
+    await this.loadRoleData();
+
+    this.addNotification({
+      userId,
+      type: 'points',
+      title: 'تعديل في رصيد النقاط 🔻',
+      description: `${finalReason} (-${numAmount} نقطة)`,
+      badgeText: `-${numAmount}`,
+      pointsAmount: -numAmount,
+      targetTab: 'home',
+    });
+
+    this.notify();
+    return true;
   }
 
   // --- Inquiries (inquiries table in Supabase) ---
